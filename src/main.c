@@ -9,6 +9,9 @@
 #include "gt/feature/paddle/paddle.h" 
 #include "gt/banking.h" //Banking API
 #include "gen/bank_nums.h" //Generated macros for named bank numbers
+#include "gt/feature/text/text.h"
+#include "gen/assets/font.h"
+#include "gen/assets/sdk_default.h"
 
 #define BOXCOLOR WHITE//92
 #define BOXCOLORA WHITE
@@ -904,27 +907,59 @@ void BreakoutGame(){
     print_scores(score);
     
 }
+#pragma code-name (push, "PROG2")
+
+void SelectControllerScreen_prog2()
+{
+    char top = 50;
+    //queue_clear_screen(0);
+    queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
+    //queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
+    text_init();
+    text_color = TEXT_COLOR_WHITE;
+    text_cursor_x = 10;
+    text_cursor_y = top;
+    text_print_string("Press A");
+    text_cursor_x = 30;
+    text_cursor_y = 10 + top;
+
+    text_print_string("for Paddle");
+
+    text_cursor_x = 10;
+    text_cursor_y = 30 + top;
+
+    text_print_string("Press B");
+    text_cursor_x = 30;
+    text_cursor_y = 40 + top;
+
+    text_print_string("for Gamepad");
+    if (player1_buttons & INPUT_MASK_B && ~player1_old_buttons & INPUT_MASK_B) 
+    {
+        controller_style = CONTROLLER_STYLE_GPAD1;
+        gamestate = STATE_BREAKOUT_ATTRACT;
+    }
+    else if (player1_buttons & INPUT_MASK_A && ~player1_old_buttons & INPUT_MASK_A) 
+    {
+        controller_style = CONTROLLER_STYLE_PADDLE0;
+        gamestate = STATE_BREAKOUT_ATTRACT;
+    }
+}
+#pragma code-name (pop);
 
 void GameWrapper()
 {
     if (gamestate == STATE_CONTROLLER_SELECT)
     {
-        queue_draw_sprite(1,7,126,113,1,1,2);//BACKGROUND IMAGE
-        queue_draw_sprite(38,64,52,6,0,14,4);//press start
-        if (player1_buttons & INPUT_MASK_A && ~player1_old_buttons & INPUT_MASK_A) 
-        {
-            controller_style = CONTROLLER_STYLE_GPAD1;
-            gamestate = STATE_BREAKOUT_ATTRACT;
-        }
-        else if (player1_buttons & INPUT_MASK_B && ~player1_old_buttons & INPUT_MASK_B) 
-        {
-            controller_style = CONTROLLER_STYLE_PADDLE0;
-            gamestate = STATE_BREAKOUT_ATTRACT;
-        }
+        //queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
+        //queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
+        //change_rom_bank(BANK_PROG1);
+        //DrawBricks_prog1();
+        change_rom_bank(BANK_PROG2);
+        SelectControllerScreen_prog2();
     }
     else
     {
-    BreakoutGame();
+        BreakoutGame();
     }
 }
 void main () {
