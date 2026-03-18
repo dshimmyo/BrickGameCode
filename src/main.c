@@ -904,17 +904,23 @@ void BreakoutGame(){
     queue_draw_sprite(box_x,box_y,BALLSIZE,BALLSIZE,4,0,1);//blurry 3x3 ball gx 3 gy 8, paddle at 0,0
     queue_draw_sprite(boxA_x,boxA_y,BALLSIZE,BALLSIZE,4,0,1);
     queue_draw_sprite(paddleX,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0,0,1);
-    print_scores(score);
+   // print_scores(score);
     
 }
-#pragma code-name (push, "PROG2")
+#pragma code-name (push, "PROG1")
 
-void SelectControllerScreen_prog2()
+void SelectControllerScreen_prog1()
 {
-    char top = 50;
+    char top = 60;
     //queue_clear_screen(0);
     queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
-    //queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
+    queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
+    //change_rom_bank(BANK_PROG1);
+    DrawBricks_prog1();
+
+    await_draw_queue();
+    print_scores(0);
+
     text_init();
     text_color = TEXT_COLOR_WHITE;
     text_cursor_x = 10;
@@ -954,8 +960,8 @@ void GameWrapper()
         //queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
         //change_rom_bank(BANK_PROG1);
         //DrawBricks_prog1();
-        change_rom_bank(BANK_PROG2);
-        SelectControllerScreen_prog2();
+        change_rom_bank(BANK_PROG1);
+        SelectControllerScreen_prog1();
     }
     else
     {
@@ -978,6 +984,7 @@ void main () {
         GameWrapper();
         queue_clear_border(2);
         await_draw_queue();
+        print_scores(score);
         await_vsync(1);
         flip_pages();
         tick_music();
