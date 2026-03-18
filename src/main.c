@@ -933,12 +933,12 @@ void SelectControllerScreen_prog2()
     text_cursor_y = 40 + top;
 
     text_print_string("for Gamepad");
-    if (player1_buttons & INPUT_MASK_B && ~player1_old_buttons & INPUT_MASK_B) 
+    if ((player1_buttons & INPUT_MASK_B) && !(player1_old_buttons & INPUT_MASK_B)) 
     {
         controller_style = CONTROLLER_STYLE_GPAD1;
         gamestate = STATE_BREAKOUT_ATTRACT;
     }
-    else if (player1_buttons & INPUT_MASK_A && ~player1_old_buttons & INPUT_MASK_A) 
+    else if ((player1_buttons & INPUT_MASK_A) && !(player1_old_buttons & INPUT_MASK_A)) 
     {
         controller_style = CONTROLLER_STYLE_PADDLE0;
         gamestate = STATE_BREAKOUT_ATTRACT;
