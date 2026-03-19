@@ -67,6 +67,7 @@ typedef struct {
 const angle reflectAnglesNew_prog1[NUM_ANGLES]=
 {{-251<<1,-30<<1},{-247<<1,-61<<1},{-235<<1,-86<<1},{-224<<1,-112<<1},{-202<<1,-146<<1},{-181<<1,-181<<1},{-146<<1,-202<<1},{-112<<1,-224<<1},{-86<<1,-235<<1},{-61<<1,-247<<1},{-30<<1,-251<<1},
 {30<<1,-251<<1},{61<<1,-247<<1},{86<<1,-235<<1},{112<<1,-224<<1},{146<<1,-202<<1},{181<<1,-181<<1},{202<<1,-146<<1},{224<<1,-112<<1},{235<<1,-86<<1},{247<<1,-61<<1},{251<<1,-30<<1}};
+
 #pragma rodata-name (pop)
 
 unsigned char brickRowPoints[5]={3,2,2,1,1};//number of points gained by hitting a brick in each row, top to bottom
@@ -193,59 +194,41 @@ bool detectPaddleCollision_prog1(char sourceXLow,char sourceXHi,char sourceYLow,
     //ballSpeedA = (ballSpeedA<2) ? 2 : ballSpeedA;
 
     //standard reflection
-    tempDy = (tempDy<0) ? tempDy : - ((unsigned int) tempDy);
-    tempDx = tempDx;
+    // tempDy = (tempDy<0) ? tempDy : - ((unsigned int) tempDy);
+    // tempDx = tempDx;
 
     //attempt to make sophisticated reflections:
-    nearestIndex = GetNearestReflectAngleIndex(tempDx);
+    //nearestIndex = GetNearestReflectAngleIndex(tempDx);
     switch (paddleHitRegion)
     {
-        case 0: //A nudges the ball left twice
-        //new reflect angles have no sign so left side increases dx, right side decreases dx
-        if (*_dx<0){
-            nearestIndex -= 2;
-        }
-        else
-        {
-            //new behavior reflect ball left if coming from left (dx>0 )
-            *_dx = -*_dx;
-            *_dy=tempDy;//remember to reflect the ball
-            play_sound_effect(ASSET__audio__paddle_sfx_ID,(char)0);
-            return true;
-        }
+        case 0: //A send ball far left
+        nearestIndex = 1;//0
         break;
         case 1:
-        case 2: //BC budges the ball left 
-        nearestIndex -= 1;
+        nearestIndex = 4;
         break;
-        case 3: //DE no additional nudging
-        case 4:
-        *_dy=tempDy;//remember to reflect the ball
-        play_sound_effect(ASSET__audio__paddle_sfx_ID,(char)0);
-        return true;
+        case 2: //BC slight left
+        nearestIndex = 7;
+        break;
+        case 3: //E almost vertical left
+        nearestIndex = 11;
+        break;
+        case 4: //E almost vertical right
+        nearestIndex = 12;
         break;
         case 5://FG nudges right 
+        nearestIndex= 14;
+        break;
         case 6://nudges right
-        nearestIndex +=1;
+        nearestIndex = 17;
         break; 
-        case 7://H right right
-        case 8://needs this
-        if (*_dx>0){//glancing hit
-            nearestIndex +=2;
-        }
-        else
-        {
-            //new behavior reflect ball left if coming from the right
-            *_dx = -*_dx;
-            *_dy=tempDy;//remember to reflect the ball
-            play_sound_effect(ASSET__audio__paddle_sfx_ID,(char)0);
-            return true;
-        }
+
+        case 7://H far right
+        case 8://extra zone? far right
+        nearestIndex = 20;//21
         break;
 
     }
-    nearestIndex = (nearestIndex<0) ? 0 : nearestIndex;
-    nearestIndex = (nearestIndex>NUM_ANGLES-1) ? NUM_ANGLES-1 : nearestIndex;
     nearestAngle = reflectAnglesNew_prog1[nearestIndex];
     *_dx = nearestAngle.dx;
     *_dy = nearestAngle.dy;
@@ -436,6 +419,7 @@ int paddleXFromDPad_prog1()
 }
 int ConstVelocity_prog1(char source, char target, char vel){
     int result = source;
+    vel = rnd_range(0,vel<<1);
     if (source < target){
         result = source + vel;
         if (result > target) result = target;
