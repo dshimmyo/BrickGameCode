@@ -258,10 +258,13 @@ bool detectPaddleCollision_prog1(char sourceXLow,char sourceXHi,char sourceYLow,
 int approx_div_3_prog1(int num) {
     return (num >> 6) * 21; // This is an approximation using a fixed-point representation
 }
+int approx_five_twelfths(int num){
+    return (num >> 5) * 13;
+}
 int speedMult_prog1(int source,int mult){//multiplier can be fine-tuned here and hidden from code
     //return (source>>1) * mult; //half increments
     //return (source/3) * mult; //third increments, more work for cpu
-    return approx_div_3_prog1(source) * mult;
+    return approx_five_twelfths(source) * mult;
 }
 void boxMotion_prog1()
 {
