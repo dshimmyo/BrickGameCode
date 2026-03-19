@@ -36,8 +36,9 @@
 #define BRICK_COOLDOWN false
 
 #define STATE_CONTROLLER_SELECT 10
-#define STATE_BREAKOUT_ATTRACT 20
-#define STATE_BREAKOUT_GAMEPLAY 30
+#define STATE_BREAKOUT_MENU 20
+#define STATE_BREAKOUT_SERVE 25
+#define STATE_BREAKOUT_PLAY 30
 #define STATE_BREAKOUT_GAMEOVER 40
 #define STATE_BREAKOUT_LEADERBOARD 50
 
@@ -919,14 +920,12 @@ void BreakoutGame(){
 void SelectControllerScreen_prog1()
 {
     char top = 60;
-    //queue_clear_screen(0);
-    queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
-    queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
-    //change_rom_bank(BANK_PROG1);
-    DrawBricks_prog1();
+    // queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
+    // queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
+    // DrawBricks_prog1();
 
-    await_draw_queue();
-    print_scores(0);
+    // await_draw_queue();
+    // print_scores(0);
 
     text_init();
     text_color = TEXT_COLOR_WHITE;
@@ -949,12 +948,12 @@ void SelectControllerScreen_prog1()
     if ((player1_buttons & INPUT_MASK_B) && !(player1_old_buttons & INPUT_MASK_B)) 
     {
         controller_style = CONTROLLER_STYLE_GPAD1;
-        gamestate = STATE_BREAKOUT_ATTRACT;
+        gamestate = STATE_BREAKOUT_MENU;
     }
     else if ((player1_buttons & INPUT_MASK_A) && !(player1_old_buttons & INPUT_MASK_A)) 
     {
         controller_style = CONTROLLER_STYLE_PADDLE0;
-        gamestate = STATE_BREAKOUT_ATTRACT;
+        gamestate = STATE_BREAKOUT_MENU;
     }
 }
 void update_paddle_offset_prog1(){
@@ -1001,6 +1000,28 @@ void main () {
     load_spritesheet(ASSET__gfx__BreakoutBrickBG_bmp,2);
     load_spritesheet(ASSET__gfx__PressStart_bmp,4);
     gamestate = STATE_CONTROLLER_SELECT;
+
+    //test of pre-drawing the background and do a lot less rendering for each frame.
+    //this needs to be done twice to fill both buffers
+
+    queue_clear_border(2);
+    queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
+    queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
+    change_rom_bank(BANK_PROG1);
+    DrawBricks_prog1();
+    await_draw_queue();
+    await_vsync(1);
+    flip_pages();
+    queue_clear_border(2);
+    queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
+    queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
+    change_rom_bank(BANK_PROG1);
+    DrawBricks_prog1();
+    await_draw_queue();
+    await_vsync(1);
+    flip_pages();
+
+    //print_scores(0);
     while (1) 
     {                                     //  Run forever
         GameWrapper();
