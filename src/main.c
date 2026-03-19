@@ -103,6 +103,8 @@ char paddleX = 64;//global paddle xpos
 unsigned char button_byte=0;//8-bit byte representing button states, for debugging and potential use in game mechanics
 unsigned int score = 0;//global score variable
 int resetTimer = 100;//delay between brick reset and box reset
+char rndPaddleOffset = 0;
+unsigned char rndPaddleOffsetTimer = 0;
 
 void playBass(char row){
 
@@ -199,33 +201,36 @@ bool detectPaddleCollision_prog1(char sourceXLow,char sourceXHi,char sourceYLow,
 
     //attempt to make sophisticated reflections:
     //nearestIndex = GetNearestReflectAngleIndex(tempDx);
+
+    //22 angles
+    //0  1  2  3  4  5  6  7  8  9  10
+    //21 20 19 18 17 16 15 14 13 12 11
     switch (paddleHitRegion)
     {
         case 0: //A send ball far left
-        nearestIndex = 1;//0
+        nearestIndex = 4;//1//0
         break;
         case 1:
-        nearestIndex = 4;
+        nearestIndex = 6;
         break;
         case 2: //BC slight left
-        nearestIndex = 7;
+        nearestIndex = 8;
         break;
         case 3: //E almost vertical left
-        nearestIndex = 11;
+        nearestIndex = 10;
         break;
         case 4: //E almost vertical right
-        nearestIndex = 12;
+        nearestIndex = 11;
         break;
         case 5://FG nudges right 
-        nearestIndex= 14;
+        nearestIndex= 13;
         break;
         case 6://nudges right
-        nearestIndex = 17;
+        nearestIndex = 15;
         break; 
-
         case 7://H far right
         case 8://extra zone? far right
-        nearestIndex = 20;//21
+        nearestIndex = 17;//20;//21
         break;
 
     }
@@ -419,7 +424,6 @@ int paddleXFromDPad_prog1()
 }
 int ConstVelocity_prog1(char source, char target, char vel){
     int result = source;
-    vel = rnd_range(0,vel<<1);
     if (source < target){
         result = source + vel;
         if (result > target) result = target;
@@ -460,11 +464,11 @@ char paddleXFromClosestBox_prog1(){
     }
     //return ConstVelocity(paddleX, PosXList[lowestBallIndex] - (PADDLEWIDTH>>1),4);//
     if (dyList[downestDyIndex] < 0 ){//both up, follow the highest, most likely to bounce
-        return ConstVelocity_prog1(paddleX, PosXList[highestBallIndex] - (PADDLEWIDTH>>1),4);//
+        return ConstVelocity_prog1(paddleX, PosXList[highestBallIndex] - (PADDLEWIDTH>>1) + rndPaddleOffset,3);//
     } else if (dyList[closestBallIndex]>0){//if the closest is downward
-        return ConstVelocity_prog1(paddleX, PosXList[closestBallIndex] - (PADDLEWIDTH>>1),4);//
+        return ConstVelocity_prog1(paddleX, PosXList[closestBallIndex] - (PADDLEWIDTH>>1) + rndPaddleOffset,3);//
     } else { //just pick the one traveling downward
-        return ConstVelocity_prog1(paddleX, PosXList[downestDyIndex] - (PADDLEWIDTH>>1),4);//
+        return ConstVelocity_prog1(paddleX, PosXList[downestDyIndex] - (PADDLEWIDTH>>1) + rndPaddleOffset,3);//
     }
 }
 #pragma code-name (pop)
@@ -934,10 +938,25 @@ void SelectControllerScreen_prog1()
         gamestate = STATE_BREAKOUT_ATTRACT;
     }
 }
+void update_paddle_offset_prog1(){
+    if (rndPaddleOffsetTimer++ > 128)
+    {
+        rndPaddleOffset = rnd_range(-(PADDLEWIDTH>>1),(PADDLEWIDTH>>1));
+        rndPaddleOffsetTimer=0;
+    }
+}
 #pragma code-name (pop);
+
+
+
 
 void GameWrapper()
 {
+    if (demoMode) {
+        change_rom_bank(BANK_PROG1);
+        update_paddle_offset_prog1();
+    }
+
     if (gamestate == STATE_CONTROLLER_SELECT)
     {
         //queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
