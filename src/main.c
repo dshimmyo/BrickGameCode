@@ -130,22 +130,29 @@ void playBass(char row){
 }
 
 void soundTest(){
-    play_sound_effect(ASSET__audio__flongNew_sfx_ID,(char)1);
+    play_sound_effect(ASSET__audio__flongNew_sfx_ID,1);
+}
+void soundOutOfBounds()
+{
+    play_sound_effect(ASSET__audio__outOfBounds_sfx_ID,1);
 }
 void soundTestA(){
-    play_sound_effect(ASSET__audio__chirp_sfx_ID,(char)1);
+    play_sound_effect(ASSET__audio__chirp_sfx_ID,1);
 }
 void soundCol(){
-    play_sound_effect(ASSET__audio__bik_sfx_ID,(char)1);
+    play_sound_effect(ASSET__audio__bik_sfx_ID,1);
 }
 void soundWall(){
-    play_sound_effect(ASSET__audio__wall_sfx_ID,(char)1);
+    play_sound_effect(ASSET__audio__wall_sfx_ID,1);
 }
 void soundCeiling(){
     play_sound_effect(ASSET__audio__ceiling_sfx_ID,(char)1);
 }
 
-unsigned char GetNearestReflectAngleIndex( int _dx)
+
+#pragma code-name (push, "PROG1")
+
+unsigned char GetNearestReflectAngleIndex_prog1( int _dx)
 {
     unsigned char index=0;
     unsigned char diff = 255;
@@ -163,7 +170,6 @@ unsigned char GetNearestReflectAngleIndex( int _dx)
     return bestIndex;
 }
 
-#pragma code-name (push, "PROG1")
 bool detectPaddleCollision_prog1(char sourceXLow,char sourceXHi,char sourceYLow,char sourceYHi,
     int *_dx, int *_dy, int *_ballSpeed)
 {
