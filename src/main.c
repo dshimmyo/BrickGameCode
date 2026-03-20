@@ -1023,7 +1023,7 @@ void main () {
     {                                     //  Run forever
         GameWrapper();
         queue_clear_border(2);
-        queue_draw_sprite(1,7,48,12,1,1,2);//clear scores with bg sprite
+        queue_draw_box(BRICK_LEFT - 1,10,33,9,0);//clear scores with bg sprite
         await_draw_queue();
         print_scores(score);
         await_vsync(1);
