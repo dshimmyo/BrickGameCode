@@ -811,16 +811,27 @@ void BreakoutBGRefresh_prog1()
 {
     if (breakoutRefresh<2){
         //queue_clear_border(2);
-        queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
-        queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
+
+        queue_clear_screen(0);
+        queue_draw_box(1,7,128,3,0b01111000);//top border
+        queue_draw_box(1,(CEILING-2),126,2,0b01111000);//ceiling bar
+
+        //old sprite bg
+        // queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
+        // queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
         breakoutRefresh++;//runs twice to cover two buffers
     }
     else//clean up edges
     {
         //queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
-        queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
-        queue_draw_sprite(1,7,3,127,1,7,2);//left bar
-        queue_draw_sprite(124,7,3,113,124,1,2);//rt bar
+        //queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
+        queue_draw_box(0,7,BRICK_LEFT-1,127,0b01111000);//left bar
+        queue_draw_box(1,(CEILING-2),126,2,0b01111000);//ceiling bar fixes ball ghost
+
+        //queue_draw_sprite(1,7,3,127,1,7,2);//left bar
+
+        queue_draw_box(BRICK_RIGHT+1,7,3,113,0b01111000);//rt bar
+        //queue_draw_sprite(124,7,3,113,124,1,2);//rt bar
 
 
     }
