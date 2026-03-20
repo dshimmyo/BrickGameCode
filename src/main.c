@@ -506,9 +506,7 @@ char paddleXFromClosestBox_prog1(){
         return ConstVelocity_prog1(paddleX, PosXList[downestDyIndex] - (PADDLEWIDTH>>1) + rndPaddleOffset,3);//
     }
 }
-#pragma code-name (pop)
-
-void inputButtonsDraw()
+void inputButtonsDraw_prog1()
 {
     //input testing
     if (player1_buttons & INPUT_MASK_UP){queue_draw_box(1,7,8,2,182);}
@@ -525,13 +523,16 @@ void inputButtonsDraw()
     if (player1_buttons & INPUT_MASK_MODE){queue_draw_box(111,7,8,2,199);}//mode
 
 }
-void inputBinaryDraw()
+void inputBinaryDraw_prog1()
 {
     //inputs mapped as 7 bytes from low to high (right to left)
     //up,down,left,right,a,b,c
     //128 possibilities, should map cleanly to pixels from left to right
     queue_draw_box(0,BINARYTESTPOSY,button_byte>>1,1,182);
 }
+#pragma code-name (pop)
+
+
 
 void ToggleDemoMode()
 {
@@ -579,125 +580,11 @@ void NewGame()
 }
 void init_game()//used to refresh the screen when all the bricks are gone
 {
-    //need to rewrite the game progression
-    //select controller, attract mode, game start, game pause, end game, back to attract mode
-
-    // unsigned char x;
-    // unsigned char y;
-    // int count = 0;
-    //numBricks = NUMBRICKSH * NUMBRICKSV;
-    // ballSpeed = 1;//slow start
-    // ballSpeedA = 1;//slow start
     numLives = 3;
-    // for (y = 0; y<NUMBRICKSV; y++){
-    //     for (x=0; x<NUMBRICKSH; x++){
-    //         brickRows[y].visible[x]=1;
-    //         animatedBricks[count++]=0;//set all bricks to unanimated
-    //     }
-    // }
     NewLevel();
-    // randomizeBox(&box_x, &box_y, &dx, &dy, &ballSpeed);
-    // randomizeBox(&boxA_x, &boxA_y, &dxA, &dyA, &ballSpeedA);
     resetTimer = 100;
 }
-// Define the structure to hold Color properties
-//unsigned char hue;        // 3 bits (0-7)
-//unsigned char saturation; // 2 bits (0-3)
-//unsigned char luminosity; // 3 bits (0-7)
 
-// char colorTestHueOffset = 0;
-// char hueTimer = 0;
-// unsigned char simplePack(unsigned char h)
-// {
-//     return (h & 0x07) << 5 | 0b00011111;
-// }
-// void ColorTest(){
-//     if (++hueTimer > 8) {
-//         colorTestHueOffset++;
-//         hueTimer = 0;
-//     }
-//     if (colorTestHueOffset > 7) colorTestHueOffset = 0;
-//     hue = colorTestHueOffset;//colorTestHueOffset % 7;
-//     //saturation = 3;
-//     //luminosity = 7;
-//     //boxes draw left-right top-down 0->127, 0->120
-//     queue_draw_box(0, 118, 8, 2, simplePack(hue));//packColor(hue,3,7));//0b00011111);
-//     queue_draw_box(8, 118, 8, 2, simplePack(hue+1));//packColor(hue+1,3,7));//0b00111111);
-//     queue_draw_box(16, 118, 8, 2, simplePack(hue+2));//packColor(hue+2,3,7));//0b01011111);
-//     queue_draw_box(24, 118, 8, 2, simplePack(hue+3));//packColor(hue+3,3,7));//0b01111111);
-//     queue_draw_box(32, 118, 8, 2, simplePack(hue+4));//packColor(hue+4,3,7));//0b10011111);
-//     queue_draw_box(40, 118, 8, 2, simplePack(hue+5));//packColor(hue+5,3,7));//0b10111111);
-//     queue_draw_box(48, 118, 8, 2, simplePack(hue+6));//packColor(hue+6,3,7));//0b11011111);
-//     queue_draw_box(56, 118, 8, 2, simplePack(hue+7));//packColor(hue+7,3,7));//0b11111111);
-
-//     queue_draw_box(64, 118, 8, 2, simplePack(hue+4));//packColor(hue+4,3,7));//0b00011100);
-//     queue_draw_box(72, 118, 8, 2, simplePack(hue+3));//packColor(hue+3,3,7));//0b00111100);
-//     queue_draw_box(80, 118, 8, 2, simplePack(hue+2));//packColor(hue+2,3,7));//0b01011100);
-//     queue_draw_box(88, 118, 8, 2, simplePack(hue+1));//packColor(hue+1,3,7));//0b01111100);
-//     queue_draw_box(96, 118, 8, 2, simplePack(hue));//packColor(hue,3,7));//0b10011100);
-//     queue_draw_box(104, 118, 8, 2, simplePack(hue+7));//packColor(hue+7,3,7));//0b10111100);
-//     queue_draw_box(112, 118, 8, 2, simplePack(hue+6));//packColor(hue+6,3,7));//0b11011100);
-//     queue_draw_box(120, 118, 8, 2, simplePack(hue+5));//packColor(hue+5,3,7));//0b11111100);
-
-// }
-// char spiralX=0;
-// char spiralY=8;
-// unsigned char spiralEndTimer=0;
-// unsigned char GetSpiralColor(unsigned char y)
-// {
-//         // unsigned char colorIndex = ((y)>>3) & 0b00000111;
-//         // unsigned char hueShift = colorIndex<<6;
-//         // unsigned char color = 0b000111111 | hueShift;
-//         //return color;
-
-//         //using brick row colors
-//         return brickColors[y % 5];
-
-// }
-// void ColorSpiral(bool last)
-// {
-//     unsigned char x=0;
-//     unsigned char y=0;
-//     queue_clear_screen(256);//256 black
-
-//     for (y=8; y<spiralY;y+=8){//fill in previous rows
-//         queue_draw_box(1,y,120,8,GetSpiralColor((y>>3)-1));
-//     }
-//     if (!last) //draws dynamic row and increments values for the next frame
-//     {
-//         queue_draw_box(1,spiralY,spiralX+8,8,GetSpiralColor((spiralY>>3)-1));//this row draws the last row dynamically
-
-//         spiralX+=8;
-//         if (spiralX == 120) 
-//         {
-//             spiralX = 0;
-//             spiralY +=8;
-//         }
-//     }
-//         await_draw_queue();
-//         await_vsync(1);
-//         flip_pages();
-//         tick_music();//optional?
-//         update_inputs();//optional?
-// }
-// void Intro_sequence(){
-//     char i=0;
-//     bool skipSequence=false;
-//     queue_clear_screen(256);//256 black
-
-//     while (spiralY<112 && !skipSequence){ //intro color test sequence
-//         ColorSpiral(false);
-//         if (player1_buttons & INPUT_MASK_START && ~player1_old_buttons & INPUT_MASK_START) skipSequence=true;
-//     }
-
-//     spiralY=112;
-//     for (i=0;i<64;i++)
-//         {
-//             ColorSpiral(true);
-//         }
-//     queue_clear_border(1);
-// }
-//int gamestate = 0;
 
 unsigned char ClampX(unsigned char num)
 {
@@ -827,10 +714,7 @@ void DrawBricksWrapper_prog1(){
         DrawBricksErase_prog1();
     }
 }
-#pragma code-name (pop);
-// brick_visible[5][16] - 1 = visible, 0 = destroyed
-//uint8_t brick_visible[5][16];
-#pragma code-name (push, "PROG1")
+
 bool check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, int *_ball_dy, int *_ballSpeed) {
     unsigned char col;
     unsigned char row;
@@ -923,6 +807,24 @@ bool check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
     }
     return false;
 }
+void BreakoutBGRefresh_prog1()
+{
+    if (breakoutRefresh<2){
+        //queue_clear_border(2);
+        queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
+        queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
+        breakoutRefresh++;//runs twice to cover two buffers
+    }
+    else//clean up edges
+    {
+        //queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
+        queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
+        queue_draw_sprite(1,7,3,127,1,7,2);//left bar
+        queue_draw_sprite(124,7,3,113,124,1,2);//rt bar
+
+
+    }
+}
 
 #pragma code-name (pop)
 
@@ -937,19 +839,12 @@ bool BricksAllGone(){
     return true;
 }
 
-void BreakoutBGRefresh()
-{
-    if (breakoutRefresh<2){
-        queue_clear_border(2);
-        queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
-        queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
-        breakoutRefresh++;//runs twice to cover two buffers
-    }
-}
+
 
 int blinkTimer=0;
 void BreakoutGame(){
-    BreakoutBGRefresh();
+    change_rom_bank(BANK_PROG1);
+    BreakoutBGRefresh_prog1();
     //cover up previous paddle position
     queue_draw_sprite(paddleX_old_old,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,paddleX_old_old,PADDLEY,2);//bg in bank 2
     //erase where ball has previously been
@@ -978,8 +873,10 @@ void BreakoutGame(){
         debugMode = !debugMode;
     }
     if (debugMode){
-        inputButtonsDraw();//debug display
-        inputBinaryDraw();//debug line
+        change_rom_bank(BANK_PROG1);
+        inputButtonsDraw_prog1();//debug display
+        change_rom_bank(BANK_PROG1);
+        inputBinaryDraw_prog1();//debug line
     }
 
     change_rom_bank(BANK_PROG1);
@@ -1022,7 +919,8 @@ void BreakoutGame(){
 void SelectControllerScreen_prog1()
 {
     char top = 60;
-    BreakoutBGRefresh();
+    change_rom_bank(BANK_PROG1);
+    BreakoutBGRefresh_prog1();
     await_draw_queue();
     text_init();
     text_color = TEXT_COLOR_WHITE;
