@@ -854,13 +854,17 @@ void BreakoutGame(){
     queue_draw_sprite(box_x_old_old,box_y_old_old,BALLSIZE,BALLSIZE,box_x_old_old,box_y_old_old,2);//blurry 3x3 ball gx 3 gy 8, paddle at 0,0
     queue_draw_sprite(boxA_x_old_old,boxA_y_old_old,BALLSIZE,BALLSIZE,box_x_old_old,box_y_old_old,2);//blurry 3x3 ball gx 3 gy 8, paddle at 0,0
 
-    // if (demoMode)
-    // {
-        // if (blinkTimer++>0){
-        //     queue_draw_sprite(38,64,52,6,0,14,4);//press start
-        //     blinkTimer = (blinkTimer>45) ? blinkTimer=-80 : blinkTimer;
-        // }
-    // }
+    if (demoMode)
+    {
+        if (blinkTimer++>0){
+            queue_draw_sprite(38,64,52,6,0,14,4);//press start
+            blinkTimer = (blinkTimer>45) ? blinkTimer=-80 : blinkTimer;
+        }
+        else
+        {
+            queue_draw_sprite(38,64,52,6,38,64,2);//press start
+        }
+    }
     if (BricksAllGone()) {
         if (!resetTimer--) {
             init_game();
