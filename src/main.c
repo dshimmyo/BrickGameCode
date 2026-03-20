@@ -35,12 +35,12 @@
 #define BRICKWIDTH 2//4//8//4//2//8//12
 #define BRICKHEIGHT 4
 #define NUMBRICKSH 60//30//15//30//60//15 //10
-#define NUMBRICKSV 5
+#define NUMBRICKSV 6
 
 #define CEILING 21
 
 #define BRICK_TOP    35//39//25 + 18
-#define BRICK_BOTTOM 54//58//44 + 18
+#define BRICK_BOTTOM 58//58//44 + 18
 #define BRICK_LEFT   4//6//4//4 pixels border but maybe only 3 visible
 #define BRICK_RIGHT  123//123//4 pixels border
 #define BRICK_COOLDOWN false
@@ -87,7 +87,7 @@ const angle reflectAnglesNew_prog1[NUM_ANGLES]=
 
 #pragma rodata-name (pop)
 
-unsigned char brickRowPoints[5]={3,2,2,1,1};//number of points gained by hitting a brick in each row, top to bottom
+unsigned char brickRowPoints[6]={4,3,2,2,1,1};//number of points gained by hitting a brick in each row, top to bottom
 
 EntityRow brickRows[NUMBRICKSV];//init in NewLevel()
 
@@ -138,21 +138,22 @@ void playBass(char row){
 
     switch (row){
         case 0:
-        play_sound_effect(ASSET__audio__row0_sfx_ID,(char)127);
+        play_sound_effect(ASSET__audio__row0_sfx_ID,127);
         break;
         case 1:
-        play_sound_effect(ASSET__audio__row1_sfx_ID,(char)127);
+        play_sound_effect(ASSET__audio__row1_sfx_ID,127);
         break;
         case 2:
-        play_sound_effect(ASSET__audio__row2_sfx_ID,(char)127);
+        play_sound_effect(ASSET__audio__row2_sfx_ID,127);
         break;
         case 3:
-        play_sound_effect(ASSET__audio__row3_sfx_ID,(char)127);
+        play_sound_effect(ASSET__audio__row3_sfx_ID,127);
         break;
         case 4:
         play_sound_effect(ASSET__audio__row4_sfx_ID,127);
         break;
         default:
+        play_sound_effect(ASSET__audio__row5_sfx_ID,127);
         break;
     }
 }
