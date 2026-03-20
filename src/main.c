@@ -665,7 +665,8 @@ void DrawBricksErase_prog1(){
 
     // Draw the "hole" in the current back-buffer
     //draw_black_square(bricks[idx].x, bricks[idx].y);
-    queue_draw_sprite(BRICK_LEFT + col * BRICKWIDTH,posy,BRICKWIDTH,BRICKHEIGHT,BRICK_LEFT + col * BRICKWIDTH,posy,2);//paint from bg bank
+    //queue_draw_sprite(BRICK_LEFT + col * BRICKWIDTH,posy,BRICKWIDTH,BRICKHEIGHT,BRICK_LEFT + col * BRICKWIDTH,posy,2);//paint from bg bank
+    queue_draw_box(BRICK_LEFT + col * BRICKWIDTH,posy,BRICKWIDTH,BRICKHEIGHT,0);//paint box
     erase_queue[i].frames_left--;
 
     // If it's been erased from both buffers, remove it from the queue
@@ -857,13 +858,14 @@ void BreakoutGame(){
     change_rom_bank(BANK_PROG1);
     BreakoutBGRefresh_prog1();
     //cover up previous paddle position
-    queue_draw_sprite(paddleX_old_old,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,paddleX_old_old,PADDLEY,2);//bg in bank 2
+    //queue_draw_sprite(paddleX_old_old,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,paddleX_old_old,PADDLEY,2);//bg in bank 2
+    queue_draw_box(paddleX_old_old,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0);//heal paddle
     //erase where ball has previously been
     
-    //queue_draw_sprite(box_x_old,box_y_old,BALLSIZE,BALLSIZE,box_x_old,box_y_old,2);//blurry 3x3 ball gx 3 gy 8, paddle at 0,0
-    //queue_draw_sprite(boxA_x_old,boxA_y_old,BALLSIZE,BALLSIZE,box_x_old,box_y_old,2);//blurry 3x3 ball gx 3 gy 8, paddle at 0,0
-    queue_draw_sprite(box_x_old_old,box_y_old_old,BALLSIZE,BALLSIZE,box_x_old_old,box_y_old_old,2);//blurry 3x3 ball gx 3 gy 8, paddle at 0,0
-    queue_draw_sprite(boxA_x_old_old,boxA_y_old_old,BALLSIZE,BALLSIZE,box_x_old_old,box_y_old_old,2);//blurry 3x3 ball gx 3 gy 8, paddle at 0,0
+    //queue_draw_sprite(box_x_old_old,box_y_old_old,BALLSIZE,BALLSIZE,box_x_old_old,box_y_old_old,2);//blurry 3x3 ball gx 3 gy 8, paddle at 0,0
+    //queue_draw_sprite(boxA_x_old_old,boxA_y_old_old,BALLSIZE,BALLSIZE,box_x_old_old,box_y_old_old,2);//blurry 3x3 ball gx 3 gy 8, paddle at 0,0
+    queue_draw_box(box_x_old_old,box_y_old_old,BALLSIZE,BALLSIZE,0);//blurry 3x3 ball gx 3 gy 8, paddle at 0,0
+    queue_draw_box(boxA_x_old_old,boxA_y_old_old,BALLSIZE,BALLSIZE,0);//blurry 3x3 ball gx 3 gy 8, paddle at 0,0
 
     if (demoMode)
     {
@@ -873,13 +875,12 @@ void BreakoutGame(){
         }
         else
         {
-            //queue_draw_sprite(38,64,52,6,38,64,2);//press start blank
-            queue_draw_box(38,64,52,6,0);//press start blank
+            queue_draw_box(38,64,52,6,0);//press start heal
         }
     }
     else //make sure to erase press start - need to optimize
     {
-        queue_draw_box(38,64,52,6,0);//press start blank
+        queue_draw_box(38,64,52,6,0);//press start heal
     }
     if (BricksAllGone()) {
         if (!resetTimer--) {
@@ -919,7 +920,7 @@ void BreakoutGame(){
         }
     }
 
-    queue_draw_sprite(box_x,box_y,BALLSIZE,BALLSIZE,4,0,1);//blurry 3x3 ball gx 3 gy 8, paddle at 0,0
+    queue_draw_sprite(box_x,box_y,BALLSIZE,BALLSIZE,4,0,1);//ball
     queue_draw_sprite(boxA_x,boxA_y,BALLSIZE,BALLSIZE,4,0,1);
     queue_draw_sprite(paddleX,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0,0,1);
    // print_scores(score);
@@ -1014,28 +1015,7 @@ void main () {
     load_spritesheet(ASSET__gfx__PressStart_bmp,4);
     gamestate = STATE_CONTROLLER_SELECT;
 
-    //test of pre-drawing the background and do a lot less rendering for each frame.
-    //this needs to be done twice to fill both buffers
-
-    // queue_clear_border(2);
-    // queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
-    // queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
-    // change_rom_bank(BANK_PROG1);
-    // DrawBricksWrapper_prog1();
-    // await_draw_queue();
-    // await_vsync(1);
-    // flip_pages();
-    // queue_clear_border(2);
-    // queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
-    // queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
-    // change_rom_bank(BANK_PROG1);
-    // DrawBricksWrapper_prog1();
-    // await_draw_queue();
-    // await_vsync(1);
-    // flip_pages();
-
-    //print_scores(0);
-    while (1) 
+        while (1) 
     {                                     //  Run forever
         GameWrapper();
         queue_clear_border(2);
