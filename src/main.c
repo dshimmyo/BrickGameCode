@@ -32,9 +32,9 @@
 //24cols 5 pixels wide
 //30cols 4 pixels wide
 //60cols 2 pixels wide
-#define BRICKWIDTH 4//8//4//2//8//12
+#define BRICKWIDTH 2//4//8//4//2//8//12
 #define BRICKHEIGHT 4
-#define NUMBRICKSH 30//15//30//60//15 //10
+#define NUMBRICKSH 60//30//15//30//60//15 //10
 #define NUMBRICKSV 5
 
 #define CEILING 21
@@ -325,7 +325,7 @@ void boxMotion_prog1()
         if(box_x <= BRICK_LEFT) {
             dx = (dx<0) ? -dx : dx;
             soundWall();
-        } else if(box_x >= BRICK_RIGHT-BALLSIZE /*119*/) {
+        } else if(box_x >= BRICK_RIGHT-BALLSIZE+1 /*119*/) {
             dx = (dx>0) ? -dx : dx;
             soundWall();
         } else if (detectPaddleCollision_prog1(box_x,box_x+BALLSIZE,box_y, box_y+BALLSIZE,&dx,&dy,&ballSpeed)){
@@ -376,7 +376,7 @@ void boxAMotion_prog1()
         if (boxA_x <= BRICK_LEFT) {
             dxA = (dxA<0) ? -dxA : dxA;
             soundWall();
-        } else if(boxA_x >= BRICK_RIGHT-BALLSIZE/*119*/) {
+        } else if(boxA_x >= BRICK_RIGHT-BALLSIZE+1/*119*/) {
             dxA = (dxA>0) ? -dxA : dxA;
             soundWall();
         } else if (detectPaddleCollision_prog1(boxA_x,boxA_x+BALLSIZE,boxA_y, boxA_y+BALLSIZE,&dxA,&dyA,&ballSpeedA)){
