@@ -32,9 +32,9 @@
 //24cols 5 pixels wide
 //30cols 4 pixels wide
 //60cols 2 pixels wide
-#define BRICKWIDTH 8//4//2//8//12
+#define BRICKWIDTH 4//8//4//2//8//12
 #define BRICKHEIGHT 4
-#define NUMBRICKSH 15//30//60//15 //10
+#define NUMBRICKSH 30//15//30//60//15 //10
 #define NUMBRICKSV 5
 
 #define CEILING 21
