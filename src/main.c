@@ -48,6 +48,9 @@
 char gamestate = 0;
 char controller_style = 0;
 char numLives = 3;
+char breakoutRefresh=0;//set to true to refresh the whole screen
+char breakoutBricksRefresh=0;//set to true to refresh the whole screen
+
 //prototypes
 bool check_brick_collision_prog1(char *,char *, int *, int *, int *);
 void randomizeBox(char *_box_x, char *_box_y, int *_dx, int *_dy, int *_ballSpeed);
@@ -61,6 +64,7 @@ typedef struct {
 
 typedef struct {
     bool visible[NUMBRICKSH];
+    char erase_frames[NUMBRICKSH];
 } EntityRow;
 
 #define NUM_ANGLES 22
@@ -73,13 +77,17 @@ const angle reflectAnglesNew_prog1[NUM_ANGLES]=
 
 unsigned char brickRowPoints[5]={3,2,2,1,1};//number of points gained by hitting a brick in each row, top to bottom
 
-EntityRow brickRows[NUMBRICKSV] = {//top to bottom
-{1,1,1,1,1,1,1,1,1,1},
-{1,1,1,1,1,1,1,1,1,1},
-{1,1,1,1,1,1,1,1,1,1},
-{1,1,1,1,1,1,1,1,1,1},
-{1,1,1,1,1,1,1,1,1,1}
-};//should initialize this in an init function
+EntityRow brickRows[NUMBRICKSV];//init in NewLevel()
+
+// A small structure to track pending erases
+typedef struct {
+    int brick_index;
+    int frames_left;
+} EraseTask;
+
+EraseTask erase_queue[8];
+int erase_queue_count = 0;
+
 
 char animatedBricks[NUMBRICKSH*NUMBRICKSV]; //tracking frames left to animate per brick
 bool demoMode = true;
@@ -87,7 +95,12 @@ bool debugMode = false;
 
 //boxes, make more modular
 char box_x = 30, box_y = 20;
+char box_x_old = 30, box_y_old = 20;
+char box_x_old_old = 30, box_y_old_old = 20;
+
 char boxA_x = 20, boxA_y = 30;
+char boxA_x_old = 20, boxA_y_old = 30;
+char boxA_x_old_old = 20, boxA_y_old_old = 30;
 
 int ballSpeed = 1;//actual speed is in .5 increments
 int ballSpeedA = 1;
@@ -101,6 +114,8 @@ int dyRem=0;
 bool cooldown;
 
 char paddleX = 64;//global paddle xpos
+char paddleX_old=64;
+char paddleX_old_old=64;
 unsigned char button_byte=0;//8-bit byte representing button states, for debugging and potential use in game mechanics
 unsigned int score = 0;//global score variable
 int resetTimer = 100;//delay between brick reset and box reset
@@ -543,15 +558,19 @@ void NewLevel()
     int count = 0;
     for (y = 0; y<NUMBRICKSV; y++){
         for (x=0; x<NUMBRICKSH; x++){
-            brickRows[y].visible[x]=1;
+            brickRows[y].visible[x] = 1;
+            brickRows[y].erase_frames[x] = 0;
             animatedBricks[count++]=0;//set all bricks to unanimated
         }
     }
+    erase_queue_count=0;
     ballSpeed = 1;//slow start
     ballSpeedA = 1;//slow start
     numBricks = NUMBRICKSH * NUMBRICKSV;
     randomizeBox(&box_x, &box_y, &dx, &dy, &ballSpeed);
     randomizeBox(&boxA_x, &boxA_y, &dxA, &dyA, &ballSpeedA);
+    breakoutRefresh=0;
+    breakoutBricksRefresh=0;
 }
 void NewGame()
 {
@@ -687,8 +706,10 @@ unsigned char ClampX(unsigned char num)
     return result;
 }
 #pragma code-name (push, "PROG1")
+
 void DrawBricks_prog1(){
     unsigned char row;
+    //queue_draw_sprite(1,BRICK_TOP,126,BRICKHEIGHT*NUMBRICKSV,1,BRICK_TOP,2);//bg in bank 2
     for (row=0;row<NUMBRICKSV;row++)  
     {
         //unsigned char yIndexOffset = y*NUMBRICKSH;
@@ -741,24 +762,70 @@ void DrawBricks_prog1(){
             }
         }
     }
-    //draw animated bricks here
-    // for (row=0;row<NUMBRICKSV;row++)  
-    // {
-    //     unsigned char posy = BRICK_TOP + BRICKHEIGHT * row;//brickRow[y].posy;//brickRowYPos[y];
-    //     unsigned char col;
-    //     unsigned char animFrame;
-    //     for (col=0;col<NUMBRICKSH;col++)
-    //     {
-    //         animFrame = animatedBricks[row*NUMBRICKSH + col];
-    //         if (animFrame)
-    //         {
-    //             unsigned char xDrawStart = BRICK_LEFT + col * BRICKWIDTH;
-    //             unsigned char gx = (7-animFrame)*BRICKWIDTH;//calculate the growing x offset based on the animation frame (0-7)
-    //             queue_draw_sprite(xDrawStart,posy,BRICKWIDTH,BRICKHEIGHT,gx,(row*BRICKHEIGHT)+80,3);
-    //             animatedBricks[row*NUMBRICKSH + col]--;
-    //         }
-    //     }
-    // }
+}
+
+void DrawBricksErase_prog1(){
+    unsigned char row;
+    unsigned char col;
+    int idx;
+    unsigned char posy;
+    int i;
+    for (i = 0; i < queue_count; i++) {
+    idx = erase_queue[i].brick_index;
+    row = idx / NUMBRICKSH;
+    col = idx % NUMBRICKSH;
+    posy = BRICK_TOP + BRICKHEIGHT * row;//brickRow[y].posy;//brickRowYPos[y];
+
+    // Draw the "hole" in the current back-buffer
+    //draw_black_square(bricks[idx].x, bricks[idx].y);
+    queue_draw_sprite(BRICK_LEFT + col * BRICKWIDTH,posy,BRICKWIDTH,BRICKHEIGHT,BRICK_LEFT + col * BRICKWIDTH,posy,2);//paint from bg bank
+    erase_queue[i].frames_left--;
+
+    // If it's been erased from both buffers, remove it from the queue
+    if (erase_queue[i].frames_left == 0) {
+        erase_queue[i] = erase_queue[queue_count - 1]; // Swap with last
+        queue_count--;
+        i--; // Re-check this slot since we swapped
+    }
+}
+
+    /*for (row=0;row<NUMBRICKSV;row++)  
+    {
+        unsigned char posy = BRICK_TOP + BRICKHEIGHT * row;//brickRow[y].posy;//brickRowYPos[y];
+        unsigned char col;
+        unsigned char animFrame;
+        unsigned char eraseFrame;
+        for (col=0;col<NUMBRICKSH;col++)
+        {
+            if (!brickRows[row].visible[col]){
+                //animFrame = animatedBricks[row*NUMBRICKSH + col];
+                eraseFrame = brickRows[row].erase_frames[col];
+                if (eraseFrame){
+                    queue_draw_sprite(BRICK_LEFT + col * BRICKWIDTH,posy,BRICKWIDTH,BRICKHEIGHT,BRICK_LEFT + col * BRICKWIDTH,posy,2);//paint from bg bank
+                    brickRows[row].erase_frames[col]--;
+                }
+                // else if (animFrame)
+                // {
+                //     unsigned char xDrawStart = BRICK_LEFT + col * BRICKWIDTH;
+                //     unsigned char gx = ((20-animFrame)>>1)*BRICKWIDTH;//calculate the growing x offset based on the animation frame (0-6)
+                //     queue_draw_sprite(BRICK_LEFT + col * BRICKWIDTH,posy,BRICKWIDTH,BRICKHEIGHT,BRICK_LEFT + col * BRICKWIDTH,posy,2);//paint from bg bank
+                //     queue_draw_sprite(BRICK_LEFT + col * BRICKWIDTH,posy,BRICKWIDTH,BRICKHEIGHT,gx,(row*BRICKHEIGHT)+80,3);
+                //     animatedBricks[row*NUMBRICKSH + col]--;
+                // }
+            }
+        }
+    }*/
+}
+
+void DrawBricksWrapper_prog1(){
+    if (breakoutBricksRefresh<4){//seems to clean things up to let it go a few extra frames
+        DrawBricks_prog1();
+        breakoutBricksRefresh++;
+    }
+    else
+    {
+        DrawBricksErase_prog1();
+    }
 }
 #pragma code-name (pop);
 // brick_visible[5][16] - 1 = visible, 0 = destroyed
@@ -801,7 +868,13 @@ bool check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
 
         // Destroy brick
         brickRows[row].visible[col] = 0;
+        brickRows[row].erase_frames[col] = 2;
         animatedBricks[row*NUMBRICKSH + col] = 20;//start animation for this brick //animate at half speed
+        if (erase_queue_count < 8) {
+            erase_queue[queue_count].brick_index = row*NUMBRICKSH + col;
+            erase_queue[queue_count].frames_left = 2; // Two buffers to clean
+            queue_count++;
+        }
 
         // Calculate brick boundaries
         brick_top = BRICK_TOP + (row << 2);//assume row height of 4
@@ -850,6 +923,7 @@ bool check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
     }
     return false;
 }
+
 #pragma code-name (pop)
 
 bool BricksAllGone(){
@@ -863,17 +937,35 @@ bool BricksAllGone(){
     return true;
 }
 
+void BreakoutBGRefresh()
+{
+    if (breakoutRefresh<2){
+        queue_clear_border(2);
+        queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
+        queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
+        breakoutRefresh++;//runs twice to cover two buffers
+    }
+}
+
 int blinkTimer=0;
 void BreakoutGame(){
-    queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
-    queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
-    if (demoMode)
-    {
-        if (blinkTimer++>0){
-            queue_draw_sprite(38,64,52,6,0,14,4);//press start
-            blinkTimer = (blinkTimer>45) ? blinkTimer=-80 : blinkTimer;
-        }
-    }
+    BreakoutBGRefresh();
+    //cover up previous paddle position
+    queue_draw_sprite(paddleX_old_old,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,paddleX_old_old,PADDLEY,2);//bg in bank 2
+    //erase where ball has previously been
+    
+    //queue_draw_sprite(box_x_old,box_y_old,BALLSIZE,BALLSIZE,box_x_old,box_y_old,2);//blurry 3x3 ball gx 3 gy 8, paddle at 0,0
+    //queue_draw_sprite(boxA_x_old,boxA_y_old,BALLSIZE,BALLSIZE,box_x_old,box_y_old,2);//blurry 3x3 ball gx 3 gy 8, paddle at 0,0
+    queue_draw_sprite(box_x_old_old,box_y_old_old,BALLSIZE,BALLSIZE,box_x_old_old,box_y_old_old,2);//blurry 3x3 ball gx 3 gy 8, paddle at 0,0
+    queue_draw_sprite(boxA_x_old_old,boxA_y_old_old,BALLSIZE,BALLSIZE,box_x_old_old,box_y_old_old,2);//blurry 3x3 ball gx 3 gy 8, paddle at 0,0
+
+    // if (demoMode)
+    // {
+        // if (blinkTimer++>0){
+        //     queue_draw_sprite(38,64,52,6,0,14,4);//press start
+        //     blinkTimer = (blinkTimer>45) ? blinkTimer=-80 : blinkTimer;
+        // }
+    // }
     if (BricksAllGone()) {
         if (!resetTimer--) {
             init_game();
@@ -891,7 +983,7 @@ void BreakoutGame(){
     }
 
     change_rom_bank(BANK_PROG1);
-    DrawBricks_prog1();
+    DrawBricksWrapper_prog1();
     boxMotion_prog1();
     boxAMotion_prog1();
     ToggleDemoMode();
@@ -909,24 +1001,29 @@ void BreakoutGame(){
             paddleX = paddleXFromDPad_prog1();
         }
     }
+
     queue_draw_sprite(box_x,box_y,BALLSIZE,BALLSIZE,4,0,1);//blurry 3x3 ball gx 3 gy 8, paddle at 0,0
     queue_draw_sprite(boxA_x,boxA_y,BALLSIZE,BALLSIZE,4,0,1);
     queue_draw_sprite(paddleX,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0,0,1);
    // print_scores(score);
-    
+    paddleX_old_old = paddleX_old;
+    paddleX_old = paddleX;
+    box_x_old_old = box_x_old;
+    box_x_old = box_x;
+    box_y_old_old = box_y_old;
+    box_y_old = box_y;
+    boxA_x_old_old = boxA_x_old;
+    boxA_x_old = boxA_x;
+    boxA_y_old_old = boxA_y_old;
+    boxA_y_old = boxA_y;
 }
 #pragma code-name (push, "PROG1")
 
 void SelectControllerScreen_prog1()
 {
     char top = 60;
-    // queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
-    // queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
-    // DrawBricks_prog1();
-
-    // await_draw_queue();
-    // print_scores(0);
-
+    BreakoutBGRefresh();
+    await_draw_queue();
     text_init();
     text_color = TEXT_COLOR_WHITE;
     text_cursor_x = 10;
@@ -949,11 +1046,13 @@ void SelectControllerScreen_prog1()
     {
         controller_style = CONTROLLER_STYLE_GPAD1;
         gamestate = STATE_BREAKOUT_MENU;
+        NewLevel();
     }
     else if ((player1_buttons & INPUT_MASK_A) && !(player1_old_buttons & INPUT_MASK_A)) 
     {
         controller_style = CONTROLLER_STYLE_PADDLE0;
         gamestate = STATE_BREAKOUT_MENU;
+        NewLevel();
     }
 }
 void update_paddle_offset_prog1(){
@@ -977,10 +1076,6 @@ void GameWrapper()
 
     if (gamestate == STATE_CONTROLLER_SELECT)
     {
-        //queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
-        //queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
-        //change_rom_bank(BANK_PROG1);
-        //DrawBricks_prog1();
         change_rom_bank(BANK_PROG1);
         SelectControllerScreen_prog1();
     }
@@ -1004,28 +1099,29 @@ void main () {
     //test of pre-drawing the background and do a lot less rendering for each frame.
     //this needs to be done twice to fill both buffers
 
-    queue_clear_border(2);
-    queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
-    queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
-    change_rom_bank(BANK_PROG1);
-    DrawBricks_prog1();
-    await_draw_queue();
-    await_vsync(1);
-    flip_pages();
-    queue_clear_border(2);
-    queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
-    queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
-    change_rom_bank(BANK_PROG1);
-    DrawBricks_prog1();
-    await_draw_queue();
-    await_vsync(1);
-    flip_pages();
+    // queue_clear_border(2);
+    // queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
+    // queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
+    // change_rom_bank(BANK_PROG1);
+    // DrawBricksWrapper_prog1();
+    // await_draw_queue();
+    // await_vsync(1);
+    // flip_pages();
+    // queue_clear_border(2);
+    // queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
+    // queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
+    // change_rom_bank(BANK_PROG1);
+    // DrawBricksWrapper_prog1();
+    // await_draw_queue();
+    // await_vsync(1);
+    // flip_pages();
 
     //print_scores(0);
     while (1) 
     {                                     //  Run forever
         GameWrapper();
         queue_clear_border(2);
+        queue_draw_sprite(1,7,48,12,1,1,2);//clear scores with bg sprite
         await_draw_queue();
         print_scores(score);
         await_vsync(1);
