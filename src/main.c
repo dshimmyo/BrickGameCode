@@ -55,6 +55,7 @@ char breakoutBricksRefresh=0;//set to true to refresh the whole screen
 bool check_brick_collision_prog1(char *,char *, int *, int *, int *);
 void randomizeBox(char *_box_x, char *_box_y, int *_dx, int *_dy, int *_ballSpeed);
 int speedMult_prog1(int source, int speed);
+void BrickHeal_prog1(unsigned char, unsigned char, unsigned char);
 
 //typedefs
 typedef struct {
@@ -94,13 +95,13 @@ bool demoMode = true;
 bool debugMode = false;
 
 //boxes, make more modular
-char box_x = 30, box_y = 20;
-char box_x_old = 30, box_y_old = 20;
-char box_x_old_old = 30, box_y_old_old = 20;
+char box_x = 64, box_y = 64;
+char box_x_old = 64, box_y_old = 64;
+char box_x_old_old = 64, box_y_old_old = 64;
 
-char boxA_x = 20, boxA_y = 30;
-char boxA_x_old = 20, boxA_y_old = 30;
-char boxA_x_old_old = 20, boxA_y_old_old = 30;
+char boxA_x = 64, boxA_y = 64;
+char boxA_x_old = 64, boxA_y_old = 64;
+char boxA_x_old_old = 64, boxA_y_old_old = 64;
 
 int ballSpeed = 1;//actual speed is in .5 increments
 int ballSpeedA = 1;
@@ -650,7 +651,41 @@ void DrawBricks_prog1(){
         }
     }
 }
+void BrickHeal_prog1(unsigned char posx, unsigned char posy, unsigned char offset){
+    unsigned char row;
+    unsigned char col;
+    unsigned char prevRow;
+    unsigned char prevCol;
+    unsigned char posXArray[2];
+    unsigned char posYArray[2];
+    char i,j=0;
+    // unsigned char newX = BRICK_LEFT+(BRICKWIDTH * col[0]);//
+    // unsigned char newY = BRICK_TOP+(BRICKHEIGHT * row[0]);
+    
+    //should check 4 corners of ball
+    posXArray[0]=posx;
+    posXArray[1]=posx + BALLSIZE-1;
+    posYArray[0]=posy;
+    posYArray[1]=posy + BALLSIZE-1;
 
+    for (i=0;i<2;i++){
+        for (j=0;j<2;j++){
+            if (posYArray[j] >= BRICK_TOP && posYArray[j] <= BRICK_BOTTOM){
+                row = (posYArray[j] - BRICK_TOP)/BRICKHEIGHT;
+                col = (posXArray[i] - BRICK_LEFT)/BRICKWIDTH;
+                if (!(row == prevRow && col == prevCol)){//avoid redundant consecutive draws
+                    prevRow = row;
+                    prevCol = col;
+                    if (brickRows[row].visible[col])
+                    {
+                        queue_draw_sprite(BRICK_LEFT + col * BRICKWIDTH,BRICK_TOP + BRICKHEIGHT * row,BRICKWIDTH,BRICKHEIGHT,BRICK_LEFT + col * BRICKWIDTH,row*BRICKHEIGHT+offset,3);//paint box
+                    }
+                }
+            } 
+        }
+    }
+
+}
 void DrawBricksErase_prog1(){
     unsigned char row;
     unsigned char col;
@@ -704,6 +739,8 @@ void DrawBricksErase_prog1(){
         }
     }*/
 }
+
+
 
 void DrawBricksWrapper_prog1(){
     if (breakoutBricksRefresh<4){//seems to clean things up to let it go a few extra frames
@@ -816,6 +853,8 @@ void BreakoutBGRefresh_prog1()
         queue_clear_screen(0);
         queue_draw_box(1,7,128,3,0b01111000);//top border
         queue_draw_box(1,(CEILING-2),126,2,0b01111000);//ceiling bar
+        queue_draw_box(0,7,BRICK_LEFT,127,0b01111000);//left bar
+        queue_draw_box(BRICK_RIGHT+1,7,3,113,0b01111000);//rt bar
 
         //old sprite bg
         // queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
@@ -824,16 +863,16 @@ void BreakoutBGRefresh_prog1()
     }
     else//clean up edges
     {
-        //queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
+        //queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2 //full bg
+
         //queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
-        queue_draw_box(0,7,BRICK_LEFT,127,0b01111000);//left bar
-        queue_draw_box(1,(CEILING-2),126,2,0b01111000);//ceiling bar fixes ball ghost
+        queue_draw_box(1,(CEILING-2),126,2,0b01111000);//ceiling bar - fixes ball ghosts
 
         //queue_draw_sprite(1,7,3,127,1,7,2);//left bar
+        queue_draw_box(0,7,BRICK_LEFT,127,0b01111000);//left bar - fix ball ghosts
 
-        queue_draw_box(BRICK_RIGHT+1,7,3,113,0b01111000);//rt bar
         //queue_draw_sprite(124,7,3,113,124,1,2);//rt bar
-
+        queue_draw_box(BRICK_RIGHT+1,7,3,113,0b01111000);//rt bar - fix ball ghosts
 
     }
 }
@@ -864,8 +903,11 @@ void BreakoutGame(){
     
     //queue_draw_sprite(box_x_old_old,box_y_old_old,BALLSIZE,BALLSIZE,box_x_old_old,box_y_old_old,2);//blurry 3x3 ball gx 3 gy 8, paddle at 0,0
     //queue_draw_sprite(boxA_x_old_old,boxA_y_old_old,BALLSIZE,BALLSIZE,box_x_old_old,box_y_old_old,2);//blurry 3x3 ball gx 3 gy 8, paddle at 0,0
-    queue_draw_box(box_x_old_old,box_y_old_old,BALLSIZE,BALLSIZE,0);//blurry 3x3 ball gx 3 gy 8, paddle at 0,0
-    queue_draw_box(boxA_x_old_old,boxA_y_old_old,BALLSIZE,BALLSIZE,0);//blurry 3x3 ball gx 3 gy 8, paddle at 0,0
+    queue_draw_box(box_x_old_old,box_y_old_old,BALLSIZE,BALLSIZE,0);//heal box
+    queue_draw_box(boxA_x_old_old,boxA_y_old_old,BALLSIZE,BALLSIZE,0);//heal boxA
+    change_rom_bank(BANK_PROG1);
+    BrickHeal_prog1(box_x_old_old,box_y_old_old,0);
+    BrickHeal_prog1(boxA_x_old_old,boxA_y_old_old,0);
 
     if (demoMode)
     {
