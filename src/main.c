@@ -21,18 +21,18 @@
 #define PADDLEY 108
 #define BALLSIZE 2
 #define BALLCENTEROFFSET ((BALLSIZE>2) ? BALLSIZE>>1 : 0)
-#define BRICKWIDTH 12
+#define BRICKWIDTH 8//12
 #define BRICKHEIGHT 4
 #define BINARYTESTPOSY 10
 
-#define NUMBRICKSH 10 
+#define NUMBRICKSH 15 
 #define NUMBRICKSV 5
 #define CEILING 21
 
 #define BRICK_TOP    35//39//25 + 18
 #define BRICK_BOTTOM 54//58//44 + 18
-#define BRICK_LEFT   4
-#define BRICK_RIGHT  123
+#define BRICK_LEFT   4//6//4//4 pixels border but maybe only 3 visible
+#define BRICK_RIGHT  123//123//4 pixels border
 #define BRICK_COOLDOWN false
 
 #define STATE_CONTROLLER_SELECT 10
@@ -643,7 +643,7 @@ void DrawBricks_prog1(){
                 if (xDrawStart + brickDrawWidth > 127) brickDrawWidth-=1;//last brick index is one pixel short?
 
                 //queue_draw_box(xDrawStart,posy,brickDrawWidth,BRICKHEIGHT,rowColor);
-                queue_draw_sprite(xDrawStart,posy,brickDrawWidth,BRICKHEIGHT,xDrawStart,(row*BRICKHEIGHT)+60,3);
+                queue_draw_sprite(xDrawStart,posy,brickDrawWidth,BRICKHEIGHT,xDrawStart,(row*BRICKHEIGHT)/*+60*/,3);
 
                 col=newX;
             }
@@ -825,7 +825,7 @@ void BreakoutBGRefresh_prog1()
     {
         //queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
         //queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
-        queue_draw_box(0,7,BRICK_LEFT-1,127,0b01111000);//left bar
+        queue_draw_box(0,7,BRICK_LEFT,127,0b01111000);//left bar
         queue_draw_box(1,(CEILING-2),126,2,0b01111000);//ceiling bar fixes ball ghost
 
         //queue_draw_sprite(1,7,3,127,1,7,2);//left bar
@@ -873,8 +873,13 @@ void BreakoutGame(){
         }
         else
         {
-            queue_draw_sprite(38,64,52,6,38,64,2);//press start
+            //queue_draw_sprite(38,64,52,6,38,64,2);//press start blank
+            queue_draw_box(38,64,52,6,0);//press start blank
         }
+    }
+    else //make sure to erase press start - need to optimize
+    {
+        queue_draw_box(38,64,52,6,0);//press start blank
     }
     if (BricksAllGone()) {
         if (!resetTimer--) {
@@ -1034,7 +1039,7 @@ void main () {
     {                                     //  Run forever
         GameWrapper();
         queue_clear_border(2);
-        queue_draw_box(BRICK_LEFT - 1,10,33,9,0);//clear scores with bg sprite
+        queue_draw_box(4,10,33,9,0);//clear scores with bg sprite
         await_draw_queue();
         print_scores(score);
         await_vsync(1);
