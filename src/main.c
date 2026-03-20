@@ -21,12 +21,22 @@
 #define PADDLEY 108
 #define BALLSIZE 2
 #define BALLCENTEROFFSET ((BALLSIZE>2) ? BALLSIZE>>1 : 0)
-#define BRICKWIDTH 8//12
-#define BRICKHEIGHT 4
 #define BINARYTESTPOSY 10
 
-#define NUMBRICKSH 15 
+
+//brick presets
+//10cols 12pixels wide 
+//12cols 10pixels wide
+//15cols 8 pixels wide
+//20cols 6 pixels wide
+//24cols 5 pixels wide
+//30cols 4 pixels wide
+//60cols 2 pixels wide
+#define BRICKWIDTH 8//4//2//8//12
+#define BRICKHEIGHT 4
+#define NUMBRICKSH 15//30//60//15 //10
 #define NUMBRICKSV 5
+
 #define CEILING 21
 
 #define BRICK_TOP    35//39//25 + 18
@@ -50,6 +60,7 @@ char controller_style = 0;
 char numLives = 3;
 char breakoutRefresh=0;//set to true to refresh the whole screen
 char breakoutBricksRefresh=0;//set to true to refresh the whole screen
+unsigned char bricks_remaining = 0;
 
 //prototypes
 bool check_brick_collision_prog1(char *,char *, int *, int *, int *);
@@ -186,7 +197,9 @@ unsigned char GetNearestReflectAngleIndex_prog1( int _dx)
     }
     return bestIndex;
 }
+#pragma code-name (pop)
 
+#pragma code-name (push, "PROG1")
 bool detectPaddleCollision_prog1(char sourceXLow,char sourceXHi,char sourceYLow,char sourceYHi,
     int *_dx, int *_dy, int *_ballSpeed)
 {
@@ -265,7 +278,6 @@ bool detectPaddleCollision_prog1(char sourceXLow,char sourceXHi,char sourceYLow,
     return true;
 }
 #pragma code-name (pop)
-
 
 
 #pragma code-name (push, "PROG1")
@@ -551,7 +563,6 @@ void randomizeBox(char *_box_x, char *_box_y, int *_dx, int *_dy, int *_ballSpee
     *_ballSpeed = 1;//default slow
 }
 
-unsigned char numBricks = 0;
 
 void NewLevel()
 {
@@ -568,7 +579,7 @@ void NewLevel()
     erase_queue_count=0;
     ballSpeed = 1;//slow start
     ballSpeedA = 1;//slow start
-    numBricks = NUMBRICKSH * NUMBRICKSV;
+    bricks_remaining = NUMBRICKSH * NUMBRICKSV;
     randomizeBox(&box_x, &box_y, &dx, &dy, &ballSpeed);
     randomizeBox(&boxA_x, &boxA_y, &dxA, &dyA, &ballSpeedA);
     breakoutRefresh=0;
@@ -586,15 +597,15 @@ void init_game()//used to refresh the screen when all the bricks are gone
     resetTimer = 100;
 }
 
-
 unsigned char ClampX(unsigned char num)
 {
     unsigned char result = num;
     result = (result > 127) ? 127 : result;
     return result;
 }
-#pragma code-name (push, "PROG1")
 
+
+#pragma code-name (push, "PROG1")
 void DrawBricks_prog1(){
     unsigned char row;
     //queue_draw_sprite(1,BRICK_TOP,126,BRICKHEIGHT*NUMBRICKSV,1,BRICK_TOP,2);//bg in bank 2
@@ -651,6 +662,9 @@ void DrawBricks_prog1(){
         }
     }
 }
+#pragma code-name (pop)
+
+#pragma code-name (push, "PROG1")
 void BrickHeal_prog1(unsigned char posx, unsigned char posy, unsigned char offset){
     unsigned char row;
     unsigned char col;
@@ -684,8 +698,10 @@ void BrickHeal_prog1(unsigned char posx, unsigned char posy, unsigned char offse
             } 
         }
     }
-
 }
+#pragma code-name (pop)
+
+#pragma code-name (push, "PROG1")
 void DrawBricksErase_prog1(){
     unsigned char row;
     unsigned char col;
@@ -711,8 +727,8 @@ void DrawBricksErase_prog1(){
         i--; // Re-check this slot since we swapped
     }
 }
-
-    /*for (row=0;row<NUMBRICKSV;row++)  
+    /*
+    for (row=0;row<NUMBRICKSV;row++)  
     {
         unsigned char posy = BRICK_TOP + BRICKHEIGHT * row;//brickRow[y].posy;//brickRowYPos[y];
         unsigned char col;
@@ -721,27 +737,31 @@ void DrawBricksErase_prog1(){
         for (col=0;col<NUMBRICKSH;col++)
         {
             if (!brickRows[row].visible[col]){
-                //animFrame = animatedBricks[row*NUMBRICKSH + col];
-                eraseFrame = brickRows[row].erase_frames[col];
-                if (eraseFrame){
-                    queue_draw_sprite(BRICK_LEFT + col * BRICKWIDTH,posy,BRICKWIDTH,BRICKHEIGHT,BRICK_LEFT + col * BRICKWIDTH,posy,2);//paint from bg bank
-                    brickRows[row].erase_frames[col]--;
-                }
-                // else if (animFrame)
-                // {
-                //     unsigned char xDrawStart = BRICK_LEFT + col * BRICKWIDTH;
-                //     unsigned char gx = ((20-animFrame)>>1)*BRICKWIDTH;//calculate the growing x offset based on the animation frame (0-6)
+                animFrame = animatedBricks[row*NUMBRICKSH + col];
+                //eraseFrame = brickRows[row].erase_frames[col];
+                // if (eraseFrame){
                 //     queue_draw_sprite(BRICK_LEFT + col * BRICKWIDTH,posy,BRICKWIDTH,BRICKHEIGHT,BRICK_LEFT + col * BRICKWIDTH,posy,2);//paint from bg bank
-                //     queue_draw_sprite(BRICK_LEFT + col * BRICKWIDTH,posy,BRICKWIDTH,BRICKHEIGHT,gx,(row*BRICKHEIGHT)+80,3);
-                //     animatedBricks[row*NUMBRICKSH + col]--;
+                //     brickRows[row].erase_frames[col]--;
                 // }
+                //else 
+                if (animFrame)
+                {
+                    unsigned char xDrawStart = BRICK_LEFT + col * BRICKWIDTH;
+                    unsigned char gx = ((20-animFrame)>>1)*BRICKWIDTH;//calculate the growing x offset based on the animation frame (0-6)
+                    queue_draw_sprite(BRICK_LEFT + col * BRICKWIDTH,posy,BRICKWIDTH,BRICKHEIGHT,BRICK_LEFT + col * BRICKWIDTH,posy,2);//paint from bg bank
+                    queue_draw_sprite(BRICK_LEFT + col * BRICKWIDTH,posy,BRICKWIDTH,BRICKHEIGHT,gx,(row*BRICKHEIGHT)+80,3);
+                    animatedBricks[row*NUMBRICKSH + col]--;
+                }
             }
         }
-    }*/
+    }
+    */
+
 }
+#pragma code-name (pop)
 
 
-
+#pragma code-name (push, "PROG1")
 void DrawBricksWrapper_prog1(){
     if (breakoutBricksRefresh<4){//seems to clean things up to let it go a few extra frames
         DrawBricks_prog1();
@@ -752,31 +772,67 @@ void DrawBricksWrapper_prog1(){
         DrawBricksErase_prog1();
     }
 }
+#pragma code-name (pop)
 
+#pragma code-name (push, "PROG1")
 bool check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, int *_ball_dy, int *_ballSpeed) {
-    unsigned char col;
-    unsigned char row;
+    char col;
+    char row;
     unsigned char ballCenterX;
     unsigned char ballCenterY;
+    unsigned char ballXMinMax[2];// = {*_ball_x,*_ball_x + BALLSIZE-1};
+    unsigned char ballYMinMax[2];// = {*_ball_y,*_ball_y + BALLSIZE-1};
+    unsigned char i=0;
+    unsigned char j=0;
+    bool collisionFound = false;
+    ballXMinMax[0] = *_ball_x;
+    ballXMinMax[1] = *_ball_x + BALLSIZE-1;
+    ballYMinMax[0] = *_ball_y;
+    ballYMinMax[1] = *_ball_y + BALLSIZE-1;
+    
+    if (ballYMinMax[1] < BRICK_TOP || ballYMinMax[0] > BRICK_BOTTOM) return false;
+    if (ballXMinMax[1] < BRICK_LEFT || ballXMinMax[0] > BRICK_RIGHT) return false;//redundant
+
+    //check collision on 4 bounding corners but only recognize the first collision
 
     //if (BALLSIZE==2) {//picks collision point based on direction for 2x2 ball
-        ballCenterX = (*_ball_dx>0) ? *_ball_x+1 : *_ball_x;
-        ballCenterY = (*_ball_dy>0) ? *_ball_y+1 : *_ball_y;
+        // ballCenterX = (*_ball_dx>0) ? *_ball_x+1 : *_ball_x;
+        // ballCenterY = (*_ball_dy>0) ? *_ball_y+1 : *_ball_y;
     //} else { //assume ball will never be 1 pixel
     //    ballCenterX = *_ball_x + BALLCENTEROFFSET;
     //    ballCenterY = *_ball_y + BALLCENTEROFFSET;
     //}
 
         // Quick reject if ball not in brick zone
-    if (ballCenterY < BRICK_TOP || (ballCenterY) > BRICK_BOTTOM) return false;
-    if (ballCenterX < BRICK_LEFT || ballCenterX > BRICK_RIGHT) return false;
+    // if (ballCenterY < BRICK_TOP || (ballCenterY) > BRICK_BOTTOM) return false;
+    // if (ballCenterX < BRICK_LEFT || ballCenterX > BRICK_RIGHT) return false;
     
+
+    //check 4 collisions and exit when first found else return
+    // for (j=0;j<2;j++){
+    //     for (i=0;i<2;i++){
+            ballCenterX = ballXMinMax[i];
+            ballCenterY = ballYMinMax[j];
+            // Convert to brick coordinates
+            col = (ballCenterX - BRICK_LEFT) / BRICKWIDTH;//>> 3;        // 0-15
+            row = (ballCenterY - BRICK_TOP) / BRICKHEIGHT;
+            if (row>=0 && col>=0){//both must be positive
+                if (brickRows[row].visible[col]) 
+                {
+                    collisionFound = true;
+                    //break;
+                }
+            }
+    //     }
+    // }
+    if (!collisionFound) return false;
+
     // Convert to brick coordinates
-    col = (ballCenterX - BRICK_LEFT) / BRICKWIDTH;//>> 3;        // 0-15
-    row = (ballCenterY - BRICK_TOP) >> 2;  // 0-4 //assume bricks are 4-high
+    // col = (ballCenterX - BRICK_LEFT) / BRICKWIDTH;//>> 3;        // 0-15
+    // row = (ballCenterY - BRICK_TOP) / BRICKHEIGHT;  
     
-    //if (brick_visible[row][col]) {
-    if (brickRows[row].visible[col]){
+    if (brickRows[row].visible[col])//redundant
+    {
         unsigned char brick_top;
         unsigned char brick_bottom;
         unsigned char brick_left;
@@ -797,6 +853,7 @@ bool check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
             erase_queue[queue_count].frames_left = 2; // Two buffers to clean
             queue_count++;
         }
+        bricks_remaining--;//counting bricks
 
         // Calculate brick boundaries
         brick_top = BRICK_TOP + (row << 2);//assume row height of 4
@@ -817,7 +874,6 @@ bool check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
         if (dist_top < min_dist) { min_dist = dist_top; side = 2; }
         if (dist_bottom < min_dist) { side = 3; }
 
-        // Position ball JUST outside the brick
         switch(side) 
         {
             case 0: //*_ball_x = brick_left - 1; 
@@ -845,6 +901,9 @@ bool check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
     }
     return false;
 }
+#pragma code-name (pop)
+
+#pragma code-name (push, "PROG1")
 void BreakoutBGRefresh_prog1()
 {
     if (breakoutRefresh<2){
@@ -879,21 +938,22 @@ void BreakoutBGRefresh_prog1()
 
 #pragma code-name (pop)
 
-bool BricksAllGone(){
-    unsigned char row;
-    unsigned char col;
-    for (row=0;row<NUMBRICKSV;row++){
-        for(col=0;col<NUMBRICKSH;col++){
-            if (brickRows[row].visible[col]) return false;
-        }
-    }
-    return true;
-}
+// bool BricksAllGone(){
+//     unsigned char row;
+//     unsigned char col;
+//     for (row=0;row<NUMBRICKSV;row++){
+//         for(col=0;col<NUMBRICKSH;col++){
+//             if (brickRows[row].visible[col]) return false;
+//         }
+//     }
+//     return true;
+// }
 
 
 
 int blinkTimer=0;
-void BreakoutGame(){
+#pragma code-name (push, "PROG1")
+void BreakoutGame_prog1(){
     change_rom_bank(BANK_PROG1);
     BreakoutBGRefresh_prog1();
     //cover up previous paddle position
@@ -924,7 +984,7 @@ void BreakoutGame(){
     {
         queue_draw_box(38,64,52,6,0);//press start heal
     }
-    if (BricksAllGone()) {
+    if (!bricks_remaining) {
         if (!resetTimer--) {
             init_game();
         }
@@ -977,8 +1037,9 @@ void BreakoutGame(){
     boxA_y_old_old = boxA_y_old;
     boxA_y_old = boxA_y;
 }
-#pragma code-name (push, "PROG1")
+#pragma code-name (pop)
 
+#pragma code-name (push, "PROG1")
 void SelectControllerScreen_prog1()
 {
     char top = 60;
@@ -1042,7 +1103,8 @@ void GameWrapper()
     }
     else
     {
-        BreakoutGame();
+        change_rom_bank(BANK_PROG1);
+        BreakoutGame_prog1();
     }
 }
 void main () {
