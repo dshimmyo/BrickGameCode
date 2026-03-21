@@ -39,8 +39,8 @@
 #define NUM_BRICK_ROWS 6
 
 //dynamic brick layout
-unsigned char currentBrickWidth = 2;//8;//4;//2;
-unsigned char currentNumBricksH = 60;//15;//30;//60;
+unsigned char currentBrickWidth = 4;//8;//4;//2;
+unsigned char currentNumBricksH = 30;//15;//30;//60;
 
 #define CEILING 21
 
@@ -49,6 +49,7 @@ unsigned char currentNumBricksH = 60;//15;//30;//60;
 #define BRICK_LEFT   4//6//4//4 pixels border but maybe only 3 visible
 #define BRICK_RIGHT  123//123//4 pixels border
 #define BRICK_COOLDOWN false
+#define BRICK_ANIMATION true
 
 #define STATE_CONTROLLER_SELECT 10
 #define STATE_BREAKOUT_MENU 20
@@ -798,7 +799,9 @@ void DrawBricksWrapper_prog1(){
     else
     {
         DrawBricksErase_prog1();
+        #if BRICK_ANIMATION
         process_anim_queue_prog1();
+        #endif
     }
 }
 #pragma code-name (pop)
@@ -936,7 +939,9 @@ bool check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
         //play_single_note();
         score+= brickRowPoints[row];//brickRows[row].points;//(7-row)>>1;
         if (row==0) *_ballSpeed = 3;//not double speed but 3/2 speed
-        if (BRICK_COOLDOWN) return true;//cooldown for one frame
+        #if BRICK_COOLDOWN 
+            return true;//cooldown for one frame
+        #endif
     }
     return false;
 }
@@ -1121,30 +1126,6 @@ unsigned char dissolve_mask[60];//sample largest brick size 15x4? 8 columns
 //#pragma rodata-name (pop)
 
 #pragma code-name (push, "PROG1")
-/*
-void capture_hardware_noise_prog1(char bank) {
-    char oldBanks = banksMirror;
-    int x, y;
-
-    // 1. Bank in an uninitialized area (e.g., Bank 4 or a fresh Bank 3)
-    banksMirror = bankflip | GRAM_PAGE(bank); 
-    *bank_reg = banksMirror;
-
-    // 2. Scrape the "Static"
-    for(y = 0; y < BRICK_HEIGHT; y++) {
-        for(x = 0; x < 15; x++) {
-            unsigned int noise_pos = (y * 128) + x;
-            // Grab whatever junk is sitting at the start of the bank
-            //dissolve_mask[(y * currentBrickWidth) * x] = vram[noise_pos];
-            dissolve_mask[(y * currentBrickWidth) * x] =(vram[noise_pos] ^ noise_pos) & 0x0F;
-        }
-    }
-
-    // 3. Restore
-    banksMirror = oldBanks;
-    *bank_reg = banksMirror;
-}
-*/
 
 void bake_gradient_mask_prog1() {//15 is theoretical largest possible brick width
     char i;
@@ -1153,6 +1134,10 @@ void bake_gradient_mask_prog1() {//15 is theoretical largest possible brick widt
         dissolve_mask[i] = rnd_range(0,255);
     }
 }
+#pragma code-name (pop);
+
+#pragma code-name (push, "PROG1")
+
 void animate_dissolve_prog1(unsigned char col, unsigned char row, unsigned char frame) {
     char oldFlags = flagsMirror; // Save the original screen/DMA settings
     char oldBanks = banksMirror; 
@@ -1229,6 +1214,9 @@ void process_anim_queue_prog1() {
     }
 }
 
+#pragma code-name (pop);
+
+#pragma code-name (push, "PROG1")
 void bevel_all_bricks_prog1() {
     char oldFlags = flagsMirror; // Save the original screen/DMA settings
     char oldBanks = banksMirror; 
