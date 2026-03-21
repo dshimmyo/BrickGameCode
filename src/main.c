@@ -32,10 +32,15 @@
 //24cols 5 pixels wide
 //30cols 4 pixels wide
 //60cols 2 pixels wide
-#define BRICKWIDTH 8// 12// 2// 4// 8//12//2//8//12
-#define BRICKHEIGHT 4
-#define NUMBRICKSH 15//10//60//30//15//30//60//15 //10
-#define NUMBRICKSV 6
+//#define BRICK_WIDTH 2// 12// 2// 4// 8//12//2//8//12
+#define BRICK_HEIGHT 4
+#define MAX_NUM_BRICKS_H 60
+//#define NUM_BRICKS_H 60//10//60//30//15//30//60//15 //10
+#define NUM_BRICKS_V 6
+
+//dynamic brick layout
+unsigned char currentBrickWidth = 2;
+unsigned char currentNumBricksH = 60;
 
 #define CEILING 21
 
@@ -75,8 +80,8 @@ typedef struct {
 } angle;
 
 typedef struct {
-    bool visible[NUMBRICKSH];
-    char erase_frames[NUMBRICKSH];
+    bool visible[MAX_NUM_BRICKS_H];//allocate max number of bricks
+    char erase_frames[MAX_NUM_BRICKS_H];
 } EntityRow;
 
 #define NUM_ANGLES 22
@@ -89,7 +94,7 @@ const angle reflectAnglesNew_prog1[NUM_ANGLES]=
 
 unsigned char brickRowPoints[6]={4,3,2,2,1,1};//number of points gained by hitting a brick in each row, top to bottom
 
-EntityRow brickRows[NUMBRICKSV];//init in NewLevel()
+EntityRow brickRows[NUM_BRICKS_V];//init in NewLevel()
 
 // A small structure to track pending erases
 typedef struct {
@@ -101,7 +106,7 @@ EraseTask erase_queue[8];
 int erase_queue_count = 0;
 
 
-char animatedBricks[NUMBRICKSH*NUMBRICKSV]; //tracking frames left to animate per brick
+//char animatedBricks[MAX_NUM_BRICKS*NUM_BRICKS_V]; //this needs to be re-engineered
 bool demoMode = true;
 bool debugMode = false;
 
@@ -570,17 +575,17 @@ void NewLevel()
     unsigned char x;
     unsigned char y;
     int count = 0;
-    for (y = 0; y<NUMBRICKSV; y++){
-        for (x=0; x<NUMBRICKSH; x++){
+    for (y = 0; y<NUM_BRICKS_V; y++){
+        for (x=0; x<currentNumBricksH; x++){
             brickRows[y].visible[x] = 1;
             brickRows[y].erase_frames[x] = 0;
-            animatedBricks[count++]=0;//set all bricks to unanimated
+            //animatedBricks[count++]=0;//set all bricks to unanimated
         }
     }
     erase_queue_count=0;
     ballSpeed = 1;//slow start
     ballSpeedA = 1;//slow start
-    bricks_remaining = NUMBRICKSH * NUMBRICKSV;
+    bricks_remaining = currentNumBricksH * NUM_BRICKS_V;
     randomizeBox(&box_x, &box_y, &dx, &dy, &ballSpeed);
     randomizeBox(&boxA_x, &boxA_y, &dxA, &dyA, &ballSpeedA);
     breakoutRefresh=0;
@@ -610,34 +615,33 @@ unsigned char ClampX(unsigned char num)
 void DrawBricks_prog1(){
     unsigned char row;
     //queue_draw_sprite(1,BRICK_TOP,126,BRICKHEIGHT*NUMBRICKSV,1,BRICK_TOP,2);//bg in bank 2
-    for (row=0;row<NUMBRICKSV;row++)  
+    for (row=0;row<NUM_BRICKS_V;row++)  
     {
-        //unsigned char yIndexOffset = y*NUMBRICKSH;
-        unsigned char posy = BRICK_TOP + BRICKHEIGHT * row;//brickRow[y].posy;//brickRowYPos[y];
+        unsigned char posy = BRICK_TOP + BRICK_HEIGHT * row;//brickRow[y].posy;//brickRowYPos[y];
         unsigned char col;
         unsigned char animFrame;
-        for (col=0;col<NUMBRICKSH;col++)
+        for (col=0;col<currentNumBricksH;col++)
         {
-            if (!brickRows[row].visible[col]){
-                animFrame = animatedBricks[row*NUMBRICKSH + col];
-                if (animFrame)
-                {
-                    unsigned char xDrawStart = BRICK_LEFT + col * BRICKWIDTH;
-                    unsigned char gx = ((20-animFrame)>>1)*BRICKWIDTH;//calculate the growing x offset based on the animation frame (0-6)
-                    queue_draw_sprite(BRICK_LEFT + col * BRICKWIDTH,posy,BRICKWIDTH,BRICKHEIGHT,gx,(row*BRICKHEIGHT)+80,3);
-                    animatedBricks[row*NUMBRICKSH + col]--;
-                }
-            }
-            else
+            // if (!brickRows[row].visible[col]){
+            //     animFrame = animatedBricks[row*currentNumBricksH + col];
+            //     if (animFrame)
+            //     {
+            //         unsigned char xDrawStart = BRICK_LEFT + col * currentBrickWidth;
+            //         unsigned char gx = ((20-animFrame)>>1)*currentBrickWidth;//calculate the growing x offset based on the animation frame (0-6)
+            //         queue_draw_sprite(BRICK_LEFT + col * currentBrickWidth,posy,currentBrickWidth,BRICK_HEIGHT,gx,(row*BRICK_HEIGHT)+80,3);
+            //         animatedBricks[row*currentNumBricksH + col]--;
+            //     }
+            // }
+            // else
             {//if current brick is visible, draw the box
                 unsigned char numBricksWidth = 1;
                 unsigned char newX = col;
                 unsigned char xDrawStart=BRICK_LEFT;
                 unsigned char brickDrawWidth;
-                if (col<NUMBRICKSH-1){//if it isn't the last box check the next brick in the sequence
+                if (col<currentNumBricksH-1){//if it isn't the last box check the next brick in the sequence
                     bool done = false;
                     while (!done){
-                        if (newX>=NUMBRICKSH-1){//end
+                        if (newX>=currentNumBricksH-1){//end
                             done = true;
                         } else if (!brickRows[row].visible[newX+1]){
                             done = true;
@@ -651,12 +655,12 @@ void DrawBricks_prog1(){
                 //if (numBricksWidth>NUMBRICKSH) numBricksWidth=NUMBRICKSH;//total hack
                 //queue_draw_box(brickColumnPos[col], posy, BRICKWIDTH, BRICKHEIGHT, rowColor);
 
-                xDrawStart = BRICK_LEFT + col * BRICKWIDTH;
-                brickDrawWidth = BRICKWIDTH * numBricksWidth;
+                xDrawStart = BRICK_LEFT + col * currentBrickWidth;
+                brickDrawWidth = currentBrickWidth * numBricksWidth;
                 if (xDrawStart + brickDrawWidth > 127) brickDrawWidth-=1;//last brick index is one pixel short?
 
                 //queue_draw_box(xDrawStart,posy,brickDrawWidth,BRICKHEIGHT,rowColor);
-                queue_draw_sprite(xDrawStart,posy,brickDrawWidth,BRICKHEIGHT,xDrawStart,(row*BRICKHEIGHT)/*+60*/,3);
+                queue_draw_sprite(xDrawStart,posy,brickDrawWidth,BRICK_HEIGHT,xDrawStart,(row*BRICK_HEIGHT)/*+60*/,3);
 
                 col=newX;
             }
@@ -686,14 +690,14 @@ void BrickHeal_prog1(unsigned char posx, unsigned char posy, unsigned char offse
     for (i=0;i<2;i++){
         for (j=0;j<2;j++){
             if (posYArray[j] >= BRICK_TOP && posYArray[j] <= BRICK_BOTTOM){
-                row = (posYArray[j] - BRICK_TOP)/BRICKHEIGHT;
-                col = (posXArray[i] - BRICK_LEFT)/BRICKWIDTH;
+                row = (posYArray[j] - BRICK_TOP)/BRICK_HEIGHT;
+                col = (posXArray[i] - BRICK_LEFT)/currentBrickWidth;
                 if (!(row == prevRow && col == prevCol)){//avoid redundant consecutive draws
                     prevRow = row;
                     prevCol = col;
                     if (brickRows[row].visible[col])
                     {
-                        queue_draw_sprite(BRICK_LEFT + col * BRICKWIDTH,BRICK_TOP + BRICKHEIGHT * row,BRICKWIDTH,BRICKHEIGHT,BRICK_LEFT + col * BRICKWIDTH,row*BRICKHEIGHT+offset,3);//paint box
+                        queue_draw_sprite(BRICK_LEFT + col * currentBrickWidth,BRICK_TOP + BRICK_HEIGHT * row,currentBrickWidth,BRICK_HEIGHT,BRICK_LEFT + col * currentBrickWidth,row*BRICK_HEIGHT+offset,3);//paint box
                     }
                 }
             } 
@@ -711,14 +715,14 @@ void DrawBricksErase_prog1(){
     int i;
     for (i = 0; i < queue_count; i++) {
     idx = erase_queue[i].brick_index;
-    row = idx / NUMBRICKSH;
-    col = idx % NUMBRICKSH;
-    posy = BRICK_TOP + BRICKHEIGHT * row;//brickRow[y].posy;//brickRowYPos[y];
+    row = idx / currentNumBricksH;
+    col = idx % currentNumBricksH;
+    posy = BRICK_TOP + BRICK_HEIGHT * row;//brickRow[y].posy;//brickRowYPos[y];
 
     // Draw the "hole" in the current back-buffer
     //draw_black_square(bricks[idx].x, bricks[idx].y);
     //queue_draw_sprite(BRICK_LEFT + col * BRICKWIDTH,posy,BRICKWIDTH,BRICKHEIGHT,BRICK_LEFT + col * BRICKWIDTH,posy,2);//paint from bg bank
-    queue_draw_box(BRICK_LEFT + col * BRICKWIDTH,posy,BRICKWIDTH,BRICKHEIGHT,0);//paint box
+    queue_draw_box(BRICK_LEFT + col * currentBrickWidth,posy,currentBrickWidth,BRICK_HEIGHT,0);//paint box
     erase_queue[i].frames_left--;
 
     // If it's been erased from both buffers, remove it from the queue
@@ -815,8 +819,8 @@ bool check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
             ballCenterX = ballXMinMax[i];
             ballCenterY = ballYMinMax[j];
             // Convert to brick coordinates
-            col = (ballCenterX - BRICK_LEFT) / BRICKWIDTH;//>> 3;        // 0-15
-            row = (ballCenterY - BRICK_TOP) / BRICKHEIGHT;
+            col = (ballCenterX - BRICK_LEFT) / currentBrickWidth;//>> 3;        // 0-15
+            row = (ballCenterY - BRICK_TOP) / BRICK_HEIGHT;
             if (row>=0 && col>=0){//both must be positive
                 if (brickRows[row].visible[col]) 
                 {
@@ -848,9 +852,9 @@ bool check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
         // Destroy brick
         brickRows[row].visible[col] = 0;
         brickRows[row].erase_frames[col] = 2;
-        animatedBricks[row*NUMBRICKSH + col] = 20;//start animation for this brick //animate at half speed
+        //animatedBricks[row*currentNumBricksH + col] = 20;//start animation for this brick //animate at half speed
         if (erase_queue_count < 8) {
-            erase_queue[queue_count].brick_index = row*NUMBRICKSH + col;
+            erase_queue[queue_count].brick_index = row*currentNumBricksH + col;
             erase_queue[queue_count].frames_left = 2; // Two buffers to clean
             queue_count++;
         }
@@ -858,9 +862,9 @@ bool check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
 
         // Calculate brick boundaries
         brick_top = BRICK_TOP + (row << 2);//assume row height of 4
-        brick_bottom = brick_top + BRICKHEIGHT;//was + 3  assume row height of 4
-        brick_left = BRICK_LEFT + (col * BRICKWIDTH);
-        brick_right = brick_left + (BRICKWIDTH);
+        brick_bottom = brick_top + BRICK_HEIGHT;//was + 3  assume row height of 4
+        brick_left = BRICK_LEFT + (col * currentBrickWidth);
+        brick_right = brick_left + (currentBrickWidth);
         
         // Calculate distances to each edge
         dist_left = *_ball_x - brick_left;
@@ -938,19 +942,6 @@ void BreakoutBGRefresh_prog1()
 }
 
 #pragma code-name (pop)
-
-// bool BricksAllGone(){
-//     unsigned char row;
-//     unsigned char col;
-//     for (row=0;row<NUMBRICKSV;row++){
-//         for(col=0;col<NUMBRICKSH;col++){
-//             if (brickRows[row].visible[col]) return false;
-//         }
-//     }
-//     return true;
-// }
-
-
 
 int blinkTimer=0;
 #pragma code-name (push, "PROG1")
@@ -1089,27 +1080,36 @@ void update_paddle_offset_prog1(){
 
 
 
-
-void GameWrapper()
-{
-    if (demoMode) {
-        change_rom_bank(BANK_PROG1);
-        update_paddle_offset_prog1();
-    }
-
-    if (gamestate == STATE_CONTROLLER_SELECT)
-    {
-        change_rom_bank(BANK_PROG1);
-        SelectControllerScreen_prog1();
-    }
-    else
-    {
-        change_rom_bank(BANK_PROG1);
-        BreakoutGame_prog1();
+unsigned char gradient_mask[];
+#pragma code-name (push, "PROG1")
+void bake_gradient_mask() {
+    char i;
+    // Fill a 2x4 (or 8x4) area with randomized threshold values
+    for(i = 0; i < (MAX_NUM_BRICKS_H * BRICK_HEIGHT); i++) {
+        gradient_mask[i] = rnd_range(0,255);
     }
 }
-#pragma code-name (push, "PROG1")
+void animate_dissolve(unsigned char col, unsigned char row, unsigned char frame) {
+    int brick_base;
+    unsigned char x, y;
+    unsigned char threshold = frame * 25;
 
+    // Calculate the top-left corner of THIS specific brick in VRAM
+    // row * 4 (height) * 128 (stride) + col * currentBrickWidth
+    brick_base = (row << 2) * 128 + (col * currentBrickWidth);
+
+    for(y = 0; y < 4; y++) {
+        for(x = 0; x < currentBrickWidth; x++) {
+            // target_pos is the base + current row offset + current column offset
+            unsigned char target_pos = brick_base + (y << 7) + x; // y << 7 is y * 128
+
+            // Check against your 'Master Gradient' mask
+            if (gradient_mask[(y * currentBrickWidth) * x] < threshold) {
+                vram[target_pos] = 0; // Erase the pixel
+            }
+        }
+    }
+}
 void bevel_all_bricks() {
     char oldFlags = flagsMirror; // Save the original screen/DMA settings
     char oldBanks = banksMirror; 
@@ -1129,11 +1129,11 @@ void bevel_all_bricks() {
         int row_start = 0x000 + (row * 4 * 128);//was 0x181
         int pixel = vram[row_start];//color is constant in the entire row
         for (y = 0; y < 4; y++) {//loop 4 lines of each row
-            for (col = 4; col < 124; col += BRICKWIDTH) {//leap from brick to brick horizontally
+            for (col = 4; col < 124; col += currentBrickWidth) {//leap from brick to brick horizontally
                 int pos = row_start + (y * 128) + col;
                 if (pixel != 0) {
                     vram[pos] = ((pixel & 0b00000111)<7) ? pixel + 1 : pixel;     // Highlight
-                    vram[pos + BRICKWIDTH-1] = ((pixel & 0b00000111)>0) ? pixel - 1 : pixel; // Shadow
+                    vram[pos + currentBrickWidth-1] = ((pixel & 0b00000111)>0) ? pixel - 1 : pixel; // Shadow
                 }
             }
             //top and bottom shading overrides vertical
@@ -1156,33 +1156,35 @@ void bevel_all_bricks() {
     *dma_flags = flagsMirror;
     *bank_reg = banksMirror;
 }
+
 #pragma code-name (pop);
 
 void BreakoutBricksSetup()
 {
     load_spritesheet(ASSET__gfx__BreakoutBrickWide_bmp,3);
-    //change_rom_bank(BANK_PROG1);
+    change_rom_bank(BANK_PROG1);
     bevel_all_bricks();
-    // 2. Immediately "Bevel" them in VRAM
-    // {
-    //     char oldBanks = banksMirror; // Save current state
-    //     int i;
-    //     banksMirror = bankflip | GRAM_PAGE(3); // Switch to the Brick Bank
-    //     *bank_reg = banksMirror;
-
-    //     // Start at the 0x181 offset you found in the viewer
-    //     // We'll loop through 60 columns (2px each)
-    //     for(i = 0; i < 1024; i += 2) {
-    //         int base = vram[0x4181 + i];
-    //         vram[0x4181 + i] = 255;//base + 1;     // Left Pixel: Highlight
-    //         vram[0x4181 + i + 1] = 255;//base - 1; // Right Pixel: Shadow
-    //     }
-
-    //     banksMirror = oldBanks; // Restore original bank
-    //     *bank_reg = banksMirror;
-    // }
-
 }
+
+void GameWrapper()
+{
+    if (demoMode) {
+        change_rom_bank(BANK_PROG1);
+        update_paddle_offset_prog1();
+    }
+
+    if (gamestate == STATE_CONTROLLER_SELECT)
+    {
+        change_rom_bank(BANK_PROG1);
+        SelectControllerScreen_prog1();
+    }
+    else
+    {
+        change_rom_bank(BANK_PROG1);
+        BreakoutGame_prog1();
+    }
+}
+
 void main () {
     //init_paddle();
     init_game();
