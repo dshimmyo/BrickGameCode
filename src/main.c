@@ -23,10 +23,10 @@
 #define BALLCENTEROFFSET ((BALLSIZE>2) ? BALLSIZE>>1 : 0)
 #define BINARYTESTPOSY 10
 
-
 //brick presets
-//10cols 12pixels wide 
-//12cols 10pixels wide
+//8cols 15 pixels wide 
+//10cols 12 pixels wide 
+//12cols 10 pixels wide
 //15cols 8 pixels wide
 //20cols 6 pixels wide
 //24cols 5 pixels wide
@@ -34,9 +34,9 @@
 //60cols 2 pixels wide
 //#define BRICK_WIDTH 2// 12// 2// 4// 8//12//2//8//12
 #define BRICK_HEIGHT 4
-#define MAX_NUM_BRICKS_H 60
-//#define NUM_BRICKS_H 60//10//60//30//15//30//60//15 //10
-#define NUM_BRICKS_V 6
+#define MAX_BRICK_COLS 60
+//#define NUM_BRICK_COLS 60//10//60//30//15//30//60//15 //10
+#define NUM_BRICK_ROWS 6
 
 //dynamic brick layout
 unsigned char currentBrickWidth = 2;
@@ -80,8 +80,8 @@ typedef struct {
 } angle;
 
 typedef struct {
-    bool visible[MAX_NUM_BRICKS_H];//allocate max number of bricks
-    char erase_frames[MAX_NUM_BRICKS_H];
+    bool visible[MAX_BRICK_COLS];//allocate max number of bricks
+    char erase_frames[MAX_BRICK_COLS];
 } EntityRow;
 
 #define NUM_ANGLES 22
@@ -94,7 +94,7 @@ const angle reflectAnglesNew_prog1[NUM_ANGLES]=
 
 unsigned char brickRowPoints[6]={4,3,2,2,1,1};//number of points gained by hitting a brick in each row, top to bottom
 
-EntityRow brickRows[NUM_BRICKS_V];//init in NewLevel()
+EntityRow brickRows[NUM_BRICK_ROWS];//init in NewLevel()
 
 // A small structure to track pending erases
 typedef struct {
@@ -105,8 +105,12 @@ typedef struct {
 EraseTask erase_queue[8];
 int erase_queue_count = 0;
 
+#define MAX_BALLS 2
+#define NUM_ANIM_FRAMES 10
+EraseTask anim_queue[NUM_ANIM_FRAMES*2*MAX_BALLS];//10 frames of animation over maybe double frames for up to two balls animframes * 2X * maxballs
+int  anim_queue_count = 0;
 
-//char animatedBricks[MAX_NUM_BRICKS*NUM_BRICKS_V]; //this needs to be re-engineered
+char animatedBricks[MAX_BRICK_COLS*NUM_BRICK_ROWS]; //this needs to be re-engineered
 bool demoMode = true;
 bool debugMode = false;
 
@@ -575,7 +579,7 @@ void NewLevel()
     unsigned char x;
     unsigned char y;
     int count = 0;
-    for (y = 0; y<NUM_BRICKS_V; y++){
+    for (y = 0; y<NUM_BRICK_ROWS; y++){
         for (x=0; x<currentNumBricksH; x++){
             brickRows[y].visible[x] = 1;
             brickRows[y].erase_frames[x] = 0;
@@ -585,7 +589,7 @@ void NewLevel()
     erase_queue_count=0;
     ballSpeed = 1;//slow start
     ballSpeedA = 1;//slow start
-    bricks_remaining = currentNumBricksH * NUM_BRICKS_V;
+    bricks_remaining = currentNumBricksH * NUM_BRICK_ROWS;
     randomizeBox(&box_x, &box_y, &dx, &dy, &ballSpeed);
     randomizeBox(&boxA_x, &boxA_y, &dxA, &dyA, &ballSpeedA);
     breakoutRefresh=0;
@@ -612,10 +616,10 @@ unsigned char ClampX(unsigned char num)
 
 
 #pragma code-name (push, "PROG1")
-void DrawBricks_prog1(){
+void DrawBricks_prog1(){//only gets used to refresh the whole fully-populated field
     unsigned char row;
     //queue_draw_sprite(1,BRICK_TOP,126,BRICKHEIGHT*NUMBRICKSV,1,BRICK_TOP,2);//bg in bank 2
-    for (row=0;row<NUM_BRICKS_V;row++)  
+    for (row=0;row<NUM_BRICK_ROWS;row++)  
     {
         unsigned char posy = BRICK_TOP + BRICK_HEIGHT * row;//brickRow[y].posy;//brickRowYPos[y];
         unsigned char col;
@@ -707,31 +711,31 @@ void BrickHeal_prog1(unsigned char posx, unsigned char posy, unsigned char offse
 #pragma code-name (pop)
 
 #pragma code-name (push, "PROG1")
-void DrawBricksErase_prog1(){
+void DrawBricksErase_prog1(){ //erase bricks in the queue
     unsigned char row;
     unsigned char col;
     int idx;
     unsigned char posy;
     int i;
-    for (i = 0; i < queue_count; i++) {
-    idx = erase_queue[i].brick_index;
-    row = idx / currentNumBricksH;
-    col = idx % currentNumBricksH;
-    posy = BRICK_TOP + BRICK_HEIGHT * row;//brickRow[y].posy;//brickRowYPos[y];
 
-    // Draw the "hole" in the current back-buffer
-    //draw_black_square(bricks[idx].x, bricks[idx].y);
-    //queue_draw_sprite(BRICK_LEFT + col * BRICKWIDTH,posy,BRICKWIDTH,BRICKHEIGHT,BRICK_LEFT + col * BRICKWIDTH,posy,2);//paint from bg bank
-    queue_draw_box(BRICK_LEFT + col * currentBrickWidth,posy,currentBrickWidth,BRICK_HEIGHT,0);//paint box
-    erase_queue[i].frames_left--;
+    for (i = 0; i < erase_queue_count; i++) 
+    {
+        idx = erase_queue[i].brick_index;
+        row = idx / currentNumBricksH;
+        col = idx % currentNumBricksH;
+        posy = BRICK_TOP + BRICK_HEIGHT * row;//brickRow[y].posy;//brickRowYPos[y];
 
-    // If it's been erased from both buffers, remove it from the queue
-    if (erase_queue[i].frames_left == 0) {
-        erase_queue[i] = erase_queue[queue_count - 1]; // Swap with last
-        queue_count--;
-        i--; // Re-check this slot since we swapped
+        // Draw the "hole" in the current back-buffer
+        queue_draw_box(BRICK_LEFT + col * currentBrickWidth,posy,currentBrickWidth,BRICK_HEIGHT,0);//paint box
+        erase_queue[i].frames_left--;
+
+        // If it's been erased from both buffers, remove it from the queue
+        if (erase_queue[i].frames_left == 0) {
+            erase_queue[i] = erase_queue[erase_queue_count - 1]; // Swap with last
+            erase_queue_count--;
+            i--; // Re-check this slot since we swapped
+        }
     }
-}
     /*
     for (row=0;row<NUMBRICKSV;row++)  
     {
@@ -854,10 +858,14 @@ bool check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
         brickRows[row].erase_frames[col] = 2;
         //animatedBricks[row*currentNumBricksH + col] = 20;//start animation for this brick //animate at half speed
         if (erase_queue_count < 8) {
-            erase_queue[queue_count].brick_index = row*currentNumBricksH + col;
-            erase_queue[queue_count].frames_left = 2; // Two buffers to clean
-            queue_count++;
+            erase_queue[erase_queue_count].brick_index = row*currentNumBricksH + col;
+            erase_queue[erase_queue_count].frames_left = 2; // Two buffers to clean
+            erase_queue_count++;
         }
+        // if (anim_queue_count < NUM_ANIM_FRAMES*2*MAX_BALLS)
+        // {
+        //     anim_queue[anim_queue_count]
+        // }
         bricks_remaining--;//counting bricks
 
         // Calculate brick boundaries
@@ -1080,13 +1088,35 @@ void update_paddle_offset_prog1(){
 
 
 
-unsigned char gradient_mask[];
+unsigned char dissolve_mask[60];//sample largest brick size 15x4? 8 columns
 #pragma code-name (push, "PROG1")
-void bake_gradient_mask() {
+
+void capture_hardware_noise(char bank) {
+    char oldBanks = banksMirror;
+    int x, y;
+
+    // 1. Bank in an uninitialized area (e.g., Bank 4 or a fresh Bank 3)
+    banksMirror = bankflip | GRAM_PAGE(bank); 
+    *bank_reg = banksMirror;
+
+    // 2. Scrape the "Static"
+    for(y = 0; y < 4; y++) {
+        for(x = 0; x < 15; x++) {
+            // Grab whatever junk is sitting at the start of the bank
+            dissolve_mask[(y * currentBrickWidth) * x] = vram[(y * 128) + x];
+        }
+    }
+
+    // 3. Restore
+    banksMirror = oldBanks;
+    *bank_reg = banksMirror;
+}
+
+void bake_gradient_mask() {//15 is theoretical largest possible brick width
     char i;
     // Fill a 2x4 (or 8x4) area with randomized threshold values
-    for(i = 0; i < (MAX_NUM_BRICKS_H * BRICK_HEIGHT); i++) {
-        gradient_mask[i] = rnd_range(0,255);
+    for(i = 0; i < (15 * BRICK_HEIGHT); i++) {
+        dissolve_mask[i] = rnd_range(0,255);
     }
 }
 void animate_dissolve(unsigned char col, unsigned char row, unsigned char frame) {
@@ -1104,12 +1134,41 @@ void animate_dissolve(unsigned char col, unsigned char row, unsigned char frame)
             unsigned char target_pos = brick_base + (y << 7) + x; // y << 7 is y * 128
 
             // Check against your 'Master Gradient' mask
-            if (gradient_mask[(y * currentBrickWidth) * x] < threshold) {
+            if (dissolve_mask[(y * currentBrickWidth) * x] < threshold) {
                 vram[target_pos] = 0; // Erase the pixel
             }
         }
     }
 }
+void process_anim_queue() {
+    int i;
+    for (i = 0; i < anim_queue_count; i++) {
+        EraseTask *task = &anim_queue[i];
+        
+        // 1. Calculate row/col from the flat index
+        unsigned char r = task->brick_index / currentNumBricksH;
+        unsigned char c = task->brick_index % currentNumBricksH;
+        
+        // 2. Run your hardware-noise dissolve
+        // Use task->frames_left as the 'threshold' against the noise
+        animate_dissolve(c, r, task->frames_left);
+
+        // 3. Draw the resulting sprite to the screen
+        queue_draw_sprite(c * currentBrickWidth, r * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,c * currentBrickWidth, r * BRICK_HEIGHT,3);//brick sprite has no y offset
+        //draw_brick_sprite(c * currentBrickWidth, row_y_starts[r]);
+
+        // 4. Tick down
+        task->frames_left--;
+
+        // 5. Cleanup: If 0, remove from queue (standard swap-and-pop)
+        if (task->frames_left == 0) {
+            anim_queue[i] = anim_queue[anim_queue_count - 1];
+            anim_queue_count--;
+            i--; // Re-check this index since we swapped
+        }
+    }
+}
+
 void bevel_all_bricks() {
     char oldFlags = flagsMirror; // Save the original screen/DMA settings
     char oldBanks = banksMirror; 
@@ -1161,7 +1220,11 @@ void bevel_all_bricks() {
 
 void BreakoutBricksSetup()
 {
+    change_rom_bank(BANK_PROG1);
+    capture_hardware_noise(3);//copy noise for animation before loading spritesheet
+
     load_spritesheet(ASSET__gfx__BreakoutBrickWide_bmp,3);
+
     change_rom_bank(BANK_PROG1);
     bevel_all_bricks();
 }
