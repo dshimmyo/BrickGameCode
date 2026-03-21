@@ -39,8 +39,8 @@
 #define NUM_BRICK_ROWS 6
 
 //dynamic brick layout
-unsigned char currentBrickWidth = 2;
-unsigned char currentNumBricksH = 60;
+unsigned char currentBrickWidth = 8;//4;//2;
+unsigned char currentNumBricksH = 15;//30;//60;
 
 #define CEILING 21
 
@@ -72,7 +72,8 @@ bool check_brick_collision_prog1(char *,char *, int *, int *, int *);
 void randomizeBox(char *_box_x, char *_box_y, int *_dx, int *_dy, int *_ballSpeed);
 int speedMult_prog1(int source, int speed);
 void BrickHeal_prog1(unsigned char, unsigned char, unsigned char);
-
+void process_anim_queue_prog1();
+void BreakoutBricksSetup();
 //typedefs
 typedef struct {
     int dx;
@@ -106,7 +107,7 @@ EraseTask erase_queue[8];
 int erase_queue_count = 0;
 
 #define MAX_BALLS 2
-#define NUM_ANIM_FRAMES 10
+#define NUM_ANIM_FRAMES 4
 EraseTask anim_queue[NUM_ANIM_FRAMES*2*MAX_BALLS];//10 frames of animation over maybe double frames for up to two balls animframes * 2X * maxballs
 int  anim_queue_count = 0;
 
@@ -579,6 +580,7 @@ void NewLevel()
     unsigned char x;
     unsigned char y;
     int count = 0;
+    BreakoutBricksSetup();
     for (y = 0; y<NUM_BRICK_ROWS; y++){
         for (x=0; x<currentNumBricksH; x++){
             brickRows[y].visible[x] = 1;
@@ -779,6 +781,7 @@ void DrawBricksWrapper_prog1(){
     else
     {
         DrawBricksErase_prog1();
+        process_anim_queue_prog1();
     }
 }
 #pragma code-name (pop)
@@ -862,10 +865,12 @@ bool check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
             erase_queue[erase_queue_count].frames_left = 2; // Two buffers to clean
             erase_queue_count++;
         }
-        // if (anim_queue_count < NUM_ANIM_FRAMES*2*MAX_BALLS)
-        // {
-        //     anim_queue[anim_queue_count]
-        // }
+        if (anim_queue_count < NUM_ANIM_FRAMES*2*MAX_BALLS)
+        {
+            anim_queue[anim_queue_count].brick_index = row*currentNumBricksH + col;
+            anim_queue[anim_queue_count].frames_left = NUM_ANIM_FRAMES*2;//double buffers?
+            anim_queue_count++;
+        }
         bricks_remaining--;//counting bricks
 
         // Calculate brick boundaries
@@ -1087,11 +1092,13 @@ void update_paddle_offset_prog1(){
 #pragma code-name (pop);
 
 
-
+//#pragma rodata-name (push, "PROG1")
 unsigned char dissolve_mask[60];//sample largest brick size 15x4? 8 columns
-#pragma code-name (push, "PROG1")
+//#pragma rodata-name (pop)
 
-void capture_hardware_noise(char bank) {
+#pragma code-name (push, "PROG1")
+/*
+void capture_hardware_noise_prog1(char bank) {
     char oldBanks = banksMirror;
     int x, y;
 
@@ -1100,10 +1107,12 @@ void capture_hardware_noise(char bank) {
     *bank_reg = banksMirror;
 
     // 2. Scrape the "Static"
-    for(y = 0; y < 4; y++) {
+    for(y = 0; y < BRICK_HEIGHT; y++) {
         for(x = 0; x < 15; x++) {
+            unsigned int noise_pos = (y * 128) + x;
             // Grab whatever junk is sitting at the start of the bank
-            dissolve_mask[(y * currentBrickWidth) * x] = vram[(y * 128) + x];
+            //dissolve_mask[(y * currentBrickWidth) * x] = vram[noise_pos];
+            dissolve_mask[(y * currentBrickWidth) * x] =(vram[noise_pos] ^ noise_pos) & 0x0F;
         }
     }
 
@@ -1111,36 +1120,57 @@ void capture_hardware_noise(char bank) {
     banksMirror = oldBanks;
     *bank_reg = banksMirror;
 }
+*/
 
-void bake_gradient_mask() {//15 is theoretical largest possible brick width
+void bake_gradient_mask_prog1() {//15 is theoretical largest possible brick width
     char i;
     // Fill a 2x4 (or 8x4) area with randomized threshold values
     for(i = 0; i < (15 * BRICK_HEIGHT); i++) {
         dissolve_mask[i] = rnd_range(0,255);
     }
 }
-void animate_dissolve(unsigned char col, unsigned char row, unsigned char frame) {
+void animate_dissolve_prog1(unsigned char col, unsigned char row, unsigned char frame) {
+    char oldFlags = flagsMirror; // Save the original screen/DMA settings
+    char oldBanks = banksMirror; 
+    
     int brick_base;
     unsigned char x, y;
-    unsigned char threshold = frame * 25;
+    unsigned char threshold = 255 - (frame * 255/NUM_ANIM_FRAMES);
+    int row_start = (row << 2) * 128 ; //0x000 + (row * 4 * 128);//was 0x181
+
+    // 1. SET THE HARDWARE MODE
+    // Clear Bit 0 (DMA_ENABLE) and Clear Bit 1 (DMA_CPU_TO_VRAM)
+    flagsMirror &= ~(DMA_ENABLE | DMA_CPU_TO_VRAM); 
+    *dma_flags = flagsMirror;
+
+    // 2. BANK IN THE SPRITES
+    banksMirror = bankflip | GRAM_PAGE(3);
+    *bank_reg = banksMirror;
 
     // Calculate the top-left corner of THIS specific brick in VRAM
     // row * 4 (height) * 128 (stride) + col * currentBrickWidth
-    brick_base = (row << 2) * 128 + (col * currentBrickWidth);
-
+    brick_base = row_start + (col * currentBrickWidth);// + BRICK_LEFT;
     for(y = 0; y < 4; y++) {
         for(x = 0; x < currentBrickWidth; x++) {
             // target_pos is the base + current row offset + current column offset
-            unsigned char target_pos = brick_base + (y << 7) + x; // y << 7 is y * 128
+            //unsigned int target_pos = brick_base + (y << 7) + x; // y << 7 is y * 128
+            //unsigned int target_pos = brick_base + x; // y << 7 is y * 128
+            //unsigned int target_pos = row_start + (y*128) + (col * currentBrickWidth) + x; // y << 7 is y * 128
+            unsigned int target_pos = brick_base + (y << 7) + x;
 
             // Check against your 'Master Gradient' mask
-            if (dissolve_mask[(y * currentBrickWidth) * x] < threshold) {
+            if (dissolve_mask[(y * currentBrickWidth) + x] < threshold) {
                 vram[target_pos] = 0; // Erase the pixel
             }
         }
     }
+    // 4. RESTORE EVERYTHING
+    flagsMirror = oldFlags;
+    banksMirror = oldBanks;
+    *dma_flags = flagsMirror;
+    *bank_reg = banksMirror;
 }
-void process_anim_queue() {
+void process_anim_queue_prog1() {
     int i;
     for (i = 0; i < anim_queue_count; i++) {
         EraseTask *task = &anim_queue[i];
@@ -1151,10 +1181,13 @@ void process_anim_queue() {
         
         // 2. Run your hardware-noise dissolve
         // Use task->frames_left as the 'threshold' against the noise
-        animate_dissolve(c, r, task->frames_left);
+        animate_dissolve_prog1(c, r, task->frames_left);
 
         // 3. Draw the resulting sprite to the screen
-        queue_draw_sprite(c * currentBrickWidth, r * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,c * currentBrickWidth, r * BRICK_HEIGHT,3);//brick sprite has no y offset
+        queue_draw_box(BRICK_LEFT + c * currentBrickWidth,BRICK_TOP + r * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,0);
+        if (task->frames_left>2){
+            queue_draw_sprite(BRICK_LEFT + c * currentBrickWidth,BRICK_TOP + r * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,c * currentBrickWidth, r * BRICK_HEIGHT,3);//brick sprite has no y offset
+        }
         //draw_brick_sprite(c * currentBrickWidth, row_y_starts[r]);
 
         // 4. Tick down
@@ -1169,7 +1202,7 @@ void process_anim_queue() {
     }
 }
 
-void bevel_all_bricks() {
+void bevel_all_bricks_prog1() {
     char oldFlags = flagsMirror; // Save the original screen/DMA settings
     char oldBanks = banksMirror; 
     int row, col, y,x;
@@ -1220,13 +1253,10 @@ void bevel_all_bricks() {
 
 void BreakoutBricksSetup()
 {
-    change_rom_bank(BANK_PROG1);
-    capture_hardware_noise(3);//copy noise for animation before loading spritesheet
-
     load_spritesheet(ASSET__gfx__BreakoutBrickWide_bmp,3);
 
     change_rom_bank(BANK_PROG1);
-    bevel_all_bricks();
+    bevel_all_bricks_prog1();
 }
 
 void GameWrapper()
@@ -1258,6 +1288,8 @@ void main () {
     load_spritesheet(ASSET__gfx__BreakoutBrickBG_bmp,2);
     load_spritesheet(ASSET__gfx__PressStart_bmp,4);
     change_rom_bank(BANK_PROG1);
+    bake_gradient_mask_prog1();
+
     BreakoutBricksSetup();
     gamestate = STATE_CONTROLLER_SELECT;
 
