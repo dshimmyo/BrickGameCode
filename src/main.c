@@ -39,8 +39,8 @@
 #define NUM_BRICK_ROWS 6
 
 //dynamic brick layout
-unsigned char currentBrickWidth = 8;//4;//2;
-unsigned char currentNumBricksH = 15;//30;//60;
+unsigned char currentBrickWidth = 2;//8;//4;//2;
+unsigned char currentNumBricksH = 60;//15;//30;//60;
 
 #define CEILING 21
 
@@ -101,6 +101,8 @@ EntityRow brickRows[NUM_BRICK_ROWS];//init in NewLevel()
 typedef struct {
     int brick_index;
     int frames_left;
+    char row;
+    char col;
 } EraseTask;
 
 EraseTask erase_queue[8];
@@ -589,6 +591,7 @@ void NewLevel()
         }
     }
     erase_queue_count=0;
+    anim_queue_count=0;
     ballSpeed = 1;//slow start
     ballSpeedA = 1;//slow start
     bricks_remaining = currentNumBricksH * NUM_BRICK_ROWS;
@@ -716,15 +719,15 @@ void BrickHeal_prog1(unsigned char posx, unsigned char posy, unsigned char offse
 void DrawBricksErase_prog1(){ //erase bricks in the queue
     unsigned char row;
     unsigned char col;
-    int idx;
+    //int idx;
     unsigned char posy;
     int i;
 
     for (i = 0; i < erase_queue_count; i++) 
     {
-        idx = erase_queue[i].brick_index;
-        row = idx / currentNumBricksH;
-        col = idx % currentNumBricksH;
+        //idx = erase_queue[i].brick_index;
+        row = erase_queue[i].row;//idx / currentNumBricksH;
+        col = erase_queue[i].col;//idx % currentNumBricksH;
         posy = BRICK_TOP + BRICK_HEIGHT * row;//brickRow[y].posy;//brickRowYPos[y];
 
         // Draw the "hole" in the current back-buffer
@@ -861,14 +864,18 @@ bool check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
         brickRows[row].erase_frames[col] = 2;
         //animatedBricks[row*currentNumBricksH + col] = 20;//start animation for this brick //animate at half speed
         if (erase_queue_count < 8) {
-            erase_queue[erase_queue_count].brick_index = row*currentNumBricksH + col;
+            //erase_queue[erase_queue_count].brick_index = row*currentNumBricksH + col;
             erase_queue[erase_queue_count].frames_left = 2; // Two buffers to clean
+            erase_queue[erase_queue_count].row = row;
+            erase_queue[erase_queue_count].col = col;
             erase_queue_count++;
         }
         if (anim_queue_count < NUM_ANIM_FRAMES*2*MAX_BALLS)
         {
-            anim_queue[anim_queue_count].brick_index = row*currentNumBricksH + col;
+            //anim_queue[anim_queue_count].brick_index = row*currentNumBricksH + col;
             anim_queue[anim_queue_count].frames_left = NUM_ANIM_FRAMES*2;//double buffers?
+            anim_queue[anim_queue_count].row = row;
+            anim_queue[anim_queue_count].col = col;
             anim_queue_count++;
         }
         bricks_remaining--;//counting bricks
@@ -1136,7 +1143,7 @@ void animate_dissolve_prog1(unsigned char col, unsigned char row, unsigned char 
     int brick_base;
     unsigned char x, y;
     unsigned char threshold = 255 - (frame * 255/NUM_ANIM_FRAMES);
-    int row_start = (row << 2) * 128 ; //0x000 + (row * 4 * 128);//was 0x181
+    int row_start = (row << 2) << 7 ;//* 128 ; //0x000 + (row * 4 * 128);//was 0x181
 
     // 1. SET THE HARDWARE MODE
     // Clear Bit 0 (DMA_ENABLE) and Clear Bit 1 (DMA_CPU_TO_VRAM)
@@ -1153,10 +1160,7 @@ void animate_dissolve_prog1(unsigned char col, unsigned char row, unsigned char 
     for(y = 0; y < 4; y++) {
         for(x = 0; x < currentBrickWidth; x++) {
             // target_pos is the base + current row offset + current column offset
-            //unsigned int target_pos = brick_base + (y << 7) + x; // y << 7 is y * 128
-            //unsigned int target_pos = brick_base + x; // y << 7 is y * 128
-            //unsigned int target_pos = row_start + (y*128) + (col * currentBrickWidth) + x; // y << 7 is y * 128
-            unsigned int target_pos = brick_base + (y << 7) + x;
+            unsigned int target_pos = brick_base + (y << 7) + x; // y << 7 is y * 128
 
             // Check against your 'Master Gradient' mask
             if (dissolve_mask[(y * currentBrickWidth) + x] < threshold) {
@@ -1176,8 +1180,8 @@ void process_anim_queue_prog1() {
         EraseTask *task = &anim_queue[i];
         
         // 1. Calculate row/col from the flat index
-        unsigned char r = task->brick_index / currentNumBricksH;
-        unsigned char c = task->brick_index % currentNumBricksH;
+        unsigned char r = task->row;//task->brick_index / currentNumBricksH;
+        unsigned char c = task->col;//task->brick_index % currentNumBricksH;
         
         // 2. Run your hardware-noise dissolve
         // Use task->frames_left as the 'threshold' against the noise
