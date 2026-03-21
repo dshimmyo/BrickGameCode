@@ -32,9 +32,9 @@
 //24cols 5 pixels wide
 //30cols 4 pixels wide
 //60cols 2 pixels wide
-#define BRICKWIDTH 2//4//8//4//2//8//12
+#define BRICKWIDTH 8// 12// 2// 4// 8//12//2//8//12
 #define BRICKHEIGHT 4
-#define NUMBRICKSH 60//30//15//30//60//15 //10
+#define NUMBRICKSH 15//10//60//30//15//30//60//15 //10
 #define NUMBRICKSV 6
 
 #define CEILING 21
@@ -1108,16 +1108,92 @@ void GameWrapper()
         BreakoutGame_prog1();
     }
 }
+#pragma code-name (push, "PROG1")
+
+void bevel_all_bricks() {
+    char oldFlags = flagsMirror; // Save the original screen/DMA settings
+    char oldBanks = banksMirror; 
+    int row, col, y,x;
+
+    // 1. SET THE HARDWARE MODE
+    // Clear Bit 0 (DMA_ENABLE) and Clear Bit 1 (DMA_CPU_TO_VRAM)
+    flagsMirror &= ~(DMA_ENABLE | DMA_CPU_TO_VRAM); 
+    *dma_flags = flagsMirror;
+
+    // 2. BANK IN THE SPRITES
+    banksMirror = bankflip | GRAM_PAGE(3);
+    *bank_reg = banksMirror;
+
+    // 3. THE PAINT LOOP (128x24 block)
+    for (row = 0; row < 6; row++) {
+        int row_start = 0x000 + (row * 4 * 128);//was 0x181
+        int pixel = vram[row_start];//color is constant in the entire row
+        for (y = 0; y < 4; y++) {//loop 4 lines of each row
+            for (col = 4; col < 124; col += BRICKWIDTH) {//leap from brick to brick horizontally
+                int pos = row_start + (y * 128) + col;
+                if (pixel != 0) {
+                    vram[pos] = ((pixel & 0b00000111)<7) ? pixel + 1 : pixel;     // Highlight
+                    vram[pos + BRICKWIDTH-1] = ((pixel & 0b00000111)>0) ? pixel - 1 : pixel; // Shadow
+                }
+            }
+            //top and bottom shading overrides vertical
+            if (y==0){
+                for (x=0; x<128;x++){
+                    vram[row_start + (y * 128) + x] = ((pixel & 0b00000111)<7) ? pixel + 1 : pixel; //hilite
+                }
+            } else if (y==3){
+                for (x=0; x<128;x++){
+                    vram[row_start + (y * 128) + x] = ((pixel & 0b00000111)>0) ? pixel - 1 : pixel; // Shadow
+                }
+            }
+
+        }
+    }
+
+    // 4. RESTORE EVERYTHING
+    flagsMirror = oldFlags;
+    banksMirror = oldBanks;
+    *dma_flags = flagsMirror;
+    *bank_reg = banksMirror;
+}
+#pragma code-name (pop);
+
+void BreakoutBricksSetup()
+{
+    load_spritesheet(ASSET__gfx__BreakoutBrickWide_bmp,3);
+    //change_rom_bank(BANK_PROG1);
+    bevel_all_bricks();
+    // 2. Immediately "Bevel" them in VRAM
+    // {
+    //     char oldBanks = banksMirror; // Save current state
+    //     int i;
+    //     banksMirror = bankflip | GRAM_PAGE(3); // Switch to the Brick Bank
+    //     *bank_reg = banksMirror;
+
+    //     // Start at the 0x181 offset you found in the viewer
+    //     // We'll loop through 60 columns (2px each)
+    //     for(i = 0; i < 1024; i += 2) {
+    //         int base = vram[0x4181 + i];
+    //         vram[0x4181 + i] = 255;//base + 1;     // Left Pixel: Highlight
+    //         vram[0x4181 + i + 1] = 255;//base - 1; // Right Pixel: Shadow
+    //     }
+
+    //     banksMirror = oldBanks; // Restore original bank
+    //     *bank_reg = banksMirror;
+    // }
+
+}
 void main () {
     //init_paddle();
     init_game();
     scoring_init();
     //Intro_sequence();
     init_music();
-    load_spritesheet(ASSET__gfx__BreakoutBrickWide_bmp,3);
     load_spritesheet(ASSET__gfx__paddle_bmp,1);
     load_spritesheet(ASSET__gfx__BreakoutBrickBG_bmp,2);
     load_spritesheet(ASSET__gfx__PressStart_bmp,4);
+    change_rom_bank(BANK_PROG1);
+    BreakoutBricksSetup();
     gamestate = STATE_CONTROLLER_SELECT;
 
         while (1) 
