@@ -73,7 +73,7 @@ void randomizeBox(char *_box_x, char *_box_y, int *_dx, int *_dy, int *_ballSpee
 int speedMult_prog1(int source, int speed);
 void BrickHeal_prog1(unsigned char, unsigned char, unsigned char);
 void process_anim_queue_prog1();
-void BreakoutBricksSetup();
+void BreakoutBricksSetupWrapper(char);
 //typedefs
 typedef struct {
     int dx;
@@ -106,14 +106,15 @@ typedef struct {
 } EraseTask;
 
 EraseTask erase_queue[8];
-int erase_queue_count = 0;
+unsigned char erase_queue_count = 0;
 
 #define MAX_BALLS 2
 #define NUM_ANIM_FRAMES 4
-EraseTask anim_queue[NUM_ANIM_FRAMES*2*MAX_BALLS];//10 frames of animation over maybe double frames for up to two balls animframes * 2X * maxballs
-int  anim_queue_count = 0;
+#define ANIM_QUEUE_MAX 4
+EraseTask anim_queue[ANIM_QUEUE_MAX];//[NUM_ANIM_FRAMES*2*MAX_BALLS];//10 frames of animation over maybe double frames for up to two balls animframes * 2X * maxballs
+unsigned char  anim_queue_count = 0;
 
-char animatedBricks[MAX_BRICK_COLS*NUM_BRICK_ROWS]; //this needs to be re-engineered
+unsigned char animatedBricks[MAX_BRICK_COLS*NUM_BRICK_ROWS]; //this needs to be re-engineered
 bool demoMode = true;
 bool debugMode = false;
 
@@ -408,8 +409,16 @@ void boxAMotion_prog1()
 }
 #pragma code-name (pop)
 
+#pragma code-name (push, "PROG2")
+void update_paddle_offset_prog2(){
+    if (rndPaddleOffsetTimer++ > 128)
+    {
+        rndPaddleOffset = rnd_range(-(PADDLEWIDTH>>1),(PADDLEWIDTH>>1));
+        rndPaddleOffsetTimer=0;
+    }
+}
 // Convert individual button states to a 8-bit byte
-unsigned char buttons_to_byte_xyzm(int player1_buttons) {
+unsigned char buttons_to_byte_xyzm_prog2(int player1_buttons) {
     char result = 0;
     
     // This could be optimized further if you know your masks are powers of 2
@@ -424,6 +433,7 @@ unsigned char buttons_to_byte_xyzm(int player1_buttons) {
 
     return ~result;//invert result
 }
+#pragma code-name (pop)
 
 
 // int setRange(char input, char inMin, char inMax, char outMin, char outMax)
@@ -532,7 +542,12 @@ char paddleXFromClosestBox_prog1(){
         return ConstVelocity_prog1(paddleX, PosXList[downestDyIndex] - (PADDLEWIDTH>>1) + rndPaddleOffset,3);//
     }
 }
-void inputButtonsDraw_prog1()
+
+#pragma code-name (pop)
+
+
+#pragma code-name (push, "PROG2")
+void inputButtonsDraw_prog2()
 {
     //input testing
     if (player1_buttons & INPUT_MASK_UP){queue_draw_box(1,7,8,2,182);}
@@ -549,7 +564,7 @@ void inputButtonsDraw_prog1()
     if (player1_buttons & INPUT_MASK_MODE){queue_draw_box(111,7,8,2,199);}//mode
 
 }
-void inputBinaryDraw_prog1()
+void inputBinaryDraw_prog2()
 {
     //inputs mapped as 7 bytes from low to high (right to left)
     //up,down,left,right,a,b,c
@@ -557,7 +572,6 @@ void inputBinaryDraw_prog1()
     queue_draw_box(0,BINARYTESTPOSY,button_byte>>1,1,182);
 }
 #pragma code-name (pop)
-
 
 
 void ToggleDemoMode()
@@ -582,7 +596,7 @@ void NewLevel()
     unsigned char x;
     unsigned char y;
     int count = 0;
-    BreakoutBricksSetup();
+    BreakoutBricksSetupWrapper(3);
     for (y = 0; y<NUM_BRICK_ROWS; y++){
         for (x=0; x<currentNumBricksH; x++){
             brickRows[y].visible[x] = 1;
@@ -870,7 +884,7 @@ bool check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
             erase_queue[erase_queue_count].col = col;
             erase_queue_count++;
         }
-        if (anim_queue_count < NUM_ANIM_FRAMES*2*MAX_BALLS)
+        if (anim_queue_count < ANIM_QUEUE_MAX)
         {
             //anim_queue[anim_queue_count].brick_index = row*currentNumBricksH + col;
             anim_queue[anim_queue_count].frames_left = NUM_ANIM_FRAMES*2;//double buffers?
@@ -964,37 +978,42 @@ void BreakoutBGRefresh_prog1()
 #pragma code-name (pop)
 
 int blinkTimer=0;
-#pragma code-name (push, "PROG1")
-void BreakoutGame_prog1(){
+char pressStartVisible=0;
+void BreakoutGameWrapper(){
     change_rom_bank(BANK_PROG1);
     BreakoutBGRefresh_prog1();
+
     //cover up previous paddle position
-    //queue_draw_sprite(paddleX_old_old,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,paddleX_old_old,PADDLEY,2);//bg in bank 2
     queue_draw_box(paddleX_old_old,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0);//heal paddle
+
     //erase where ball has previously been
-    
-    //queue_draw_sprite(box_x_old_old,box_y_old_old,BALLSIZE,BALLSIZE,box_x_old_old,box_y_old_old,2);//blurry 3x3 ball gx 3 gy 8, paddle at 0,0
-    //queue_draw_sprite(boxA_x_old_old,boxA_y_old_old,BALLSIZE,BALLSIZE,box_x_old_old,box_y_old_old,2);//blurry 3x3 ball gx 3 gy 8, paddle at 0,0
     queue_draw_box(box_x_old_old,box_y_old_old,BALLSIZE,BALLSIZE,0);//heal box
     queue_draw_box(boxA_x_old_old,boxA_y_old_old,BALLSIZE,BALLSIZE,0);//heal boxA
+    
     change_rom_bank(BANK_PROG1);
     BrickHeal_prog1(box_x_old_old,box_y_old_old,0);
     BrickHeal_prog1(boxA_x_old_old,boxA_y_old_old,0);
-
     if (demoMode)
     {
         if (blinkTimer++>0){
             queue_draw_sprite(38,64,52,6,0,14,4);//press start
+            pressStartVisible=2;
             blinkTimer = (blinkTimer>45) ? blinkTimer=-80 : blinkTimer;
         }
         else
         {
-            queue_draw_box(38,64,52,6,0);//press start heal
+            if (pressStartVisible) {
+                queue_draw_box(38,64,52,6,0);//press start heal
+                pressStartVisible--;
+            }
         }
     }
-    else //make sure to erase press start - need to optimize
+    else //make sure to erase press start
     {
-        queue_draw_box(38,64,52,6,0);//press start heal
+        if (pressStartVisible) {
+            queue_draw_box(38,64,52,6,0);//press start heal
+            pressStartVisible--;
+        }
     }
     if (!bricks_remaining) {
         if (!resetTimer--) {
@@ -1002,34 +1021,42 @@ void BreakoutGame_prog1(){
         }
     }
 
-    button_byte = buttons_to_byte_xyzm(player1_buttons);//gets paddle input
+    change_rom_bank(BANK_PROG2);
+    button_byte = buttons_to_byte_xyzm_prog2(player1_buttons);//gets paddle input
+
     if (player1_buttons & INPUT_MASK_A && ~player1_old_buttons & INPUT_MASK_A) 
     {
         debugMode = !debugMode;
     }
     if (debugMode){
-        change_rom_bank(BANK_PROG1);
-        inputButtonsDraw_prog1();//debug display
-        change_rom_bank(BANK_PROG1);
-        inputBinaryDraw_prog1();//debug line
+        change_rom_bank(BANK_PROG2);
+        inputButtonsDraw_prog2();//debug display
+        // change_rom_bank(BANK_PROG2);
+        inputBinaryDraw_prog2();//debug line
     }
-
+// change_rom_bank(BANK_PROG1);
     change_rom_bank(BANK_PROG1);
+
+    
     DrawBricksWrapper_prog1();
+
+    // change_rom_bank(BANK_PROG1);
     boxMotion_prog1();
+    // change_rom_bank(BANK_PROG1);
     boxAMotion_prog1();
+
     ToggleDemoMode();
+    change_rom_bank(BANK_PROG1);
     if (demoMode){
-        change_rom_bank(BANK_PROG1);
         paddleX = paddleXFromClosestBox_prog1();
     } else {
         if (controller_style == CONTROLLER_STYLE_PADDLE0){
-            change_rom_bank(BANK_PROG1);
+            //change_rom_bank(BANK_PROG1);
             paddleX = paddleXFromPot8opt_prog1(button_byte);
         }
         else if (controller_style == CONTROLLER_STYLE_GPAD1)
         {
-            change_rom_bank(BANK_PROG1);
+            //change_rom_bank(BANK_PROG1);
             paddleX = paddleXFromDPad_prog1();
         }
     }
@@ -1049,15 +1076,12 @@ void BreakoutGame_prog1(){
     boxA_y_old_old = boxA_y_old;
     boxA_y_old = boxA_y;
 }
-#pragma code-name (pop)
 
-#pragma code-name (push, "PROG1")
-void SelectControllerScreen_prog1()
+#pragma code-name (push, "PROG2")
+void SelectControllerScreen_prog2()
 {
     char top = 60;
-    change_rom_bank(BANK_PROG1);
-    BreakoutBGRefresh_prog1();
-    await_draw_queue();
+    
     text_init();
     text_color = TEXT_COLOR_WHITE;
     text_cursor_x = 10;
@@ -1087,13 +1111,6 @@ void SelectControllerScreen_prog1()
         controller_style = CONTROLLER_STYLE_PADDLE0;
         gamestate = STATE_BREAKOUT_MENU;
         NewLevel();
-    }
-}
-void update_paddle_offset_prog1(){
-    if (rndPaddleOffsetTimer++ > 128)
-    {
-        rndPaddleOffset = rnd_range(-(PADDLEWIDTH>>1),(PADDLEWIDTH>>1));
-        rndPaddleOffsetTimer=0;
     }
 }
 #pragma code-name (pop);
@@ -1142,7 +1159,7 @@ void animate_dissolve_prog1(unsigned char col, unsigned char row, unsigned char 
     
     int brick_base;
     unsigned char x, y;
-    unsigned char threshold = 255 - (frame * 255/NUM_ANIM_FRAMES);
+    unsigned char threshold = 255 - (frame * 255/NUM_ANIM_FRAMES>>1);
     int row_start = (row << 2) << 7 ;//* 128 ; //0x000 + (row * 4 * 128);//was 0x181
 
     // 1. SET THE HARDWARE MODE
@@ -1159,12 +1176,20 @@ void animate_dissolve_prog1(unsigned char col, unsigned char row, unsigned char 
     brick_base = row_start + (col * currentBrickWidth);// + BRICK_LEFT;
     for(y = 0; y < 4; y++) {
         for(x = 0; x < currentBrickWidth; x++) {
-            // target_pos is the base + current row offset + current column offset
             unsigned int target_pos = brick_base + (y << 7) + x; // y << 7 is y * 128
 
-            // Check against your 'Master Gradient' mask
-            if (dissolve_mask[(y * currentBrickWidth) + x] < threshold) {
+            if (frame<=2)
+            {
                 vram[target_pos] = 0; // Erase the pixel
+            }
+            else
+            {
+                // target_pos is the base + current row offset + current column offset
+
+                // Check against your 'Master Gradient' mask
+                if (dissolve_mask[(y * currentBrickWidth) + x] < threshold) {
+                    vram[target_pos] = 0; // Erase the pixel
+                }
             }
         }
     }
@@ -1177,22 +1202,20 @@ void animate_dissolve_prog1(unsigned char col, unsigned char row, unsigned char 
 void process_anim_queue_prog1() {
     int i;
     for (i = 0; i < anim_queue_count; i++) {
+    //for ( i = anim_queue_count - 1; i >= 0; i--) {
         EraseTask *task = &anim_queue[i];
         
-        // 1. Calculate row/col from the flat index
-        unsigned char r = task->row;//task->brick_index / currentNumBricksH;
-        unsigned char c = task->col;//task->brick_index % currentNumBricksH;
-        
-        // 2. Run your hardware-noise dissolve
-        // Use task->frames_left as the 'threshold' against the noise
-        animate_dissolve_prog1(c, r, task->frames_left);
+        // 1. Only update the SOURCE pixels in Bank 3 once per logic frame
+        // This 'eats' the brick further in the master spritesheet
+        animate_dissolve_prog1(task->col, task->row, task->frames_left);
 
         // 3. Draw the resulting sprite to the screen
-        queue_draw_box(BRICK_LEFT + c * currentBrickWidth,BRICK_TOP + r * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,0);
-        if (task->frames_left>2){
-            queue_draw_sprite(BRICK_LEFT + c * currentBrickWidth,BRICK_TOP + r * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,c * currentBrickWidth, r * BRICK_HEIGHT,3);//brick sprite has no y offset
-        }
-        //draw_brick_sprite(c * currentBrickWidth, row_y_starts[r]);
+        queue_draw_box(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,0);
+        // if (task->frames_left>2){
+        //     queue_draw_sprite(BRICK_LEFT + c * currentBrickWidth,BRICK_TOP + r * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,c * currentBrickWidth, r * BRICK_HEIGHT,3);//brick sprite has no y offset
+        // }
+
+        queue_draw_sprite(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,task->col * currentBrickWidth, task->row * BRICK_HEIGHT,3);//brick sprite has no y offset
 
         // 4. Tick down
         task->frames_left--;
@@ -1255,10 +1278,9 @@ void bevel_all_bricks_prog1() {
 
 #pragma code-name (pop);
 
-void BreakoutBricksSetup()
+void BreakoutBricksSetupWrapper(char bank)
 {
-    load_spritesheet(ASSET__gfx__BreakoutBrickWide_bmp,3);
-
+    load_spritesheet(ASSET__gfx__BreakoutBrickWide_bmp,bank);
     change_rom_bank(BANK_PROG1);
     bevel_all_bricks_prog1();
 }
@@ -1266,19 +1288,23 @@ void BreakoutBricksSetup()
 void GameWrapper()
 {
     if (demoMode) {
-        change_rom_bank(BANK_PROG1);
-        update_paddle_offset_prog1();
+        change_rom_bank(BANK_PROG2);
+        update_paddle_offset_prog2();
     }
 
     if (gamestate == STATE_CONTROLLER_SELECT)
     {
         change_rom_bank(BANK_PROG1);
-        SelectControllerScreen_prog1();
+        BreakoutBGRefresh_prog1();
+        await_draw_queue();
+
+        change_rom_bank(BANK_PROG2);
+        SelectControllerScreen_prog2();
     }
     else
     {
         change_rom_bank(BANK_PROG1);
-        BreakoutGame_prog1();
+        BreakoutGameWrapper();
     }
 }
 
@@ -1291,13 +1317,14 @@ void main () {
     load_spritesheet(ASSET__gfx__paddle_bmp,1);
     load_spritesheet(ASSET__gfx__BreakoutBrickBG_bmp,2);
     load_spritesheet(ASSET__gfx__PressStart_bmp,4);
+    
     change_rom_bank(BANK_PROG1);
     bake_gradient_mask_prog1();
 
-    BreakoutBricksSetup();
+    BreakoutBricksSetupWrapper(3);//loads fresh bricks from bank 3 and bevels them
     gamestate = STATE_CONTROLLER_SELECT;
 
-        while (1) 
+    while (1) 
     {                                     //  Run forever
         GameWrapper();
         queue_clear_border(2);
