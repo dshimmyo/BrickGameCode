@@ -33,6 +33,7 @@
 //30cols 4 pixels wide
 //60cols 2 pixels wide
 //#define BRICK_WIDTH 2// 12// 2// 4// 8//12//2//8//12
+
 #define BRICK_HEIGHT 4
 #define MAX_BRICK_COLS 60
 //#define NUM_BRICK_COLS 60//10//60//30//15//30//60//15 //10
@@ -42,6 +43,8 @@
 unsigned char currentBrickWidth = 2;//8;//4;//2;
 unsigned char currentNumBricksH = 60;//15;//30;//60;
 
+
+
 #define CEILING 21
 
 #define BRICK_TOP    35//39//25 + 18
@@ -50,6 +53,8 @@ unsigned char currentNumBricksH = 60;//15;//30;//60;
 #define BRICK_RIGHT  123//123//4 pixels border
 #define BRICK_COOLDOWN false
 #define BRICK_ANIMATION true
+
+#define MAX_NOISE 64
 
 #define STATE_CONTROLLER_SELECT 10
 #define STATE_BREAKOUT_MENU 20
@@ -74,7 +79,7 @@ void randomizeBox(char *_box_x, char *_box_y, int *_dx, int *_dy, int *_ballSpee
 int speedMult_prog1(int source, int speed);
 void BrickHeal_prog1(unsigned char, unsigned char, unsigned char);
 void process_anim_queue_prog1();
-void BreakoutBricksSetupWrapper(char);
+void BreakoutBricksSetupWrapper_prog1(char);
 //typedefs
 typedef struct {
     int dx;
@@ -86,18 +91,6 @@ typedef struct {
     char erase_frames[MAX_BRICK_COLS];
 } EntityRow;
 
-#define NUM_ANGLES 22
-#pragma rodata-name (push, "PROG1")
-const angle reflectAnglesNew_prog1[NUM_ANGLES]=
-{{-251<<1,-30<<1},{-247<<1,-61<<1},{-235<<1,-86<<1},{-224<<1,-112<<1},{-202<<1,-146<<1},{-181<<1,-181<<1},{-146<<1,-202<<1},{-112<<1,-224<<1},{-86<<1,-235<<1},{-61<<1,-247<<1},{-30<<1,-251<<1},
-{30<<1,-251<<1},{61<<1,-247<<1},{86<<1,-235<<1},{112<<1,-224<<1},{146<<1,-202<<1},{181<<1,-181<<1},{202<<1,-146<<1},{224<<1,-112<<1},{235<<1,-86<<1},{247<<1,-61<<1},{251<<1,-30<<1}};
-
-#pragma rodata-name (pop)
-
-unsigned char brickRowPoints[6]={4,3,2,2,1,1};//number of points gained by hitting a brick in each row, top to bottom
-
-EntityRow brickRows[NUM_BRICK_ROWS];//init in NewLevel()
-
 // A small structure to track pending erases
 typedef struct {
     int brick_index;
@@ -105,6 +98,22 @@ typedef struct {
     char row;
     char col;
 } EraseTask;
+
+typedef struct {
+    char numColumns;//allocate max number of bricks
+    char brickWidth;
+} BrickLayout;
+
+#define NUM_ANGLES 22
+#pragma rodata-name (push, "PROG1")
+const angle reflectAnglesNew_prog1[NUM_ANGLES]=
+{{-251<<1,-30<<1},{-247<<1,-61<<1},{-235<<1,-86<<1},{-224<<1,-112<<1},{-202<<1,-146<<1},{-181<<1,-181<<1},{-146<<1,-202<<1},{-112<<1,-224<<1},{-86<<1,-235<<1},{-61<<1,-247<<1},{-30<<1,-251<<1},
+{30<<1,-251<<1},{61<<1,-247<<1},{86<<1,-235<<1},{112<<1,-224<<1},{146<<1,-202<<1},{181<<1,-181<<1},{202<<1,-146<<1},{224<<1,-112<<1},{235<<1,-86<<1},{247<<1,-61<<1},{251<<1,-30<<1}};
+#pragma rodata-name (pop)
+
+unsigned char brickRowPoints[6]={4,3,2,2,1,1};//number of points gained by hitting a brick in each row, top to bottom
+
+EntityRow brickRows[NUM_BRICK_ROWS];//init in NewLevel()
 
 EraseTask erase_queue[8];
 unsigned char erase_queue_count = 0;
@@ -116,6 +125,20 @@ EraseTask anim_queue[ANIM_QUEUE_MAX];//[NUM_ANIM_FRAMES*2*MAX_BALLS];//10 frames
 unsigned char  anim_queue_count = 0;
 
 unsigned char animatedBricks[MAX_BRICK_COLS*NUM_BRICK_ROWS]; //this needs to be re-engineered
+
+#define NUM_BRICK_LAYOUTS 8
+BrickLayout brickLayouts[NUM_BRICK_LAYOUTS]=
+{
+    {8,15},
+    {10,12},
+    {12,10},
+    {15,8},
+    {20,6},
+    {24,5},
+    {30,4},
+    {60,2}
+};
+
 bool demoMode = true;
 bool debugMode = false;
 
@@ -591,13 +614,18 @@ void randomizeBox(char *_box_x, char *_box_y, int *_dx, int *_dy, int *_ballSpee
     *_ballSpeed = 1;//default slow
 }
 
-
+unsigned char cycleLevel=0;
 void NewLevel()
 {
     unsigned char x;
     unsigned char y;
     int count = 0;
-    BreakoutBricksSetupWrapper(3);
+    BrickLayout bl;
+    bl = brickLayouts[cycleLevel++ % NUM_BRICK_LAYOUTS];
+    currentBrickWidth = bl.brickWidth;
+    currentNumBricksH = bl.numColumns;
+    change_rom_bank(BANK_PROG1);
+    BreakoutBricksSetupWrapper_prog1(3);
     for (y = 0; y<NUM_BRICK_ROWS; y++){
         for (x=0; x<currentNumBricksH; x++){
             brickRows[y].visible[x] = 1;
@@ -1122,7 +1150,7 @@ void SelectControllerScreen_prog2()
 
 
 #pragma rodata-name (push, "PROG1")
-unsigned char dissolve_mask[15 * BRICK_HEIGHT];//sample largest brick size 15x4? 8 columns
+unsigned char dissolve_mask[MAX_NOISE];//sample largest brick size 15x4? 8 columns
 #pragma rodata-name (pop)
 
 #pragma code-name (push, "PROG1")
@@ -1130,7 +1158,7 @@ unsigned char dissolve_mask[15 * BRICK_HEIGHT];//sample largest brick size 15x4?
 void bake_gradient_mask_prog1() {//15 is theoretical largest possible brick width
     char i;
     // Fill a 2x4 (or 8x4) area with randomized threshold values
-    for(i = 0; i < (15 * BRICK_HEIGHT); i++) {
+    for(i = 0; i < MAX_NOISE; i++) {
         dissolve_mask[i] = rnd_range(0,255);
     }
 }
@@ -1169,11 +1197,14 @@ void bake_animation_frames_prog1()
                 unsigned int origCoord = (y * 128) + x + frameOffset; //only needs to be the first frame over and over
                 unsigned int targetCoord = animOffset + origCoord;
                 unsigned int pixel = vram[origCoord];
-                unsigned char noise = dissolve_mask[x+((y&0b00000011)*currentBrickWidth)] ;//no offset
+                //unsigned char noise = dissolve_mask[x+((y&0b00000011)*currentBrickWidth)] ;//no offset
+                unsigned char noise = dissolve_mask[(x+(y*currentBrickWidth))&63] ;//no offset
                 unsigned int threshold = (frame * 255/numFrames);
-                if (numFrames - frame <= 2) {
-                    vram[targetCoord] = 0; // Erase the pixel
-                } else {
+                // if (numFrames - frame <= 2) {
+                //     vram[targetCoord] = 0; // Erase the pixel
+                // } 
+                // else 
+                {
                     // Check against your 'Master Gradient' mask
                     if (noise < threshold) {
                         vram[targetCoord] = 0; // Erase the pixel
@@ -1247,6 +1278,8 @@ void process_anim_queue_prog1() {
     int i;
     unsigned int animOffsetY = 24;
     unsigned int animOffsetX;
+    char animFrame;
+    unsigned char animFrameMaxPixel;
     for (i = 0; i < anim_queue_count; i++) {
     //for ( i = anim_queue_count - 1; i >= 0; i--) {
         EraseTask *task = &anim_queue[i];
@@ -1257,9 +1290,12 @@ void process_anim_queue_prog1() {
 
         // 3. Draw the resulting sprite to the screen
         queue_draw_box(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,0);
-        
-        animOffsetX = (NUM_ANIM_FRAMES - (task->frames_left/2-2)) * currentBrickWidth;
+        animFrame = NUM_ANIM_FRAMES - (task->frames_left/2-2);
         //queue_draw_sprite(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,task->col * currentBrickWidth, task->row * BRICK_HEIGHT,3);//brick sprite has no y offset
+        animFrameMaxPixel = (animFrame+1) * currentBrickWidth;
+        if (animFrameMaxPixel>127) animFrame = 128 / currentBrickWidth;//hopefully eliminate overflow noise
+        animOffsetX = (animFrame) * currentBrickWidth;
+
         queue_draw_sprite(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT, animOffsetX, (task->row * BRICK_HEIGHT) + animOffsetY,3);//brick sprite has no y offset
 
         // 4. Tick down
@@ -1324,15 +1360,13 @@ void bevel_all_bricks_prog1() {
     *bank_reg = banksMirror;
 }
 
-#pragma code-name (pop);
-
-void BreakoutBricksSetupWrapper(char bank)
+void BreakoutBricksSetupWrapper_prog1(char bank)
 {
     load_spritesheet(ASSET__gfx__BreakoutBrickWide_bmp,bank);
-    change_rom_bank(BANK_PROG1);
     bevel_all_bricks_prog1();
     bake_animation_frames_prog1();
 }
+#pragma code-name (pop);
 
 void GameWrapper()
 {
@@ -1358,18 +1392,15 @@ void GameWrapper()
 }
 
 void main () {
-    //init_paddle();
-    init_game();
-    scoring_init();
-    //Intro_sequence();
     init_music();
     load_spritesheet(ASSET__gfx__paddle_bmp,1);
     load_spritesheet(ASSET__gfx__BreakoutBrickBG_bmp,2);
     load_spritesheet(ASSET__gfx__PressStart_bmp,4);
-    
     change_rom_bank(BANK_PROG1);
     bake_gradient_mask_prog1();//only needs to be done once
-    BreakoutBricksSetupWrapper(3);//loads fresh bricks from bank 3 and bevels them
+    init_game();
+    scoring_init();
+    //BreakoutBricksSetupWrapper(3);//loads fresh bricks from bank 3 and bevels them
     gamestate = STATE_CONTROLLER_SELECT;
 
     while (1) 
