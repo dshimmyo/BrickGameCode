@@ -118,7 +118,8 @@ EntityRow brickRows[NUM_BRICK_ROWS];//init in NewLevel()
 EraseTask erase_queue[8];
 unsigned char erase_queue_count = 0;
 
-#define MAX_BALLS 2
+#define MAX_BALLS 8 //planning for insane mode
+#define ERASE_QUEUE_MAX 16
 #define NUM_ANIM_FRAMES 8
 #define ANIM_QUEUE_MAX 4
 EraseTask anim_queue[ANIM_QUEUE_MAX];//[NUM_ANIM_FRAMES*2*MAX_BALLS];//10 frames of animation over maybe double frames for up to two balls animframes * 2X * maxballs
@@ -622,17 +623,22 @@ void randomizeBox(char *_box_x, char *_box_y, int *_dx, int *_dy, int *_ballSpee
 }
 
 unsigned char cycleLevel=0;
+void GenNextLevel(char procLevel)
+{
+    BrickLayout bl;
+    //bl = brickLayouts[cycleLevel++ % NUM_BRICK_LAYOUTS];
+    bl = brickLayouts[procLevel % NUM_BRICK_LAYOUTS];
+    currentBrickWidth = bl.brickWidth;
+    currentNumBricksH = bl.numColumns;
+    change_rom_bank(BANK_PROG1);
+    BreakoutBricksSetupWrapper_prog1(3);
+}
 void NewLevel()
 {
     unsigned char x;
     unsigned char y;
     int count = 0;
-    BrickLayout bl;
-    bl = brickLayouts[cycleLevel++ % NUM_BRICK_LAYOUTS];
-    currentBrickWidth = bl.brickWidth;
-    currentNumBricksH = bl.numColumns;
-    change_rom_bank(BANK_PROG1);
-    BreakoutBricksSetupWrapper_prog1(3);
+    
     for (y = 0; y<NUM_BRICK_ROWS; y++){
         for (x=0; x<currentNumBricksH; x++){
             brickRows[y].visible[x] = 1;
@@ -915,7 +921,7 @@ bool check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
         brickRows[row].visible[col] = 0;
         brickRows[row].erase_frames[col] = 2;
         //animatedBricks[row*currentNumBricksH + col] = 20;//start animation for this brick //animate at half speed
-        if (erase_queue_count < 8) {
+        if (erase_queue_count < ERASE_QUEUE_MAX) {
             //erase_queue[erase_queue_count].brick_index = row*currentNumBricksH + col;
             erase_queue[erase_queue_count].frames_left = 2; // Two buffers to clean
             erase_queue[erase_queue_count].row = row;
@@ -1056,7 +1062,12 @@ void BreakoutGameWrapper(){
         }
     }
     if (!bricks_remaining || gamestate==STATE_BREAKOUT_MENU) {
-        if (!resetTimer--) {
+        if (resetTimer--==100){
+            gamestate=-1;//not sure what to do here
+        }
+        if (!resetTimer) {
+            GenNextLevel(cycleLevel++ % NUM_BRICK_LAYOUTS);
+
             resetTimer=100;
             NewLevel();
             gamestate=STATE_BREAKOUT_PLAY;
@@ -1080,13 +1091,14 @@ void BreakoutGameWrapper(){
 // change_rom_bank(BANK_PROG1);
     change_rom_bank(BANK_PROG1);
 
-    
     DrawBricksWrapper_prog1();
 
+    if (gamestate==STATE_BREAKOUT_PLAY || gamestate == STATE_BREAKOUT_MENU){
     // change_rom_bank(BANK_PROG1);
     boxMotion_prog1();
     // change_rom_bank(BANK_PROG1);
     boxAMotion_prog1();
+    }
 
     ToggleDemoMode();
     change_rom_bank(BANK_PROG1);
@@ -1104,8 +1116,10 @@ void BreakoutGameWrapper(){
         }
     }
 
-    queue_draw_sprite(box_x,box_y,BALLSIZE,BALLSIZE,4,0,1);//ball
-    queue_draw_sprite(boxA_x,boxA_y,BALLSIZE,BALLSIZE,4,0,1);
+    if (gamestate==STATE_BREAKOUT_PLAY){
+        queue_draw_sprite(box_x,box_y,BALLSIZE,BALLSIZE,4,0,1);//ball
+        queue_draw_sprite(boxA_x,boxA_y,BALLSIZE,BALLSIZE,4,0,1);
+    }
     queue_draw_sprite(paddleX,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0,0,1);
    // print_scores(score);
     paddleX_old_old = paddleX_old;
