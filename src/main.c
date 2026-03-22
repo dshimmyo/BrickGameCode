@@ -890,7 +890,7 @@ bool check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
         if (anim_queue_count < ANIM_QUEUE_MAX)
         {
             //anim_queue[anim_queue_count].brick_index = row*currentNumBricksH + col;
-            anim_queue[anim_queue_count].frames_left = NUM_ANIM_FRAMES*2;//double buffers?
+            anim_queue[anim_queue_count].frames_left = NUM_ANIM_FRAMES*2+2;//double buffers?
             anim_queue[anim_queue_count].row = row;
             anim_queue[anim_queue_count].col = col;
             anim_queue_count++;
@@ -1121,9 +1121,9 @@ void SelectControllerScreen_prog2()
 #pragma code-name (pop);
 
 
-//#pragma rodata-name (push, "PROG1")
-unsigned char dissolve_mask[60];//sample largest brick size 15x4? 8 columns
-//#pragma rodata-name (pop)
+#pragma rodata-name (push, "PROG1")
+unsigned char dissolve_mask[15 * BRICK_HEIGHT];//sample largest brick size 15x4? 8 columns
+#pragma rodata-name (pop)
 
 #pragma code-name (push, "PROG1")
 
@@ -1134,10 +1134,69 @@ void bake_gradient_mask_prog1() {//15 is theoretical largest possible brick widt
         dissolve_mask[i] = rnd_range(0,255);
     }
 }
+
+void bake_animation_frames_prog1() 
+{
+    char oldFlags = flagsMirror; // Save the original screen/DMA settings
+    char oldBanks = banksMirror; 
+    unsigned int animOffset = 24*128;//start of animation frames in bank 3
+    unsigned char x,y;
+    unsigned char pixel;
+
+    // 1. SET THE HARDWARE MODE
+    // Clear Bit 0 (DMA_ENABLE) and Clear Bit 1 (DMA_CPU_TO_VRAM)
+    flagsMirror &= ~(DMA_ENABLE | DMA_CPU_TO_VRAM); 
+    *dma_flags = flagsMirror;
+
+    // 2. BANK IN THE SPRITES
+    banksMirror = bankflip | GRAM_PAGE(3);
+    *bank_reg = banksMirror;
+
+    //copy pixels from top of vram area, every pixel for 128 x 24 pixels
+    //write out anim frames in chunks of current_brick_width x 24 pixels
+    //change threshold for each frame
+    //maximum of 8 anim frames to accomodate 15 pixel wide bricks
+    //if I want more anim frames can accomodate at most 12-pixel-wide bricks for 10 frames
+    for (y=0; y<24; y++)//all 6 rows in one shot
+    {
+        char numFrames = (NUM_ANIM_FRAMES<=120/currentBrickWidth) ? NUM_ANIM_FRAMES : 120/currentBrickWidth;//limit to the 120 frame buffer
+        char frame=0;
+        for (frame=0; frame<numFrames; frame++)
+        {//for every frame offset by z*currentBrickWidth
+            unsigned int frameOffset = frame * currentBrickWidth;
+            for (x = 0; x < currentBrickWidth; x++)//only write out frames the size of the bricks
+            {
+                unsigned int origCoord = (y * 128) + x + frameOffset; //only needs to be the first frame over and over
+                unsigned int targetCoord = animOffset + origCoord;
+                unsigned int pixel = vram[origCoord];
+                unsigned char noise = dissolve_mask[x+((y&0b00000011)*currentBrickWidth)] ;//no offset
+                unsigned int threshold = (frame * 255/numFrames);
+                if (numFrames - frame <= 2) {
+                    vram[targetCoord] = 0; // Erase the pixel
+                } else {
+                    // Check against your 'Master Gradient' mask
+                    if (noise < threshold) {
+                        vram[targetCoord] = 0; // Erase the pixel
+                    }
+                    else {
+                        vram[targetCoord] = pixel;
+                    }
+                }
+            }
+        }
+    }
+    
+    // 4. RESTORE EVERYTHING
+    flagsMirror = oldFlags;
+    banksMirror = oldBanks;
+    *dma_flags = flagsMirror;
+    *bank_reg = banksMirror;
+
+}
 #pragma code-name (pop);
 
 #pragma code-name (push, "PROG1")
-
+/*
 void animate_dissolve_prog1(unsigned char col, unsigned char row, unsigned char frame) {
     char oldFlags = flagsMirror; // Save the original screen/DMA settings
     char oldBanks = banksMirror; 
@@ -1183,24 +1242,25 @@ void animate_dissolve_prog1(unsigned char col, unsigned char row, unsigned char 
     banksMirror = oldBanks;
     *dma_flags = flagsMirror;
     *bank_reg = banksMirror;
-}
+}*/
 void process_anim_queue_prog1() {
     int i;
+    unsigned int animOffsetY = 24;
+    unsigned int animOffsetX;
     for (i = 0; i < anim_queue_count; i++) {
     //for ( i = anim_queue_count - 1; i >= 0; i--) {
         EraseTask *task = &anim_queue[i];
         
         // 1. Only update the SOURCE pixels in Bank 3 once per logic frame
         // This 'eats' the brick further in the master spritesheet
-        animate_dissolve_prog1(task->col, task->row, task->frames_left);
+        //animate_dissolve_prog1(task->col, task->row, task->frames_left);
 
         // 3. Draw the resulting sprite to the screen
         queue_draw_box(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,0);
-        // if (task->frames_left>2){
-        //     queue_draw_sprite(BRICK_LEFT + c * currentBrickWidth,BRICK_TOP + r * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,c * currentBrickWidth, r * BRICK_HEIGHT,3);//brick sprite has no y offset
-        // }
-
-        queue_draw_sprite(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,task->col * currentBrickWidth, task->row * BRICK_HEIGHT,3);//brick sprite has no y offset
+        
+        animOffsetX = (NUM_ANIM_FRAMES - (task->frames_left-2)) * currentBrickWidth;
+        //queue_draw_sprite(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,task->col * currentBrickWidth, task->row * BRICK_HEIGHT,3);//brick sprite has no y offset
+        queue_draw_sprite(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT, animOffsetX, (task->row * BRICK_HEIGHT) + animOffsetY,3);//brick sprite has no y offset
 
         // 4. Tick down
         task->frames_left--;
@@ -1271,6 +1331,7 @@ void BreakoutBricksSetupWrapper(char bank)
     load_spritesheet(ASSET__gfx__BreakoutBrickWide_bmp,bank);
     change_rom_bank(BANK_PROG1);
     bevel_all_bricks_prog1();
+    bake_animation_frames_prog1();
 }
 
 void GameWrapper()
@@ -1307,8 +1368,7 @@ void main () {
     load_spritesheet(ASSET__gfx__PressStart_bmp,4);
     
     change_rom_bank(BANK_PROG1);
-    bake_gradient_mask_prog1();
-
+    bake_gradient_mask_prog1();//only needs to be done once
     BreakoutBricksSetupWrapper(3);//loads fresh bricks from bank 3 and bevels them
     gamestate = STATE_CONTROLLER_SELECT;
 
