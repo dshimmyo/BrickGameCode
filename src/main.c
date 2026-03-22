@@ -1476,7 +1476,8 @@ void BreakoutBricksSetupWrapper_prog1(char bank)
 }
 #pragma code-name (pop);
 
-void process_all_balls() {
+#pragma code-name (push, "PROG1")
+void process_all_balls_prog1() {
     unsigned char i; 
     for (i = 0; i < MAX_BALLS; i++) {
         if (balls[i].active) {
@@ -1484,6 +1485,20 @@ void process_all_balls() {
         }
     }
 }
+void init_ball_system_prog1() {
+    unsigned char i;
+    for (i = 0; i < MAX_BALLS; i++) {
+        balls[i].active = false;
+        balls[i].x = 0;
+        balls[i].y = 0;
+        balls[i].x_old = 0;
+        balls[i].y_old = 0;
+        balls[i].x_old_old = 0;
+        balls[i].y_old_old = 0;
+    }
+}
+#pragma code-name (pop);
+
 
 void GameWrapper()
 {
@@ -1517,6 +1532,8 @@ void main () {
     bake_gradient_mask_prog1();//only needs to be done once
     init_game();
     scoring_init();
+    change_rom_bank(BANK_PROG1);
+    init_ball_system_prog1();
     BreakoutBricksSetupWrapper_prog1(3); //redundant but keeps vram properly setup
     gamestate = STATE_CONTROLLER_SELECT;
 
