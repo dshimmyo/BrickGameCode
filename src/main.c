@@ -40,8 +40,8 @@
 #define NUM_BRICK_ROWS 6
 
 //dynamic brick layout
-unsigned char currentBrickWidth = 2;//8;//4;//2;
-unsigned char currentNumBricksH = 60;//15;//30;//60;
+unsigned char currentBrickWidth = 12;//8;//4;//2;
+unsigned char currentNumBricksH = 10;//15;//30;//60;
 
 
 
@@ -126,9 +126,11 @@ unsigned char  anim_queue_count = 0;
 
 unsigned char animatedBricks[MAX_BRICK_COLS*NUM_BRICK_ROWS]; //this needs to be re-engineered
 
-#define NUM_BRICK_LAYOUTS 8
+#define NUM_BRICK_LAYOUTS 9
 BrickLayout brickLayouts[NUM_BRICK_LAYOUTS]=
 {
+    //{5,24},//crashes
+    {6,20},
     {8,15},
     {10,12},
     {12,10},
@@ -651,7 +653,7 @@ void NewGame()
 void init_game()//used to refresh the screen when all the bricks are gone
 {
     numLives = 3;
-    NewLevel();
+    //NewLevel();
     resetTimer = 100;
 }
 
@@ -1048,9 +1050,12 @@ void BreakoutGameWrapper(){
             pressStartVisible--;
         }
     }
-    if (!bricks_remaining) {
+    if (!bricks_remaining || gamestate==STATE_BREAKOUT_MENU) {
         if (!resetTimer--) {
-            init_game();
+            resetTimer=100;
+            NewLevel();
+            gamestate=STATE_BREAKOUT_PLAY;
+            //init_game();
         }
     }
 
@@ -1137,13 +1142,13 @@ void SelectControllerScreen_prog2()
     {
         controller_style = CONTROLLER_STYLE_GPAD1;
         gamestate = STATE_BREAKOUT_MENU;
-        NewLevel();
+        //NewLevel();
     }
     else if ((player1_buttons & INPUT_MASK_A) && !(player1_old_buttons & INPUT_MASK_A)) 
     {
         controller_style = CONTROLLER_STYLE_PADDLE0;
         gamestate = STATE_BREAKOUT_MENU;
-        NewLevel();
+        //NewLevel();
     }
 }
 #pragma code-name (pop);
@@ -1293,11 +1298,15 @@ void process_anim_queue_prog1() {
         animFrame = NUM_ANIM_FRAMES - (task->frames_left/2-2);
         //queue_draw_sprite(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,task->col * currentBrickWidth, task->row * BRICK_HEIGHT,3);//brick sprite has no y offset
         animFrameMaxPixel = (animFrame+1) * currentBrickWidth;
-        if (animFrameMaxPixel>127) animFrame = 128 / currentBrickWidth;//hopefully eliminate overflow noise
-        animOffsetX = (animFrame) * currentBrickWidth;
-
-        queue_draw_sprite(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT, animOffsetX, (task->row * BRICK_HEIGHT) + animOffsetY,3);//brick sprite has no y offset
-
+        if (animFrameMaxPixel>>7) //animFrame = 128 / currentBrickWidth;//hopefully eliminate overflow noise
+        {
+            //sprite overflow draw nothing
+        }
+        else
+        {
+            animOffsetX = (animFrame) * currentBrickWidth;
+            queue_draw_sprite(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT, animOffsetX, (task->row * BRICK_HEIGHT) + animOffsetY,3);//brick sprite has no y offset
+        }
         // 4. Tick down
         task->frames_left--;
 
@@ -1400,7 +1409,7 @@ void main () {
     bake_gradient_mask_prog1();//only needs to be done once
     init_game();
     scoring_init();
-    //BreakoutBricksSetupWrapper(3);//loads fresh bricks from bank 3 and bevels them
+    BreakoutBricksSetupWrapper_prog1(3); //redundant but keeps vram properly setup
     gamestate = STATE_CONTROLLER_SELECT;
 
     while (1) 
