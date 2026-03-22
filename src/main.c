@@ -126,10 +126,14 @@ unsigned char  anim_queue_count = 0;
 
 unsigned char animatedBricks[MAX_BRICK_COLS*NUM_BRICK_ROWS]; //this needs to be re-engineered
 
-#define NUM_BRICK_LAYOUTS 9
+#define NUM_BRICK_LAYOUTS 14
 BrickLayout brickLayouts[NUM_BRICK_LAYOUTS]=
 {
-    //{5,24},//crashes
+    //{cols,width}
+    {1,120},
+    {2,60},
+    {4,30},
+    {5,24},
     {6,20},
     {8,15},
     {10,12},
@@ -138,7 +142,8 @@ BrickLayout brickLayouts[NUM_BRICK_LAYOUTS]=
     {20,6},
     {24,5},
     {30,4},
-    {60,2}
+    {60,2},
+    {120,1}
 };
 
 bool demoMode = true;
@@ -1284,7 +1289,7 @@ void process_anim_queue_prog1() {
     unsigned int animOffsetY = 24;
     unsigned int animOffsetX;
     char animFrame;
-    unsigned char animFrameMaxPixel;
+    unsigned int animFrameMaxPixel;
     for (i = 0; i < anim_queue_count; i++) {
     //for ( i = anim_queue_count - 1; i >= 0; i--) {
         EraseTask *task = &anim_queue[i];
