@@ -1103,6 +1103,20 @@ void BreakoutBGRefresh_prog1()
 
 #pragma code-name (pop)
 
+void printPressStart(char x, char y, bool visible){
+    if (visible){
+        queue_draw_sprite(x,y,52,6,0,14,4);//press start
+    }else {
+        queue_draw_box(x,y,52,6,0);//press start heal
+    }
+}
+void printGameOver(char x, char y, bool visible){
+    if (visible){
+        queue_draw_sprite(x,y,52,6,0,32,4);//press start
+    }else {
+        queue_draw_box(x,y,52,6,0);//press start heal
+    }
+}
 int blinkTimer=0;
 char pressStartVisible=0;
 void BreakoutGameWrapper(){
@@ -1122,14 +1136,16 @@ void BreakoutGameWrapper(){
     if (demoMode)
     {
         if (blinkTimer++>0){
-            queue_draw_sprite(38,64,52,6,0,14,4);//press start
+            //queue_draw_sprite(38,64,52,6,0,14,4);//press start
+            printPressStart(38,64,true);
             pressStartVisible=2;
             blinkTimer = (blinkTimer>45) ? blinkTimer=-80 : blinkTimer;
         }
         else
         {
             if (pressStartVisible) {
-                queue_draw_box(38,64,52,6,0);//press start heal
+                //queue_draw_box(38,64,52,6,0);//press start heal
+                printPressStart(38,64,false);
                 pressStartVisible--;
             }
         }
