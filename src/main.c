@@ -39,8 +39,8 @@
 #define NUM_BRICK_ROWS 6
 
 //dynamic brick layout
-unsigned char currentBrickWidth = 4;//8;//4;//2;
-unsigned char currentNumBricksH = 30;//15;//30;//60;
+unsigned char currentBrickWidth = 2;//8;//4;//2;
+unsigned char currentNumBricksH = 60;//15;//30;//60;
 
 #define CEILING 21
 
@@ -110,7 +110,7 @@ EraseTask erase_queue[8];
 unsigned char erase_queue_count = 0;
 
 #define MAX_BALLS 2
-#define NUM_ANIM_FRAMES 4
+#define NUM_ANIM_FRAMES 8
 #define ANIM_QUEUE_MAX 4
 EraseTask anim_queue[ANIM_QUEUE_MAX];//[NUM_ANIM_FRAMES*2*MAX_BALLS];//10 frames of animation over maybe double frames for up to two balls animframes * 2X * maxballs
 unsigned char  anim_queue_count = 0;
@@ -1258,7 +1258,7 @@ void process_anim_queue_prog1() {
         // 3. Draw the resulting sprite to the screen
         queue_draw_box(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,0);
         
-        animOffsetX = (NUM_ANIM_FRAMES - (task->frames_left-2)) * currentBrickWidth;
+        animOffsetX = (NUM_ANIM_FRAMES - (task->frames_left/2-2)) * currentBrickWidth;
         //queue_draw_sprite(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,task->col * currentBrickWidth, task->row * BRICK_HEIGHT,3);//brick sprite has no y offset
         queue_draw_sprite(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT, animOffsetX, (task->row * BRICK_HEIGHT) + animOffsetY,3);//brick sprite has no y offset
 
