@@ -109,6 +109,8 @@ typedef struct {
 
 typedef struct { 
     char x, y; //signed just in case, to avoid overflow when negative
+    char x_old, y_old;         // Last frame's position
+    char x_old_old, y_old_old; // Position from 2 frames ago (for double-buffering)
     int dx, dy; // Normalized direction (-1, 0, 1) 
     int dxRem, dyRem; // sub-pixel remainders
     int speed; // 1 = 5/12, 2 = 10/12, etc. 
@@ -372,11 +374,6 @@ int speedMult_prog1(int source,int mult){//multiplier can be fine-tuned here and
 }
 void boxMotion_prog1()
 {
-    char px1 = paddleX;//leftmost
-    char px2 = paddleX + PADDLEWIDTH;//rightmost bound
-    char py1 = PADDLEY;//110 //bottom bount higher number
-    char py2 = PADDLEY + PADDLEHEIGHT; //top bound, lower number
-
     //check collision for every frame
     //frameskipping/subframe should only limit incrementing movement
     //boxes draw left-right top-down 0->127, 7->120
@@ -415,6 +412,71 @@ void boxMotion_prog1()
     dxRem = dxTot & 255;// % 256;//update the remainder for sub-frame movement
     dyRem = dyTot & 255;//% 256;//update the remainder for sub-frame movement
 }
+void update_ball_logic_prog1(Ball *b) 
+{
+    // Use your existing 5/12ths scalar logic (speedMult)
+    int scaledDx = speedMult_prog1(b->dx, b->speed);
+    int scaledDy = speedMult_prog1(b->dy, b->speed);
+    
+    // Accumulate movement with the stored remainder
+    int dxTot = scaledDx + b->dxRem;
+    int dyTot = scaledDy + b->dyRem;
+
+    // 2. Update History (Crucial for the Erase/Heal cycle)
+    b->x_old_old = b->x_old;
+    b->y_old_old = b->y_old;
+    b->x_old = b->x;
+    b->y_old = b->y;
+
+    // Check if we've accumulated enough for a whole pixel move (>= 256)
+    if (((unsigned int)dxTot >= 255 || (unsigned int)dyTot >= 255)) 
+    {
+        b->x += dxTot >> 8;
+        b->y += dyTot >> 8;
+
+        // --- CEILING / OUT OF BOUNDS ---
+        if(b->y <= CEILING + 1) {
+            b->dy = (b->dy < 0) ? -b->dy : b->dy;
+            soundCeiling();
+        } 
+        else if(b->y >= 120 - BALLSIZE) {
+            // For now, we randomize/reset. Later, we can set b->active = false;
+            //randomizeBox(&b->x, &b->y, &b->dx, &b->dy, &b->speed);
+            b->active = false;//despawn
+            soundTest();
+        }
+
+        // --- WALLS ---
+        if(b->x <= BRICK_LEFT) 
+        {
+            b->dx = (b->dx < 0) ? -b->dx : b->dx;
+            soundWall();
+        } 
+        else if(b->x >= BRICK_RIGHT - BALLSIZE + 1) 
+        {
+            b->dx = (b->dx > 0) ? -b->dx : b->dx;
+            soundWall();
+        } 
+        
+        // --- PADDLE ---
+        if (detectPaddleCollision_prog1(b->x, b->x + BALLSIZE, b->y, b->y + BALLSIZE, &b->dx, &b->dy, &b->speed)) 
+        {
+        // The pointers inside the function will now update the 
+        // specific ball's dx, dy, and speed in the array.
+        b->dyRem = 0; 
+        }
+
+        // --- BRICKS ---
+        // Pass the ball's specific variables to your collision detector
+        check_brick_collision_prog1(&b->x, &b->y, &b->dx, &b->dy, &b->speed);
+    }
+
+    // Update the remainder for the next frame
+    b->dxRem = dxTot & 255;
+    b->dyRem = dyTot & 255;
+}
+
+
 #pragma code-name (pop)
 
 
@@ -424,11 +486,6 @@ int dyARem=0;
 #pragma code-name (push, "PROG1")
 void boxAMotion_prog1()
 {
-    char px1 = paddleX;//leftmost
-    char px2 = paddleX + PADDLEWIDTH;//rightmost bound
-    char py1 = PADDLEY;//110 //bottom bount higher number
-    char py2 = PADDLEY + PADDLEHEIGHT; //top bound, lower number
-
     int scaledDx = speedMult_prog1(dxA,ballSpeedA);//dxA * ballSpeedA / 2;
     int scaledDy = speedMult_prog1(dyA,ballSpeedA);//dyA * ballSpeedA / 2;
     int dxATot = scaledDx + dxARem;
@@ -1418,6 +1475,15 @@ void BreakoutBricksSetupWrapper_prog1(char bank)
     bake_animation_frames_prog1();
 }
 #pragma code-name (pop);
+
+void process_all_balls() {
+    unsigned char i; 
+    for (i = 0; i < MAX_BALLS; i++) {
+        if (balls[i].active) {
+            update_ball_logic_prog1(&balls[i]);
+        }
+    }
+}
 
 void GameWrapper()
 {
