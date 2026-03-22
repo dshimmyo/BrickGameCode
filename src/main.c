@@ -51,7 +51,6 @@ unsigned char currentNumBricksH = 10;//15;//30;//60;
 #define BRICK_BOTTOM 58//58//44 + 18
 #define BRICK_LEFT   4//6//4//4 pixels border but maybe only 3 visible
 #define BRICK_RIGHT  123//123//4 pixels border
-#define BRICK_COOLDOWN false
 #define BRICK_ANIMATION true
 
 #define MAX_NOISE 64
@@ -65,6 +64,8 @@ unsigned char currentNumBricksH = 10;//15;//30;//60;
 
 #define CONTROLLER_STYLE_PADDLE0 0
 #define CONTROLLER_STYLE_GPAD1 1
+#define MAX_BALLS 8 //planning for insane mode
+
 
 char gamestate = 0;
 char controller_style = 0;
@@ -74,12 +75,14 @@ char breakoutBricksRefresh=0;//set to true to refresh the whole screen
 unsigned char bricks_remaining = 0;
 
 //prototypes
-bool check_brick_collision_prog1(char *,char *, int *, int *, int *);
+void check_brick_collision_prog1(char *,char *, int *, int *, int *);
 void randomizeBox(char *_box_x, char *_box_y, int *_dx, int *_dy, int *_ballSpeed);
 int speedMult_prog1(int source, int speed);
 void BrickHeal_prog1(unsigned char, unsigned char, unsigned char);
 void process_anim_queue_prog1();
 void BreakoutBricksSetupWrapper_prog1(char);
+
+
 //typedefs
 typedef struct {
     int dx;
@@ -104,6 +107,16 @@ typedef struct {
     char brickWidth;
 } BrickLayout;
 
+typedef struct { 
+    char x, y; //signed just in case, to avoid overflow when negative
+    int dx, dy; // Normalized direction (-1, 0, 1) 
+    int dxRem, dyRem; // sub-pixel remainders
+    int speed; // 1 = 5/12, 2 = 10/12, etc. 
+    bool active; 
+} Ball;
+
+Ball balls[MAX_BALLS];//pre-allocate enough space for MAX_BALLS
+
 #define NUM_ANGLES 22
 #pragma rodata-name (push, "PROG1")
 const angle reflectAnglesNew_prog1[NUM_ANGLES]=
@@ -118,7 +131,6 @@ EntityRow brickRows[NUM_BRICK_ROWS];//init in NewLevel()
 EraseTask erase_queue[8];
 unsigned char erase_queue_count = 0;
 
-#define MAX_BALLS 8 //planning for insane mode
 #define ERASE_QUEUE_MAX 16
 #define NUM_ANIM_FRAMES 8
 #define ANIM_QUEUE_MAX 4
@@ -168,7 +180,6 @@ int dx = 256, dy = 256;//range -256 to 256
 int dxA = 256, dyA = 256;
 int dxRem=0;//remainder
 int dyRem=0;
-bool cooldown;
 
 char paddleX = 64;//global paddle xpos
 char paddleX_old=64;
@@ -224,8 +235,26 @@ void soundCeiling(){
 }
 
 
-#pragma code-name (push, "PROG1")
+#pragma code-name (push, "PROG2")
+void spawn_ball_prog2(char x, char y, int dx, int dy, int speed) {
+    unsigned char i;
+    for (i = 0; i < MAX_BALLS; i++) {
+        if (!balls[i].active) {
+            balls[i].x = x;
+            balls[i].y = y;
+            balls[i].dx = dx;
+            balls[i].dy = dy;
+            balls[i].dxRem = 0;
+            balls[i].dyRem = 0;
+            balls[i].speed = speed;
+            balls[i].active = true;
+            return; // Exit once the ball is placed
+        }
+    }
+}
+#pragma code-name (pop)
 
+#pragma code-name (push, "PROG1")
 unsigned char GetNearestReflectAngleIndex_prog1( int _dx)
 {
     unsigned char index=0;
@@ -381,8 +410,7 @@ void boxMotion_prog1()
             dyRem=0;
             //soundCol();
         }
-        if (!cooldown) cooldown = check_brick_collision_prog1(&box_x,&box_y,&dx,&dy,&ballSpeed);
-        else cooldown = false;
+        check_brick_collision_prog1(&box_x,&box_y,&dx,&dy,&ballSpeed);
     }
     dxRem = dxTot & 255;// % 256;//update the remainder for sub-frame movement
     dyRem = dyTot & 255;//% 256;//update the remainder for sub-frame movement
@@ -392,7 +420,6 @@ void boxMotion_prog1()
 
 int dxARem=0;//remainder
 int dyARem=0;
-bool cooldownA = false;
 
 #pragma code-name (push, "PROG1")
 void boxAMotion_prog1()
@@ -433,8 +460,7 @@ void boxAMotion_prog1()
             //soundCol();
         }
 
-        if (!cooldownA) cooldownA = check_brick_collision_prog1(&boxA_x,&boxA_y,&dxA,&dyA,&ballSpeedA);
-        else cooldownA = false;
+        check_brick_collision_prog1(&boxA_x,&boxA_y,&dxA,&dyA,&ballSpeedA);
     }
     dxARem = dxATot & 255;//% 256;//update the remainder for sub-frame movement
     dyARem = dyATot & 255;//% 256;//update the remainder for sub-frame movement
@@ -848,7 +874,7 @@ void DrawBricksWrapper_prog1(){
 #pragma code-name (pop)
 
 #pragma code-name (push, "PROG1")
-bool check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, int *_ball_dy, int *_ballSpeed) {
+void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, int *_ball_dy, int *_ballSpeed) {
     char col;
     char row;
     unsigned char ballCenterX;
@@ -863,8 +889,8 @@ bool check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
     ballYMinMax[0] = *_ball_y;
     ballYMinMax[1] = *_ball_y + BALLSIZE-1;
     
-    if (ballYMinMax[1] < BRICK_TOP || ballYMinMax[0] > BRICK_BOTTOM) return false;
-    if (ballXMinMax[1] < BRICK_LEFT || ballXMinMax[0] > BRICK_RIGHT) return false;//redundant
+    if (ballYMinMax[1] < BRICK_TOP || ballYMinMax[0] > BRICK_BOTTOM) return; //false
+    if (ballXMinMax[1] < BRICK_LEFT || ballXMinMax[0] > BRICK_RIGHT) return; // false //redundant
 
     //check collision on 4 bounding corners but only recognize the first collision
 
@@ -898,7 +924,7 @@ bool check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
             }
     //     }
     // }
-    if (!collisionFound) return false;
+    if (!collisionFound) return; //false
 
     // Convert to brick coordinates
     // col = (ballCenterX - BRICK_LEFT) / BRICKWIDTH;//>> 3;        // 0-15
@@ -980,11 +1006,8 @@ bool check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
         //play_single_note();
         score+= brickRowPoints[row];//brickRows[row].points;//(7-row)>>1;
         if (row==0) *_ballSpeed = 3;//not double speed but 3/2 speed
-        #if BRICK_COOLDOWN 
-            return true;//cooldown for one frame
-        #endif
     }
-    return false;
+    return;
 }
 #pragma code-name (pop)
 
