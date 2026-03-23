@@ -924,7 +924,9 @@ void DrawBricksWrapper_prog1(){
     {
         DrawBricksErase_prog1();
         #if BRICK_ANIMATION
-        process_anim_queue_prog1();
+        if (currentBrickWidth>1){
+            process_anim_queue_prog1();
+        }
         #endif
     }
 }
