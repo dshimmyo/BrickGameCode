@@ -35,15 +35,13 @@
 //#define BRICK_WIDTH 2// 12// 2// 4// 8//12//2//8//12
 
 #define BRICK_HEIGHT 4
-#define MAX_BRICK_COLS 60
+#define MAX_BRICK_COLS 120
 //#define NUM_BRICK_COLS 60//10//60//30//15//30//60//15 //10
 #define NUM_BRICK_ROWS 6
 
 //dynamic brick layout
-unsigned char currentBrickWidth = 12;//8;//4;//2;
-unsigned char currentNumBricksH = 10;//15;//30;//60;
-
-
+unsigned char currentBrickWidth = 12;//12;//8;//4;//2;
+unsigned int currentNumBricksH = 10;//10;//15;//30;//60;
 
 #define CEILING 21
 
@@ -66,22 +64,20 @@ unsigned char currentNumBricksH = 10;//15;//30;//60;
 #define CONTROLLER_STYLE_GPAD1 1
 #define MAX_BALLS 8 //planning for insane mode
 
-
 char gamestate = 0;
 char controller_style = 0;
 char numLives = 3;
 char breakoutRefresh=0;//set to true to refresh the whole screen
 char breakoutBricksRefresh=0;//set to true to refresh the whole screen
-unsigned char bricks_remaining = 0;
+unsigned int bricks_remaining = 0;
 
 //prototypes
 void check_brick_collision_prog1(char *,char *, int *, int *, int *);
-void randomizeBox(char *_box_x, char *_box_y, int *_dx, int *_dy, int *_ballSpeed);
+void randomizeBox_prog1(char *_box_x, char *_box_y, int *_dx, int *_dy, int *_ballSpeed);
 int speedMult_prog1(int source, int speed);
 void BrickHeal_prog1(unsigned char, unsigned char, unsigned char);
 void process_anim_queue_prog1();
 void BreakoutBricksSetupWrapper_prog1(char);
-
 
 //typedefs
 typedef struct {
@@ -236,7 +232,6 @@ void soundCeiling(){
     play_sound_effect(ASSET__audio__ceiling_sfx_ID,(char)1);
 }
 
-
 #pragma code-name (push, "PROG2")
 void spawn_ball_prog2(char x, char y, int dx, int dy, int speed) {
     unsigned char i;
@@ -361,9 +356,9 @@ bool detectPaddleCollision_prog1(char sourceXLow,char sourceXHi,char sourceYLow,
 // int approx_div_3_prog1(int num) {
 //     return (num >> 5) * 11; // This is an approximation using a fixed-point representation
 // }
-int approx_div_3_prog1(int num) {
-    return (num >> 6) * 21; // This is an approximation using a fixed-point representation
-}
+// int approx_div_3_prog1(int num) {
+//     return (num >> 6) * 21; // This is an approximation using a fixed-point representation
+// }
 int approx_five_twelfths(int num){
     return (num >> 5) * 13;
 }
@@ -390,7 +385,7 @@ void boxMotion_prog1()
             dy = (dy<0) ? -dy : dy;
             soundCeiling();
         } else if(box_y >= 120-BALLSIZE){//112) {
-            randomizeBox(&box_x, &box_y, &dx, &dy, &ballSpeed);
+            randomizeBox_prog1(&box_x, &box_y, &dx, &dy, &ballSpeed);
             soundTest();
         }
 
@@ -412,6 +407,9 @@ void boxMotion_prog1()
     dxRem = dxTot & 255;// % 256;//update the remainder for sub-frame movement
     dyRem = dyTot & 255;//% 256;//update the remainder for sub-frame movement
 }
+#pragma code-name (pop)
+
+#pragma code-name (push, "PROG1")
 void update_ball_logic_prog1(Ball *b) 
 {
     // Use your existing 5/12ths scalar logic (speedMult)
@@ -475,8 +473,6 @@ void update_ball_logic_prog1(Ball *b)
     b->dxRem = dxTot & 255;
     b->dyRem = dyTot & 255;
 }
-
-
 #pragma code-name (pop)
 
 
@@ -499,7 +495,7 @@ void boxAMotion_prog1()
             dyA = (dyA<0) ? -dyA : dyA;
             soundCeiling();
         } else if(boxA_y >= 120-BALLSIZE/*112*/) {
-            randomizeBox(&boxA_x, &boxA_y, &dxA, &dyA, &ballSpeedA);
+            randomizeBox_prog1(&boxA_x, &boxA_y, &dxA, &dyA, &ballSpeedA);
             soundTest();
         }
 
@@ -550,30 +546,6 @@ unsigned char buttons_to_byte_xyzm_prog2(int player1_buttons) {
 }
 #pragma code-name (pop)
 
-
-// int setRange(char input, char inMin, char inMax, char outMin, char outMax)
-// {
-//     int output = 0;
-//     if (input<inMin)return outMin;
-//     else if (input>inMax)return outMax;
-
-//     output = ((outMax - outMin)<<8/(inMax-inMin)*(input-inMin))>>8 + outMin;
-//     return output;
-    
-// }
-// char ClampLeft(int x){
-//     if (x<1){return 1;}
-//     return x;
-// }
-// int SlowLerp(int source, int target)
-// {
-//     //return target/3 + (source<<1)/3;//1/3 effort
-//     //return (target>>2) + ((source*3)>>2);//1/4 effort
-//     //return (target/5) + ((source<<2)/5);//1/5 effort
-//     //return (target/6) + ((source*5)/6);//1/6 effort
-//     //return (target/7) + ((source*6)/7);//1/7 effort
-//     return (target>>3) + ((source*7)>>3);//1/8 effort
-// }
 
 #pragma code-name (push, "PROG1")
 int ClampPaddleX_prog1(int paddlex){
@@ -657,7 +629,13 @@ char paddleXFromClosestBox_prog1(){
         return ConstVelocity_prog1(paddleX, PosXList[downestDyIndex] - (PADDLEWIDTH>>1) + rndPaddleOffset,3);//
     }
 }
-
+void randomizeBox_prog1(char *_box_x, char *_box_y, int *_dx, int *_dy, int *_ballSpeed){
+    *_box_x = rnd_range(5,114);
+    *_box_y = rnd_range(64,68);
+    *_dx = (rnd_range(0,10) > 5) ? 255 : -255;
+    *_dy = 255;//always down
+    *_ballSpeed = 1;//default slow
+}
 #pragma code-name (pop)
 
 
@@ -686,6 +664,7 @@ void inputBinaryDraw_prog2()
     //128 possibilities, should map cleanly to pixels from left to right
     queue_draw_box(0,BINARYTESTPOSY,button_byte>>1,1,182);
 }
+
 #pragma code-name (pop)
 
 
@@ -697,19 +676,12 @@ void ToggleDemoMode()
     }
 }
 
-void randomizeBox(char *_box_x, char *_box_y, int *_dx, int *_dy, int *_ballSpeed){
-    *_box_x = rnd_range(5,114);
-    *_box_y = rnd_range(64,68);
-    *_dx = (rnd_range(0,10) > 5) ? 255 : -255;
-    *_dy = 255;//always down
-    *_ballSpeed = 1;//default slow
-}
+
 
 unsigned char cycleLevel=0;
 void GenNextLevel(char procLevel)
 {
     BrickLayout bl;
-    //bl = brickLayouts[cycleLevel++ % NUM_BRICK_LAYOUTS];
     bl = brickLayouts[procLevel % NUM_BRICK_LAYOUTS];
     currentBrickWidth = bl.brickWidth;
     currentNumBricksH = bl.numColumns;
@@ -734,8 +706,9 @@ void NewLevel()
     ballSpeed = 1;//slow start
     ballSpeedA = 1;//slow start
     bricks_remaining = currentNumBricksH * NUM_BRICK_ROWS;
-    randomizeBox(&box_x, &box_y, &dx, &dy, &ballSpeed);
-    randomizeBox(&boxA_x, &boxA_y, &dxA, &dyA, &ballSpeedA);
+    change_rom_bank(BANK_PROG1);
+    randomizeBox_prog1(&box_x, &box_y, &dx, &dy, &ballSpeed);
+    randomizeBox_prog1(&boxA_x, &boxA_y, &dxA, &dyA, &ballSpeedA);
     breakoutRefresh=0;
     breakoutBricksRefresh=0;
 }
@@ -750,14 +723,6 @@ void init_game()//used to refresh the screen when all the bricks are gone
     //NewLevel();
     resetTimer = 100;
 }
-
-unsigned char ClampX(unsigned char num)
-{
-    unsigned char result = num;
-    result = (result > 127) ? 127 : result;
-    return result;
-}
-
 
 #pragma code-name (push, "PROG1")
 void DrawBricks_prog1(){//only gets used to refresh the whole fully-populated field
@@ -924,9 +889,9 @@ void DrawBricksWrapper_prog1(){
     {
         DrawBricksErase_prog1();
         #if BRICK_ANIMATION
-        if (currentBrickWidth>1){
+        //if (currentBrickWidth>1){
             process_anim_queue_prog1();
-        }
+        //}
         #endif
     }
 }
@@ -1159,7 +1124,7 @@ void BreakoutGameWrapper(){
             pressStartVisible--;
         }
     }
-    if (!bricks_remaining || gamestate==STATE_BREAKOUT_MENU) {
+    if ((bricks_remaining<=0) || gamestate==STATE_BREAKOUT_MENU) {
         if (resetTimer--==100){
             gamestate=-1;//not sure what to do here
         }
