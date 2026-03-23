@@ -1105,16 +1105,16 @@ void BreakoutBGRefresh_prog1()
 
 void printPressStart(char x, char y, bool visible){
     if (visible){
-        queue_draw_sprite(x,y,52,6,0,14,4);//press start
+        queue_draw_sprite(x,y,64,5,0,21,4);//press start
     }else {
-        queue_draw_box(x,y,52,6,0);//press start heal
+        queue_draw_box(x,y,64,5,0);//press start heal
     }
 }
 void printGameOver(char x, char y, bool visible){
     if (visible){
-        queue_draw_sprite(x,y,52,6,0,32,4);//press start
+        queue_draw_sprite(x,y,64,5,0,40,4);//press start
     }else {
-        queue_draw_box(x,y,52,6,0);//press start heal
+        queue_draw_box(x,y,64,5,0);//press start heal
     }
 }
 int blinkTimer=0;
@@ -1137,7 +1137,7 @@ void BreakoutGameWrapper(){
     {
         if (blinkTimer++>0){
             //queue_draw_sprite(38,64,52,6,0,14,4);//press start
-            printPressStart(38,64,true);
+            printPressStart(32,64,true);
             pressStartVisible=2;
             blinkTimer = (blinkTimer>45) ? blinkTimer=-80 : blinkTimer;
         }
@@ -1145,7 +1145,7 @@ void BreakoutGameWrapper(){
         {
             if (pressStartVisible) {
                 //queue_draw_box(38,64,52,6,0);//press start heal
-                printPressStart(38,64,false);
+                printPressStart(32,64,false);
                 pressStartVisible--;
             }
         }
@@ -1153,7 +1153,7 @@ void BreakoutGameWrapper(){
     else //make sure to erase press start
     {
         if (pressStartVisible) {
-            queue_draw_box(38,64,52,6,0);//press start heal
+                printPressStart(32,64,false);//press start heal
             pressStartVisible--;
         }
     }
