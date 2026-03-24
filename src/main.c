@@ -71,14 +71,7 @@ char breakoutRefresh=0;//set to true to refresh the whole screen
 char breakoutBricksRefresh=0;//set to true to refresh the whole screen
 unsigned int bricks_remaining = 0;
 
-//prototypes
-void check_brick_collision_prog1(char *,char *, int *, int *, int *);
-void randomizeBox_prog1(char *_box_x, char *_box_y, int *_dx, int *_dy, int *_ballSpeed);
-int speedMult_prog1(int source, int speed);
-void BrickHeal_prog1(unsigned char, unsigned char, unsigned char);
-void process_anim_queue_prog1();
-void BreakoutBricksSetupWrapper_prog1(char);
-void render_paddle_prog1();
+
 //typedefs
 typedef struct {
     int dx;
@@ -114,6 +107,24 @@ typedef struct {
     bool was_active_old; 
 } Ball;
 
+
+
+
+//prototypes
+void check_brick_collision_prog1(char *,char *, int *, int *, int *);
+void randomizeBox_prog1(char *_box_x, char *_box_y, int *_dx, int *_dy, int *_ballSpeed);
+int speedMult_prog1(int source, int speed);
+void BrickHeal_prog1(unsigned char, unsigned char, unsigned char);
+void process_anim_queue_prog1();
+void BreakoutBricksSetupWrapper_prog1(char);
+void render_paddle_prog1();
+void spawn_new_ball_prog1(unsigned char, unsigned char, signed char, signed char, unsigned char speed);
+void erase_paddle_prog1();
+void erase_balls_prog1();
+void process_all_balls_prog1();
+void render_balls_prog1();
+angle get_random_spawn_angles_prog1();
+void init_ball_system_prog1();
 
 #define NUM_ANGLES 22
 #pragma rodata-name (push, "PROG1")
@@ -346,6 +357,42 @@ bool detectPaddleCollision_prog1(char sourceXLow,char sourceXHi,char sourceYLow,
     play_sound_effect(ASSET__audio__paddle_sfx_ID,(char)0);
 
     return true;
+}
+angle get_random_spawn_angles_prog1()
+{
+    char returnIndex;
+    int indexIndex = rnd_range(8,13);
+    angle returnAngle;
+    switch (indexIndex)
+    {
+        case 0: //A send ball far left
+        returnIndex = 4;//1//0
+        break;
+        case 1:
+        returnIndex = 6;
+        break;
+        case 2: //BC slight left
+        returnIndex = 8;
+        break;
+        case 3: //E almost vertical left
+        returnIndex = 10;
+        break;
+        case 4: //E almost vertical right
+        returnIndex = 11;
+        break;
+        case 5://FG nudges right 
+        returnIndex= 13;
+        break;
+        case 6://nudges right
+        returnIndex = 15;
+        break; 
+        case 7://H far right
+        case 8://extra zone? far right
+        returnIndex = 17;//20;//21
+        break;
+    }
+    returnAngle = reflectAnglesNew_prog1[returnIndex];
+    return returnAngle;
 }
 #pragma code-name (pop)
 
@@ -693,7 +740,7 @@ void NewLevel()
     unsigned char x;
     unsigned char y;
     int count = 0;
-    
+    angle randomAngle;
     for (y = 0; y<NUM_BRICK_ROWS; y++){
         for (x=0; x<currentNumBricksH; x++){
             brickRows[y].visible[x] = 1;
@@ -703,12 +750,16 @@ void NewLevel()
     }
     erase_queue_count=0;
     anim_queue_count=0;
-    ballSpeed = 1;//slow start
-    ballSpeedA = 1;//slow start
+    // ballSpeed = 1;//slow start
+    // ballSpeedA = 1;//slow start
     bricks_remaining = currentNumBricksH * NUM_BRICK_ROWS;
+    //change_rom_bank(BANK_PROG1);
+    // randomizeBox_prog1(&box_x, &box_y, &dx, &dy, &ballSpeed);
+    // randomizeBox_prog1(&boxA_x, &boxA_y, &dxA, &dyA, &ballSpeedA);
     change_rom_bank(BANK_PROG1);
-    randomizeBox_prog1(&box_x, &box_y, &dx, &dy, &ballSpeed);
-    randomizeBox_prog1(&boxA_x, &boxA_y, &dxA, &dyA, &ballSpeedA);
+    randomAngle = get_random_spawn_angles_prog1();
+    init_ball_system_prog1();
+    spawn_new_ball_prog1(64,80,randomAngle.dx,-randomAngle.dy,2);
     breakoutRefresh=0;
     breakoutBricksRefresh=0;
 }
@@ -1123,13 +1174,14 @@ void BreakoutGameWrapper(){
     BreakoutBGRefresh_prog1();
 
     //cover up previous paddle position
-    queue_draw_box(paddleX_old_old,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0);//erase paddle
+    //queue_draw_box(paddleX_old_old,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0);//erase paddle
+    erase_paddle_prog1();
 
     //erase where ball has previously been
-    queue_draw_box(box_x_old_old,box_y_old_old,BALLSIZE,BALLSIZE,0);//heal box
-    queue_draw_box(boxA_x_old_old,boxA_y_old_old,BALLSIZE,BALLSIZE,0);//heal boxA
+    // queue_draw_box(box_x_old_old,box_y_old_old,BALLSIZE,BALLSIZE,0);//heal box
+    // queue_draw_box(boxA_x_old_old,boxA_y_old_old,BALLSIZE,BALLSIZE,0);//heal boxA
     
-    change_rom_bank(BANK_PROG1);
+    // change_rom_bank(BANK_PROG1);
     BrickHeal_prog1(box_x_old_old,box_y_old_old,0);
     BrickHeal_prog1(boxA_x_old_old,boxA_y_old_old,0);
     if (demoMode)
@@ -1191,24 +1243,28 @@ void BreakoutGameWrapper(){
         // change_rom_bank(BANK_PROG2);
         inputBinaryDraw_prog2();//debug line
     }
+    ToggleDemoMode();
+
 // change_rom_bank(BANK_PROG1);
     change_rom_bank(BANK_PROG1);
 
     DrawBricksWrapper_prog1();
 
     if (gamestate==STATE_BREAKOUT_PLAY || gamestate == STATE_BREAKOUT_MENU){
-    boxMotion_prog1();
-    boxAMotion_prog1();
+    // boxMotion_prog1();
+    // boxAMotion_prog1();
+        process_all_balls_prog1();
     }
 
-    ToggleDemoMode();
-    change_rom_bank(BANK_PROG1);
+    // change_rom_bank(BANK_PROG1);
+    erase_balls_prog1();
     update_player_paddle_prog1();
     render_paddle_prog1();
     
     if (gamestate==STATE_BREAKOUT_PLAY){
-        queue_draw_sprite(box_x,box_y,BALLSIZE,BALLSIZE,4,0,1);//ball
-        queue_draw_sprite(boxA_x,boxA_y,BALLSIZE,BALLSIZE,4,0,1);
+        render_balls_prog1();
+        // queue_draw_sprite(box_x,box_y,BALLSIZE,BALLSIZE,4,0,1);//ball
+        // queue_draw_sprite(boxA_x,boxA_y,BALLSIZE,BALLSIZE,4,0,1);
     }
 
     paddleX_old_old = paddleX_old;
@@ -1348,53 +1404,7 @@ void bake_animation_frames_prog1()
 #pragma code-name (pop);
 
 #pragma code-name (push, "PROG1")
-/*
-void animate_dissolve_prog1(unsigned char col, unsigned char row, unsigned char frame) {
-    char oldFlags = flagsMirror; // Save the original screen/DMA settings
-    char oldBanks = banksMirror; 
-    
-    int brick_base;
-    unsigned char x, y;
-    unsigned char threshold = 255 - (frame * 255/NUM_ANIM_FRAMES>>1);
-    int row_start = (row << 2) << 7 ;//* 128 ; //0x000 + (row * 4 * 128);//was 0x181
 
-    // 1. SET THE HARDWARE MODE
-    // Clear Bit 0 (DMA_ENABLE) and Clear Bit 1 (DMA_CPU_TO_VRAM)
-    flagsMirror &= ~(DMA_ENABLE | DMA_CPU_TO_VRAM); 
-    *dma_flags = flagsMirror;
-
-    // 2. BANK IN THE SPRITES
-    banksMirror = bankflip | GRAM_PAGE(3);
-    *bank_reg = banksMirror;
-
-    // Calculate the top-left corner of THIS specific brick in VRAM
-    // row * 4 (height) * 128 (stride) + col * currentBrickWidth
-    brick_base = row_start + (col * currentBrickWidth);// + BRICK_LEFT;
-    for(y = 0; y < 4; y++) {
-        for(x = 0; x < currentBrickWidth; x++) {
-            unsigned int target_pos = brick_base + (y << 7) + x; // y << 7 is y * 128
-
-            if (frame<=2)
-            {
-                vram[target_pos] = 0; // Erase the pixel
-            }
-            else
-            {
-                // target_pos is the base + current row offset + current column offset
-
-                // Check against your 'Master Gradient' mask
-                if (dissolve_mask[(y * currentBrickWidth) + x] < threshold) {
-                    vram[target_pos] = 0; // Erase the pixel
-                }
-            }
-        }
-    }
-    // 4. RESTORE EVERYTHING
-    flagsMirror = oldFlags;
-    banksMirror = oldBanks;
-    *dma_flags = flagsMirror;
-    *bank_reg = banksMirror;
-}*/
 void process_anim_queue_prog1() {
     int i;
     unsigned int animOffsetY = 24;
@@ -1538,14 +1548,17 @@ void erase_balls_prog1(){
 void init_ball_system_prog1() {
     unsigned char i;
     for (i = 0; i < MAX_BALLS; i++) {
-        balls[i].active = false;
-        balls[i].was_active_old = false;
         balls[i].x = 0;
         balls[i].y = 0;
         balls[i].x_old = 0;
-        balls[i].y_old = 0;
         balls[i].x_old_old = 0;
+        balls[i].y_old = 0;
         balls[i].y_old_old = 0;
+        balls[i].dx = 0;
+        balls[i].dy = 0;
+        balls[i].speed = 1;
+        balls[i].active = false;
+        balls[i].was_active_old = false;
     }
 }
 #pragma code-name (pop);
