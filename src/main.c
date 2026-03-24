@@ -114,7 +114,6 @@ typedef struct {
     bool was_active_old; 
 } Ball;
 
-Ball balls[MAX_BALLS];//pre-allocate enough space for MAX_BALLS
 
 #define NUM_ANGLES 22
 #pragma rodata-name (push, "PROG1")
@@ -180,6 +179,12 @@ int dxA = 256, dyA = 256;
 int dxRem=0;//remainder
 int dyRem=0;
 
+//new ball variables:
+unsigned char active_balls_count = 0;
+Ball balls[MAX_BALLS];//pre-allocate enough space for MAX_BALLS
+
+
+
 char paddleX = 64;//global paddle xpos
 char paddleX_old=64;
 char paddleX_old_old=64;
@@ -233,23 +238,14 @@ void soundCeiling(){
     play_sound_effect(ASSET__audio__ceiling_sfx_ID,(char)1);
 }
 
-#pragma code-name (push, "PROG2")
-void spawn_ball_prog2(char x, char y, int dx, int dy, int speed) {
+#pragma code-name (push, "PROG1")
+unsigned char get_active_ball_count_prog1() {
+    unsigned char count = 0;
     unsigned char i;
     for (i = 0; i < MAX_BALLS; i++) {
-        if (!balls[i].active) {
-            balls[i].x = x;
-            balls[i].y = y;
-            balls[i].dx = dx;
-            balls[i].dy = dy;
-            balls[i].dxRem = 0;
-            balls[i].dyRem = 0;
-            balls[i].speed = speed;
-            balls[i].active = true;
-            balls[i].was_active_old = true;
-            return; // Exit once the ball is placed
-        }
+        if (balls[i].active) count++;
     }
+    return count;
 }
 #pragma code-name (pop)
 
@@ -1084,7 +1080,7 @@ update_player_paddle_prog1(){
         }
     }
 }
-void spawn_ball(unsigned char x, unsigned char y, signed char dx, signed char dy, unsigned char speed) {
+void spawn_new_ball_prog1(unsigned char x, unsigned char y, signed char dx, signed char dy, unsigned char speed) {
     unsigned char i;
     for (i = 0; i < MAX_BALLS; i++) {
         if (!balls[i].active) {
@@ -1103,6 +1099,7 @@ void spawn_ball(unsigned char x, unsigned char y, signed char dx, signed char dy
         }
     }
 }
+
 #pragma code-name (pop)
 
 void printPressStart(char x, char y, bool visible){
@@ -1226,6 +1223,12 @@ void BreakoutGameWrapper(){
     boxA_x_old = boxA_x;
     boxA_y_old_old = boxA_y_old;
     boxA_y_old = boxA_y;
+
+    // if (get_active_ball_count() == 0) {
+    //     // Check if player has "lives" left or go straight to Game Over
+    //     gamestate = STATE_BREAKOUT_GAMEOVER;
+    //     // Trigger the Bank 4 "Game Over" crumble here
+    // }
 }
 
 #pragma code-name (push, "PROG2")
@@ -1490,13 +1493,21 @@ void BreakoutBricksSetupWrapper_prog1(char bank)
 }
 #pragma code-name (pop);
 
+
 #pragma code-name (push, "PROG1")
 void process_all_balls_prog1() {
     unsigned char i; 
+    active_balls_count=0;
     for (i = 0; i < MAX_BALLS; i++) {
         if (balls[i].active) {
             update_ball_logic_prog1(&balls[i]);
+            active_balls_count++;
         }
+    }
+
+    // Transition to Game Over if the wave is dead
+    if (active_balls_count == 0 && gamestate == STATE_BREAKOUT_PLAY) {
+        gamestate = STATE_BREAKOUT_GAMEOVER;
     }
 }
 void render_balls_prog1() {
