@@ -489,7 +489,7 @@ void update_ball_logic_prog1(Ball *b)
         else if(b->y >= 120 - BALLSIZE) {
             // For now, we randomize/reset. Later, we can set b->active = false;
             //randomizeBox(&b->x, &b->y, &b->dx, &b->dy, &b->speed);
-            b->active = false;//despawn
+            b->active = false;//despawn, stops rendering
             soundTest();
             lives_left--;
             // Check if this was the LAST ball
@@ -1148,7 +1148,7 @@ void update_player_paddle_prog1(){
 void spawn_new_ball_prog1(unsigned char x, unsigned char y, signed char dx, signed char dy, unsigned char speed) {
     unsigned char i;
     for (i = 0; i < MAX_BALLS; i++) {
-        if (!balls[i].active) {
+        if (!(balls[i].active || balls[i].was_active_old || balls[i].was_active_old_old)) {
             balls[i].x = x;
             balls[i].y = y;
             balls[i].x_old = x;
@@ -1302,10 +1302,10 @@ void BreakoutGameWrapper(){
     }
 
     // change_rom_bank(BANK_PROG1);
-    erase_balls_prog1();
     update_player_paddle_prog1();
     render_paddle_prog1();
     
+    erase_balls_prog1();
     if (gamestate==STATE_BREAKOUT_PLAY){
         render_balls_prog1();
         // queue_draw_sprite(box_x,box_y,BALLSIZE,BALLSIZE,4,0,1);//ball
@@ -1329,7 +1329,7 @@ void BreakoutGameWrapper(){
     // boxA_y_old_old = boxA_y_old;
     // boxA_y_old = boxA_y;
 
-    if (get_active_ball_count_prog1 == 0) {
+    if (get_active_ball_count_prog1() == 0) {
         // Check if player has "lives" left or go straight to Game Over
         gamestate = STATE_BREAKOUT_GAMEOVER;
         // Trigger the Bank 4 "Game Over" crumble here
