@@ -1137,6 +1137,14 @@ void BreakoutGameWrapper(){
             //init_game();
         }
     }
+    else if (((player1_buttons & INPUT_MASK_C) && !(player1_old_buttons & INPUT_MASK_C)))//total hack for testing
+    {
+        gamestate=-1;
+        GenNextLevel(cycleLevel++ % NUM_BRICK_LAYOUTS);
+        resetTimer=100;
+        NewLevel();
+        gamestate=STATE_BREAKOUT_PLAY;
+    }
 
     change_rom_bank(BANK_PROG2);
     button_byte = buttons_to_byte_xyzm_prog2(player1_buttons);//gets paddle input
