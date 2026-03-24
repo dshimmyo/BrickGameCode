@@ -113,7 +113,7 @@ typedef struct {
 
 //prototypes
 void check_brick_collision_prog1(char *,char *, int *, int *, int *);
-void randomizeBox_prog1(char *_box_x, char *_box_y, int *_dx, int *_dy, int *_ballSpeed);
+//void randomizeBox_prog1(char *_box_x, char *_box_y, int *_dx, int *_dy, int *_ballSpeed);
 int speedMult_prog1(int source, int speed);
 void BrickHeal_prog1(unsigned char, unsigned char, unsigned char);
 void process_anim_queue_prog1();
@@ -173,24 +173,24 @@ BrickLayout brickLayouts[NUM_BRICK_LAYOUTS]=
 bool demoMode = true;
 bool debugMode = false;
 
-//boxes, make more modular
-char box_x = 64, box_y = 64;
-char box_x_old = 64, box_y_old = 64;
-char box_x_old_old = 64, box_y_old_old = 64;
+// //boxes, make more modular
+// char box_x = 64, box_y = 64;
+// char box_x_old = 64, box_y_old = 64;
+// char box_x_old_old = 64, box_y_old_old = 64;
 
-char boxA_x = 64, boxA_y = 64;
-char boxA_x_old = 64, boxA_y_old = 64;
-char boxA_x_old_old = 64, boxA_y_old_old = 64;
+// char boxA_x = 64, boxA_y = 64;
+// char boxA_x_old = 64, boxA_y_old = 64;
+// char boxA_x_old_old = 64, boxA_y_old_old = 64;
 
-int ballSpeed = 1;//actual speed is in .5 increments
-int ballSpeedA = 1;
+// int ballSpeed = 1;//actual speed is in .5 increments
+// int ballSpeedA = 1;
 
-//ball movement variables
-//256 is 1 pixel per frame
-int dx = 256, dy = 256;//range -256 to 256
-int dxA = 256, dyA = 256;
-int dxRem=0;//remainder
-int dyRem=0;
+// //ball movement variables
+// //256 is 1 pixel per frame
+// int dx = 256, dy = 256;//range -256 to 256
+// int dxA = 256, dyA = 256;
+// int dxRem=0;//remainder
+// int dyRem=0;
 
 //new ball variables:
 unsigned char active_balls_count = 0;
@@ -257,6 +257,13 @@ void soundCeiling(){
 
 #pragma code-name (push, "PROG1")
 unsigned char get_active_ball_count_prog1() {
+    char i;
+    active_balls_count=0;
+    for (i = 0; i < MAX_BALLS; i++) {
+        if (balls[i].active) {
+            active_balls_count++;
+        }
+    }
     return active_balls_count;
 }
 #pragma code-name (pop)
@@ -270,7 +277,7 @@ unsigned char GetNearestReflectAngleIndex_prog1( int _dx)
     char bestIndex=0;
     for (index=0; index<NUM_ANGLES; index++){
         if (reflectAnglesNew_prog1[index].dx == _dx) return index;
-        if (_dx > reflectAnglesNew_prog1[index].dx) newDiff = dx - reflectAnglesNew_prog1[index].dx;
+        if (_dx > reflectAnglesNew_prog1[index].dx) newDiff = _dx - reflectAnglesNew_prog1[index].dx;
         else newDiff = reflectAnglesNew_prog1[index].dx - _dx;
         if (newDiff < diff){
             diff = newDiff;
@@ -413,6 +420,7 @@ int speedMult_prog1(int source,int mult){//multiplier can be fine-tuned here and
     //return (source/3) * mult; //third increments, more work for cpu
     return approx_five_twelfths(source) * mult;
 }
+/*
 void boxMotion_prog1()
 {
     //check collision for every frame
@@ -438,7 +446,7 @@ void boxMotion_prog1()
         if(box_x <= BRICK_LEFT) {
             dx = (dx<0) ? -dx : dx;
             soundWall();
-        } else if(box_x >= BRICK_RIGHT-BALLSIZE+1 /*119*/) {
+        } else if(box_x >= BRICK_RIGHT-BALLSIZE+1 ) {
             dx = (dx>0) ? -dx : dx;
             soundWall();
         } else if (detectPaddleCollision_prog1(box_x,box_x+BALLSIZE,box_y, box_y+BALLSIZE,&dx,&dy,&ballSpeed)){
@@ -452,7 +460,7 @@ void boxMotion_prog1()
     }
     dxRem = dxTot & 255;// % 256;//update the remainder for sub-frame movement
     dyRem = dyTot & 255;//% 256;//update the remainder for sub-frame movement
-}
+}*/
 #pragma code-name (pop)
 
 #pragma code-name (push, "PROG1")
@@ -491,14 +499,14 @@ void update_ball_logic_prog1(Ball *b)
             //randomizeBox(&b->x, &b->y, &b->dx, &b->dy, &b->speed);
             b->active = false;//despawn, stops rendering
             soundTest();
-            if (!(active_balls_count)) lives_left--;//only lose a life if no balls are on the screen
+            if (!(get_active_ball_count_prog1())) lives_left--;//only lose a life if no balls are on the screen
             // Check if this was the LAST ball
             if (lives_left == 0) {
                 // This is where you decide: New Life or Game Over?
                 gamestate = STATE_BREAKOUT_GAMEOVER;
             }
             else 
-            if (lives_left && !active_balls_count)
+            if ((lives_left>0) && (active_balls_count==0))
             {
                 gamestate = STATE_BREAKOUT_READY; //player serves ball or it auto-spawns
                 readyTimer=100;
@@ -541,6 +549,7 @@ int dxARem=0;//remainder
 int dyARem=0;
 
 #pragma code-name (push, "PROG1")
+/*
 void boxAMotion_prog1()
 {
     int scaledDx = speedMult_prog1(dxA,ballSpeedA);//dxA * ballSpeedA / 2;
@@ -555,7 +564,7 @@ void boxAMotion_prog1()
         if(boxA_y <= CEILING+1) {//7
             dyA = (dyA<0) ? -dyA : dyA;
             soundCeiling();
-        } else if(boxA_y >= 120-BALLSIZE/*112*/) {
+        } else if(boxA_y >= 120-BALLSIZE) {
             randomizeBox_prog1(&boxA_x, &boxA_y, &dxA, &dyA, &ballSpeedA);
             soundTest();
         }
@@ -563,7 +572,7 @@ void boxAMotion_prog1()
         if (boxA_x <= BRICK_LEFT) {
             dxA = (dxA<0) ? -dxA : dxA;
             soundWall();
-        } else if(boxA_x >= BRICK_RIGHT-BALLSIZE+1/*119*/) {
+        } else if(boxA_x >= BRICK_RIGHT-BALLSIZE+1) {
             dxA = (dxA>0) ? -dxA : dxA;
             soundWall();
         } else if (detectPaddleCollision_prog1(boxA_x,boxA_x+BALLSIZE,boxA_y, boxA_y+BALLSIZE,&dxA,&dyA,&ballSpeedA)){
@@ -578,7 +587,7 @@ void boxAMotion_prog1()
     }
     dxARem = dxATot & 255;//% 256;//update the remainder for sub-frame movement
     dyARem = dyATot & 255;//% 256;//update the remainder for sub-frame movement
-}
+}*/
 #pragma code-name (pop)
 
 #pragma code-name (push, "PROG2")
@@ -667,6 +676,7 @@ char paddleXFromClosestBall_prog1(){
     }
     return ConstVelocity_prog1(paddleX, balls[target_ball_index].x - (PADDLEWIDTH>>1) + rndPaddleOffset,3);//
 }
+/*
 char paddleXFromClosestBox_prog1(){
     char midPaddle = paddleX + (PADDLEWIDTH>>1);
     char boxA_dist = (boxA_x > midPaddle) ? boxA_x - midPaddle : midPaddle - boxA_x;
@@ -704,13 +714,14 @@ char paddleXFromClosestBox_prog1(){
         return ConstVelocity_prog1(paddleX, PosXList[downestDyIndex] - (PADDLEWIDTH>>1) + rndPaddleOffset,3);//
     }
 }
-void randomizeBox_prog1(char *_box_x, char *_box_y, int *_dx, int *_dy, int *_ballSpeed){
-    *_box_x = rnd_range(5,114);
-    *_box_y = rnd_range(64,68);
-    *_dx = (rnd_range(0,10) > 5) ? 255 : -255;
-    *_dy = 255;//always down
-    *_ballSpeed = 1;//default slow
-}
+*/
+// void randomizeBox_prog1(char *_box_x, char *_box_y, int *_dx, int *_dy, int *_ballSpeed){
+//     *_box_x = rnd_range(5,114);
+//     *_box_y = rnd_range(64,68);
+//     *_dx = (rnd_range(0,10) > 5) ? 255 : -255;
+//     *_dy = 255;//always down
+//     *_ballSpeed = 1;//default slow
+// }
 #pragma code-name (pop)
 
 
@@ -1184,7 +1195,7 @@ void spawn_new_ball_prog1(unsigned char x, unsigned char y, signed char dx, sign
             balls[i].active = true;
             balls[i].was_active_old = false;
             balls[i].was_active_old_old = false;
-            active_balls_count++;
+            //active_balls_count++;
             return; 
         }
     }
@@ -1250,8 +1261,8 @@ void BreakoutGameWrapper(){
     // queue_draw_box(boxA_x_old_old,boxA_y_old_old,BALLSIZE,BALLSIZE,0);//heal boxA
     
     // change_rom_bank(BANK_PROG1);
-    BrickHeal_prog1(box_x_old_old,box_y_old_old,0);
-    BrickHeal_prog1(boxA_x_old_old,boxA_y_old_old,0);
+    // BrickHeal_prog1(box_x_old_old,box_y_old_old,0);
+    // BrickHeal_prog1(boxA_x_old_old,boxA_y_old_old,0);
     // if (demoMode)
     // {
         //printBlinkMessage(0);
@@ -1352,7 +1363,8 @@ void BreakoutGameWrapper(){
     // boxA_y_old_old = boxA_y_old;
     // boxA_y_old = boxA_y;
 
-    if (get_active_ball_count_prog1() == 0) {
+    change_rom_bank(BANK_PROG1);
+    if (!get_active_ball_count_prog1() && !lives_left) {
         // Check if player has "lives" left or go straight to Game Over
         gamestate = STATE_BREAKOUT_GAMEOVER;
         // Trigger the Bank 4 "Game Over" crumble here
@@ -1614,6 +1626,7 @@ void erase_balls_prog1(){
     for (i = 0; i < MAX_BALLS; i++) {
         if (balls[i].active || balls[i].was_active_old || balls[i].was_active_old_old) {
             queue_draw_box(balls[i].x_old_old ,balls[i].y_old_old,BALLSIZE,BALLSIZE,0);//heal box
+            BrickHeal_prog1(balls[i].x_old_old ,balls[i].y_old_old,0);
         }
     }
 }
