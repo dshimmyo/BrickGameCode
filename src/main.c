@@ -78,7 +78,7 @@ int speedMult_prog1(int source, int speed);
 void BrickHeal_prog1(unsigned char, unsigned char, unsigned char);
 void process_anim_queue_prog1();
 void BreakoutBricksSetupWrapper_prog1(char);
-
+void render_paddle_prog1();
 //typedefs
 typedef struct {
     int dx;
@@ -111,6 +111,7 @@ typedef struct {
     int dxRem, dyRem; // sub-pixel remainders
     int speed; // 1 = 5/12, 2 = 10/12, etc. 
     bool active; 
+    bool was_active_old; 
 } Ball;
 
 Ball balls[MAX_BALLS];//pre-allocate enough space for MAX_BALLS
@@ -245,6 +246,7 @@ void spawn_ball_prog2(char x, char y, int dx, int dy, int speed) {
             balls[i].dyRem = 0;
             balls[i].speed = speed;
             balls[i].active = true;
+            balls[i].was_active_old = true;
             return; // Exit once the ball is placed
         }
     }
@@ -425,7 +427,9 @@ void update_ball_logic_prog1(Ball *b)
     b->y_old_old = b->y_old;
     b->x_old = b->x;
     b->y_old = b->y;
+    b->was_active_old = b->active;
 
+    if (!b->active) return;
     // Check if we've accumulated enough for a whole pixel move (>= 256)
     if (((unsigned int)dxTot >= 255 || (unsigned int)dyTot >= 255)) 
     {
@@ -1067,7 +1071,38 @@ void BreakoutBGRefresh_prog1()
 
     }
 }
-
+update_player_paddle_prog1(){
+    if (demoMode){
+        paddleX = paddleXFromClosestBox_prog1();
+    } else {
+        if (controller_style == CONTROLLER_STYLE_PADDLE0){
+            paddleX = paddleXFromPot8opt_prog1(button_byte);
+        }
+        else if (controller_style == CONTROLLER_STYLE_GPAD1)
+        {
+            paddleX = paddleXFromDPad_prog1();
+        }
+    }
+}
+void spawn_ball(unsigned char x, unsigned char y, signed char dx, signed char dy, unsigned char speed) {
+    unsigned char i;
+    for (i = 0; i < MAX_BALLS; i++) {
+        if (!balls[i].active) {
+            balls[i].x = x;
+            balls[i].y = y;
+            balls[i].x_old = x;
+            balls[i].x_old_old = x;
+            balls[i].y_old = y;
+            balls[i].y_old_old = y;
+            balls[i].dx = dx;
+            balls[i].dy = dy;
+            balls[i].speed = speed;
+            balls[i].active = true;
+            balls[i].was_active_old = true;
+            return; 
+        }
+    }
+}
 #pragma code-name (pop)
 
 void printPressStart(char x, char y, bool visible){
@@ -1091,7 +1126,7 @@ void BreakoutGameWrapper(){
     BreakoutBGRefresh_prog1();
 
     //cover up previous paddle position
-    queue_draw_box(paddleX_old_old,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0);//heal paddle
+    queue_draw_box(paddleX_old_old,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0);//erase paddle
 
     //erase where ball has previously been
     queue_draw_box(box_x_old_old,box_y_old_old,BALLSIZE,BALLSIZE,0);//heal box
@@ -1165,36 +1200,24 @@ void BreakoutGameWrapper(){
     DrawBricksWrapper_prog1();
 
     if (gamestate==STATE_BREAKOUT_PLAY || gamestate == STATE_BREAKOUT_MENU){
-    // change_rom_bank(BANK_PROG1);
     boxMotion_prog1();
-    // change_rom_bank(BANK_PROG1);
     boxAMotion_prog1();
     }
 
     ToggleDemoMode();
     change_rom_bank(BANK_PROG1);
-    if (demoMode){
-        paddleX = paddleXFromClosestBox_prog1();
-    } else {
-        if (controller_style == CONTROLLER_STYLE_PADDLE0){
-            //change_rom_bank(BANK_PROG1);
-            paddleX = paddleXFromPot8opt_prog1(button_byte);
-        }
-        else if (controller_style == CONTROLLER_STYLE_GPAD1)
-        {
-            //change_rom_bank(BANK_PROG1);
-            paddleX = paddleXFromDPad_prog1();
-        }
-    }
-
+    update_player_paddle_prog1();
+    render_paddle_prog1();
+    
     if (gamestate==STATE_BREAKOUT_PLAY){
         queue_draw_sprite(box_x,box_y,BALLSIZE,BALLSIZE,4,0,1);//ball
         queue_draw_sprite(boxA_x,boxA_y,BALLSIZE,BALLSIZE,4,0,1);
     }
-    queue_draw_sprite(paddleX,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0,0,1);
-   // print_scores(score);
+
     paddleX_old_old = paddleX_old;
     paddleX_old = paddleX;
+
+    //legacy ball stuff to comment out
     box_x_old_old = box_x_old;
     box_x_old = box_x;
     box_y_old_old = box_y_old;
@@ -1476,10 +1499,36 @@ void process_all_balls_prog1() {
         }
     }
 }
+void render_balls_prog1() {
+    unsigned char i;
+    for (i = 0; i < MAX_BALLS; i++) {
+        if (balls[i].active) {
+            // Only draw the ones currently in play
+            //draw_sprite(balls[i].x, balls[i].y, BALL_SPRITE_ID);
+            queue_draw_sprite(balls[i].x, balls[i].y,BALLSIZE,BALLSIZE,4,0,1);//hacky use of paddle sprite bank
+        }
+    }
+}
+void render_paddle_prog1() 
+{
+    queue_draw_sprite(paddleX,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0,0,1);
+}
+void erase_paddle_prog1(){
+    queue_draw_box(paddleX_old_old,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0);//erase paddle
+}
+void erase_balls_prog1(){
+    unsigned char i;
+    for (i = 0; i < MAX_BALLS; i++) {
+        if (balls[i].active || balls[i].was_active_old) {
+            queue_draw_box(balls[i].x_old_old ,balls[i].y_old_old,BALLSIZE,BALLSIZE,0);//heal box
+        }
+    }
+}
 void init_ball_system_prog1() {
     unsigned char i;
     for (i = 0; i < MAX_BALLS; i++) {
         balls[i].active = false;
+        balls[i].was_active_old = false;
         balls[i].x = 0;
         balls[i].y = 0;
         balls[i].x_old = 0;
