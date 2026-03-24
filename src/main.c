@@ -209,6 +209,8 @@ unsigned char rndPaddleOffsetTimer = 0;
 int blinkTimer=0;
 char blinkMessageVisible=0;
 unsigned int readyTimer=0;
+unsigned char cycleLevel=0;
+
 
 void playBass(char row){
 
@@ -678,6 +680,15 @@ char paddleXFromClosestBall_prog1(){
     }
     return ConstVelocity_prog1(paddleX, balls[target_ball_index].x - (PADDLEWIDTH>>1) + rndPaddleOffset,3);//
 }
+void GenNextLevel_prog1(char procLevel)
+{
+    BrickLayout bl;
+    bl = brickLayouts[procLevel % NUM_BRICK_LAYOUTS];
+    currentBrickWidth = bl.brickWidth;
+    currentNumBricksH = bl.numColumns;
+    // change_rom_bank(BANK_PROG1);
+    BreakoutBricksSetupWrapper_prog1(3);
+}
 /*
 char paddleXFromClosestBox_prog1(){
     char midPaddle = paddleX + (PADDLEWIDTH>>1);
@@ -724,6 +735,43 @@ char paddleXFromClosestBox_prog1(){
 //     *_dy = 255;//always down
 //     *_ballSpeed = 1;//default slow
 // }
+void NewLevel_prog1()
+{
+    unsigned char x;
+    unsigned char y;
+    int count = 0;
+    //angle randomAngle;
+    for (y = 0; y<NUM_BRICK_ROWS; y++){
+        for (x=0; x<currentNumBricksH; x++){
+            brickRows[y].visible[x] = 1;
+            brickRows[y].erase_frames[x] = 0;
+            //animatedBricks[count++]=0;//set all bricks to unanimated
+        }
+    }
+    erase_queue_count=0;
+    anim_queue_count=0;
+    // ballSpeed = 1;//slow start
+    // ballSpeedA = 1;//slow start
+    bricks_remaining = currentNumBricksH * NUM_BRICK_ROWS;
+    //change_rom_bank(BANK_PROG1);
+    // randomizeBox_prog1(&box_x, &box_y, &dx, &dy, &ballSpeed);
+    // randomizeBox_prog1(&boxA_x, &boxA_y, &dxA, &dyA, &ballSpeedA);
+    // change_rom_bank(BANK_PROG1);
+    init_ball_system_prog1();
+    // randomAngle = get_random_spawn_angles_prog1();
+    // spawn_new_ball_prog1(rnd_range(20,100),80,randomAngle.dx,-randomAngle.dy,2);
+    // randomAngle = get_random_spawn_angles_prog1();
+    // spawn_new_ball_prog1(rnd_range(20,100),80,randomAngle.dx,-randomAngle.dy,2);
+    spawn_new_rnd_ball_prog1();
+    spawn_new_rnd_ball_prog1();
+    
+    // randomAngle = get_random_spawn_angles_prog1();
+    // spawn_new_ball_prog1(rnd_range(20,100),80,randomAngle.dx,-randomAngle.dy,2);
+    // randomAngle = get_random_spawn_angles_prog1();
+    // spawn_new_ball_prog1(rnd_range(20,100),80,randomAngle.dx,-randomAngle.dy,2);
+    breakoutRefresh=0;
+    breakoutBricksRefresh=0;
+}
 #pragma code-name (pop)
 
 
@@ -766,53 +814,8 @@ void ToggleDemoMode()
 
 
 
-unsigned char cycleLevel=0;
-void GenNextLevel(char procLevel)
-{
-    BrickLayout bl;
-    bl = brickLayouts[procLevel % NUM_BRICK_LAYOUTS];
-    currentBrickWidth = bl.brickWidth;
-    currentNumBricksH = bl.numColumns;
-    change_rom_bank(BANK_PROG1);
-    BreakoutBricksSetupWrapper_prog1(3);
-}
-void NewLevel()
-{
-    unsigned char x;
-    unsigned char y;
-    int count = 0;
-    //angle randomAngle;
-    for (y = 0; y<NUM_BRICK_ROWS; y++){
-        for (x=0; x<currentNumBricksH; x++){
-            brickRows[y].visible[x] = 1;
-            brickRows[y].erase_frames[x] = 0;
-            //animatedBricks[count++]=0;//set all bricks to unanimated
-        }
-    }
-    erase_queue_count=0;
-    anim_queue_count=0;
-    // ballSpeed = 1;//slow start
-    // ballSpeedA = 1;//slow start
-    bricks_remaining = currentNumBricksH * NUM_BRICK_ROWS;
-    //change_rom_bank(BANK_PROG1);
-    // randomizeBox_prog1(&box_x, &box_y, &dx, &dy, &ballSpeed);
-    // randomizeBox_prog1(&boxA_x, &boxA_y, &dxA, &dyA, &ballSpeedA);
-    change_rom_bank(BANK_PROG1);
-    init_ball_system_prog1();
-    // randomAngle = get_random_spawn_angles_prog1();
-    // spawn_new_ball_prog1(rnd_range(20,100),80,randomAngle.dx,-randomAngle.dy,2);
-    // randomAngle = get_random_spawn_angles_prog1();
-    // spawn_new_ball_prog1(rnd_range(20,100),80,randomAngle.dx,-randomAngle.dy,2);
-    spawn_new_rnd_ball_prog1();
-    spawn_new_rnd_ball_prog1();
-    
-    // randomAngle = get_random_spawn_angles_prog1();
-    // spawn_new_ball_prog1(rnd_range(20,100),80,randomAngle.dx,-randomAngle.dy,2);
-    // randomAngle = get_random_spawn_angles_prog1();
-    // spawn_new_ball_prog1(rnd_range(20,100),80,randomAngle.dx,-randomAngle.dy,2);
-    breakoutRefresh=0;
-    breakoutBricksRefresh=0;
-}
+
+
 void NewGame()
 {
     lives_left = 3;
@@ -1295,10 +1298,10 @@ void BreakoutGameWrapper(){
             gamestate=-1;//not sure what to do here
         }
         if (!resetTimer) {
-            GenNextLevel(cycleLevel++ % NUM_BRICK_LAYOUTS);
+            GenNextLevel_prog1(cycleLevel++ % NUM_BRICK_LAYOUTS);
 
             resetTimer=100;
-            NewLevel();
+            NewLevel_prog1();
             gamestate=STATE_BREAKOUT_PLAY;
             //init_game();
         }
@@ -1306,9 +1309,9 @@ void BreakoutGameWrapper(){
     else if (((player1_buttons & INPUT_MASK_C) && !(player1_old_buttons & INPUT_MASK_C)))//total hack for testing
     {
         gamestate=-1;
-        GenNextLevel(cycleLevel++ % NUM_BRICK_LAYOUTS);
+        GenNextLevel_prog1(cycleLevel++ % NUM_BRICK_LAYOUTS);
         resetTimer=100;
-        NewLevel();
+        NewLevel_prog1();
         gamestate=STATE_BREAKOUT_PLAY;
     }
 
