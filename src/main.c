@@ -55,7 +55,7 @@ unsigned int currentNumBricksH = 10;//10;//15;//30;//60;
 
 #define STATE_CONTROLLER_SELECT 10
 #define STATE_BREAKOUT_MENU 20
-#define STATE_BREAKOUT_SERVE 25
+#define STATE_BREAKOUT_READY 25
 #define STATE_BREAKOUT_PLAY 30
 #define STATE_BREAKOUT_GAMEOVER 40
 #define STATE_BREAKOUT_LEADERBOARD 50
@@ -66,7 +66,7 @@ unsigned int currentNumBricksH = 10;//10;//15;//30;//60;
 
 char gamestate = 0;
 char controller_style = 0;
-char numLives = 3;
+unsigned char lives_left = 3;
 char breakoutRefresh=0;//set to true to refresh the whole screen
 char breakoutBricksRefresh=0;//set to true to refresh the whole screen
 unsigned int bricks_remaining = 0;
@@ -105,6 +105,7 @@ typedef struct {
     int speed; // 1 = 5/12, 2 = 10/12, etc. 
     bool active; 
     bool was_active_old; 
+    bool was_active_old_old; 
 } Ball;
 
 
@@ -125,6 +126,7 @@ void process_all_balls_prog1();
 void render_balls_prog1();
 angle get_random_spawn_angles_prog1();
 void init_ball_system_prog1();
+unsigned char get_active_ball_count_prog1();
 
 #define NUM_ANGLES 22
 #pragma rodata-name (push, "PROG1")
@@ -168,7 +170,7 @@ BrickLayout brickLayouts[NUM_BRICK_LAYOUTS]=
     {120,1}
 };
 
-bool demoMode = true;
+bool demoMode = false;
 bool debugMode = false;
 
 //boxes, make more modular
@@ -204,6 +206,10 @@ unsigned int score = 0;//global score variable
 int resetTimer = 100;//delay between brick reset and box reset
 char rndPaddleOffset = 0;
 unsigned char rndPaddleOffsetTimer = 0;
+
+int blinkTimer=0;
+char blinkMessageVisible=0;
+int readyTimer=0;
 
 void playBass(char row){
 
@@ -251,12 +257,7 @@ void soundCeiling(){
 
 #pragma code-name (push, "PROG1")
 unsigned char get_active_ball_count_prog1() {
-    unsigned char count = 0;
-    unsigned char i;
-    for (i = 0; i < MAX_BALLS; i++) {
-        if (balls[i].active) count++;
-    }
-    return count;
+    return active_balls_count;
 }
 #pragma code-name (pop)
 
@@ -470,6 +471,7 @@ void update_ball_logic_prog1(Ball *b)
     b->y_old_old = b->y_old;
     b->x_old = b->x;
     b->y_old = b->y;
+    b->was_active_old_old = b->was_active_old;
     b->was_active_old = b->active;
 
     if (!b->active) return;
@@ -489,6 +491,17 @@ void update_ball_logic_prog1(Ball *b)
             //randomizeBox(&b->x, &b->y, &b->dx, &b->dy, &b->speed);
             b->active = false;//despawn
             soundTest();
+            lives_left--;
+            // Check if this was the LAST ball
+            if (lives_left == 0) {
+                // This is where you decide: New Life or Game Over?
+                gamestate = STATE_BREAKOUT_GAMEOVER;
+            }
+            else
+            {
+                gamestate = STATE_BREAKOUT_READY; //player serves ball or it auto-spawns
+                readyTimer=100;
+            }
         }
 
         // --- WALLS ---
@@ -757,20 +770,21 @@ void NewLevel()
     // randomizeBox_prog1(&box_x, &box_y, &dx, &dy, &ballSpeed);
     // randomizeBox_prog1(&boxA_x, &boxA_y, &dxA, &dyA, &ballSpeedA);
     change_rom_bank(BANK_PROG1);
-    randomAngle = get_random_spawn_angles_prog1();
     init_ball_system_prog1();
+    active_balls_count = 1;
+    randomAngle = get_random_spawn_angles_prog1();
     spawn_new_ball_prog1(64,80,randomAngle.dx,-randomAngle.dy,2);
     breakoutRefresh=0;
     breakoutBricksRefresh=0;
 }
 void NewGame()
 {
-    numLives = 3;
+    lives_left = 3;
     score = 0;
 }
 void init_game()//used to refresh the screen when all the bricks are gone
 {
-    numLives = 3;
+    lives_left = 3;
     //NewLevel();
     resetTimer = 100;
 }
@@ -1118,7 +1132,7 @@ void BreakoutBGRefresh_prog1()
 
     }
 }
-update_player_paddle_prog1(){
+void update_player_paddle_prog1(){
     if (demoMode){
         paddleX = paddleXFromClosestBox_prog1();
     } else {
@@ -1145,7 +1159,8 @@ void spawn_new_ball_prog1(unsigned char x, unsigned char y, signed char dx, sign
             balls[i].dy = dy;
             balls[i].speed = speed;
             balls[i].active = true;
-            balls[i].was_active_old = true;
+            balls[i].was_active_old = false;
+            balls[i].was_active_old_old = false;
             return; 
         }
     }
@@ -1167,12 +1182,41 @@ void printGameOver(char x, char y, bool visible){
         queue_draw_box(x,y,64,5,0);//press start heal
     }
 }
-int blinkTimer=0;
-char pressStartVisible=0;
+void printBlinkMessage(char index){
+    //0 press start
+    //1 game over
+    if (blinkTimer++>0)
+    {
+        //queue_draw_sprite(38,64,52,6,0,14,4);//press start
+        if (index==0) printPressStart(32,64,true);
+        else printGameOver(32,64,true);
+        blinkMessageVisible=2;
+        blinkTimer = (blinkTimer>45) ? blinkTimer=-80 : blinkTimer;
+    }
+    else
+    {
+        if (blinkMessageVisible) {
+            printPressStart(32,64,false);//prints a blank box
+            blinkMessageVisible--;
+        }
+    }
+}
+
 void BreakoutGameWrapper(){
     change_rom_bank(BANK_PROG1);
     BreakoutBGRefresh_prog1();
 
+    if (gamestate==STATE_BREAKOUT_READY)
+    {
+        if (readyTimer-- == 0)
+        {
+            angle randomAngle;
+            randomAngle = get_random_spawn_angles_prog1();
+            spawn_new_ball_prog1(64,80,randomAngle.dx,-randomAngle.dy,2);
+            gamestate=STATE_BREAKOUT_PLAY;
+            active_balls_count++;
+        }
+    }
     //cover up previous paddle position
     //queue_draw_box(paddleX_old_old,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0);//erase paddle
     erase_paddle_prog1();
@@ -1184,30 +1228,31 @@ void BreakoutGameWrapper(){
     // change_rom_bank(BANK_PROG1);
     BrickHeal_prog1(box_x_old_old,box_y_old_old,0);
     BrickHeal_prog1(boxA_x_old_old,boxA_y_old_old,0);
-    if (demoMode)
-    {
-        if (blinkTimer++>0){
-            //queue_draw_sprite(38,64,52,6,0,14,4);//press start
-            printPressStart(32,64,true);
-            pressStartVisible=2;
-            blinkTimer = (blinkTimer>45) ? blinkTimer=-80 : blinkTimer;
-        }
-        else
-        {
-            if (pressStartVisible) {
-                //queue_draw_box(38,64,52,6,0);//press start heal
-                printPressStart(32,64,false);
-                pressStartVisible--;
-            }
-        }
-    }
-    else //make sure to erase press start
-    {
-        if (pressStartVisible) {
-                printPressStart(32,64,false);//press start heal
-            pressStartVisible--;
-        }
-    }
+    // if (demoMode)
+    // {
+        //printBlinkMessage(0);
+        // if (blinkTimer++>0){
+        //     //queue_draw_sprite(38,64,52,6,0,14,4);//press start
+        //     printPressStart(32,64,true);
+        //     blinkMessageVisible=2;
+        //     blinkTimer = (blinkTimer>45) ? blinkTimer=-80 : blinkTimer;
+        // }
+        // else
+        // {
+        //     if (blinkMessageVisible) {
+        //         //queue_draw_box(38,64,52,6,0);//press start heal
+        //         printPressStart(32,64,false);
+        //         blinkMessageVisible--;
+        //     }
+        // }
+    // }
+    // else //make sure to erase press start
+    // {
+    //     if (blinkMessageVisible) {//still need to erase what was there
+    //             printPressStart(32,64,false);//press start heal
+    //             blinkMessageVisible--;
+    //     }
+    // }
     if ((bricks_remaining<=0) || gamestate==STATE_BREAKOUT_MENU) {
         if (resetTimer--==100){
             gamestate=-1;//not sure what to do here
@@ -1266,25 +1311,29 @@ void BreakoutGameWrapper(){
         // queue_draw_sprite(box_x,box_y,BALLSIZE,BALLSIZE,4,0,1);//ball
         // queue_draw_sprite(boxA_x,boxA_y,BALLSIZE,BALLSIZE,4,0,1);
     }
+    if (gamestate == STATE_BREAKOUT_GAMEOVER){
+        demoMode = 0;
+        printBlinkMessage(1);
+    }
 
     paddleX_old_old = paddleX_old;
     paddleX_old = paddleX;
 
     //legacy ball stuff to comment out
-    box_x_old_old = box_x_old;
-    box_x_old = box_x;
-    box_y_old_old = box_y_old;
-    box_y_old = box_y;
-    boxA_x_old_old = boxA_x_old;
-    boxA_x_old = boxA_x;
-    boxA_y_old_old = boxA_y_old;
-    boxA_y_old = boxA_y;
+    // box_x_old_old = box_x_old;
+    // box_x_old = box_x;
+    // box_y_old_old = box_y_old;
+    // box_y_old = box_y;
+    // boxA_x_old_old = boxA_x_old;
+    // boxA_x_old = boxA_x;
+    // boxA_y_old_old = boxA_y_old;
+    // boxA_y_old = boxA_y;
 
-    // if (get_active_ball_count() == 0) {
-    //     // Check if player has "lives" left or go straight to Game Over
-    //     gamestate = STATE_BREAKOUT_GAMEOVER;
-    //     // Trigger the Bank 4 "Game Over" crumble here
-    // }
+    if (get_active_ball_count_prog1 == 0) {
+        // Check if player has "lives" left or go straight to Game Over
+        gamestate = STATE_BREAKOUT_GAMEOVER;
+        // Trigger the Bank 4 "Game Over" crumble here
+    }
 }
 
 #pragma code-name (push, "PROG2")
@@ -1516,7 +1565,7 @@ void process_all_balls_prog1() {
     }
 
     // Transition to Game Over if the wave is dead
-    if (active_balls_count == 0 && gamestate == STATE_BREAKOUT_PLAY) {
+    if (lives_left == 0 && gamestate == STATE_BREAKOUT_PLAY) {
         gamestate = STATE_BREAKOUT_GAMEOVER;
     }
 }
@@ -1540,7 +1589,7 @@ void erase_paddle_prog1(){
 void erase_balls_prog1(){
     unsigned char i;
     for (i = 0; i < MAX_BALLS; i++) {
-        if (balls[i].active || balls[i].was_active_old) {
+        if (balls[i].active || balls[i].was_active_old || balls[i].was_active_old_old) {
             queue_draw_box(balls[i].x_old_old ,balls[i].y_old_old,BALLSIZE,BALLSIZE,0);//heal box
         }
     }
@@ -1559,6 +1608,7 @@ void init_ball_system_prog1() {
         balls[i].speed = 1;
         balls[i].active = false;
         balls[i].was_active_old = false;
+        balls[i].was_active_old_old = false;
     }
 }
 #pragma code-name (pop);
