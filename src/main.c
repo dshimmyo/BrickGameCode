@@ -119,7 +119,8 @@ void BrickHeal_prog1(unsigned char, unsigned char, unsigned char);
 void process_anim_queue_prog1();
 void BreakoutBricksSetupWrapper_prog1(char);
 void render_paddle_prog1();
-void spawn_new_ball_prog1(unsigned char, unsigned char, signed char, signed char, unsigned char speed);
+void spawn_new_ball_prog1(int , int , int , int , unsigned char speed);
+void spawn_new_rnd_ball_prog1();
 void erase_paddle_prog1();
 void erase_balls_prog1();
 void process_all_balls_prog1();
@@ -196,20 +197,18 @@ bool debugMode = false;
 unsigned char active_balls_count = 0;
 Ball balls[MAX_BALLS];//pre-allocate enough space for MAX_BALLS
 
-
-
 char paddleX = 64;//global paddle xpos
 char paddleX_old=64;
 char paddleX_old_old=64;
 unsigned char button_byte=0;//8-bit byte representing button states, for debugging and potential use in game mechanics
 unsigned int score = 0;//global score variable
-int resetTimer = 100;//delay between brick reset and box reset
+int resetTimer = 100;//delay between brick reset and ball reset
 char rndPaddleOffset = 0;
 unsigned char rndPaddleOffsetTimer = 0;
 
 int blinkTimer=0;
 char blinkMessageVisible=0;
-int readyTimer=0;
+unsigned int readyTimer=0;
 
 void playBass(char row){
 
@@ -228,6 +227,9 @@ void playBass(char row){
         break;
         case 4:
         play_sound_effect(ASSET__audio__row4_sfx_ID,127);
+        break;
+        case 5:
+        play_sound_effect(ASSET__audio__row5_sfx_ID,127);
         break;
         default:
         play_sound_effect(ASSET__audio__row5_sfx_ID,127);
@@ -256,7 +258,7 @@ void soundCeiling(){
 }
 
 #pragma code-name (push, "PROG1")
-unsigned char get_active_ball_count_prog1() {
+unsigned char get_active_ball_count_prog1() {//this makes it work better but it should be removed
     char i;
     active_balls_count=0;
     for (i = 0; i < MAX_BALLS; i++) {
@@ -499,18 +501,18 @@ void update_ball_logic_prog1(Ball *b)
             //randomizeBox(&b->x, &b->y, &b->dx, &b->dy, &b->speed);
             b->active = false;//despawn, stops rendering
             soundTest();
-            if (!(get_active_ball_count_prog1())) lives_left--;//only lose a life if no balls are on the screen
-            // Check if this was the LAST ball
-            if (lives_left == 0) {
-                // This is where you decide: New Life or Game Over?
-                gamestate = STATE_BREAKOUT_GAMEOVER;
-            }
-            else 
-            if ((lives_left>0) && (active_balls_count==0))
-            {
-                gamestate = STATE_BREAKOUT_READY; //player serves ball or it auto-spawns
-                readyTimer=100;
-            }
+            // if (!(get_active_ball_count_prog1())) lives_left--;//only lose a life if no balls are on the screen
+            // // Check if this was the LAST ball
+            // if (lives_left == 0) {
+            //     // This is where you decide: New Life or Game Over?
+            //     gamestate = STATE_BREAKOUT_GAMEOVER;
+            // }
+            // else 
+            // if ((lives_left>0) && (active_balls_count==0))
+            // {
+            //     gamestate = STATE_BREAKOUT_READY; //player serves ball or it auto-spawns
+            //     readyTimer=100;
+            // }
         }
 
         // --- WALLS ---
@@ -779,7 +781,7 @@ void NewLevel()
     unsigned char x;
     unsigned char y;
     int count = 0;
-    angle randomAngle;
+    //angle randomAngle;
     for (y = 0; y<NUM_BRICK_ROWS; y++){
         for (x=0; x<currentNumBricksH; x++){
             brickRows[y].visible[x] = 1;
@@ -797,11 +799,13 @@ void NewLevel()
     // randomizeBox_prog1(&boxA_x, &boxA_y, &dxA, &dyA, &ballSpeedA);
     change_rom_bank(BANK_PROG1);
     init_ball_system_prog1();
-    //active_balls_count = 1;
-    randomAngle = get_random_spawn_angles_prog1();
-    spawn_new_ball_prog1(rnd_range(20,100),80,randomAngle.dx,-randomAngle.dy,2);
-    randomAngle = get_random_spawn_angles_prog1();
-    spawn_new_ball_prog1(rnd_range(20,100),80,randomAngle.dx,-randomAngle.dy,2);
+    // randomAngle = get_random_spawn_angles_prog1();
+    // spawn_new_ball_prog1(rnd_range(20,100),80,randomAngle.dx,-randomAngle.dy,2);
+    // randomAngle = get_random_spawn_angles_prog1();
+    // spawn_new_ball_prog1(rnd_range(20,100),80,randomAngle.dx,-randomAngle.dy,2);
+    spawn_new_rnd_ball_prog1();
+    spawn_new_rnd_ball_prog1();
+    
     // randomAngle = get_random_spawn_angles_prog1();
     // spawn_new_ball_prog1(rnd_range(20,100),80,randomAngle.dx,-randomAngle.dy,2);
     // randomAngle = get_random_spawn_angles_prog1();
@@ -1179,7 +1183,7 @@ void update_player_paddle_prog1(){
         }
     }
 }
-void spawn_new_ball_prog1(unsigned char x, unsigned char y, signed char dx, signed char dy, unsigned char speed) {
+void spawn_new_ball_prog1(int x, int y, int dx, int dy, unsigned char speed) {
     unsigned char i;
     for (i = 0; i < MAX_BALLS; i++) {
         if (!(balls[i].active || balls[i].was_active_old || balls[i].was_active_old_old)) {
@@ -1195,47 +1199,76 @@ void spawn_new_ball_prog1(unsigned char x, unsigned char y, signed char dx, sign
             balls[i].active = true;
             balls[i].was_active_old = false;
             balls[i].was_active_old_old = false;
-            //active_balls_count++;
             return; 
         }
     }
 }
-
-#pragma code-name (pop)
-
-void printPressStart(char x, char y, bool visible){
+void spawn_new_rnd_ball_prog1() {
+    unsigned char _x; 
+    unsigned char _y; 
+    int _dx; 
+    int _dy; 
+    unsigned char _speed;
+    unsigned char i;
+    _x = rnd_range(5,114);
+    _y = rnd_range(64,68);
+    _dx = (rnd_range(0,10) > 5) ? 255 : -255;
+    _dy = 255;//always down
+    _speed = 1;//default slow
+    for (i = 0; i < MAX_BALLS; i++) {
+        if (!(balls[i].active)){//} || balls[i].was_active_old || balls[i].was_active_old_old)) {
+            balls[i].x = _x;
+            balls[i].y = _y;
+            balls[i].x_old = _x;
+            balls[i].x_old_old = _x;
+            balls[i].y_old = _y;
+            balls[i].y_old_old = _y;
+            balls[i].dx = _dx;
+            balls[i].dy = _dy;
+            balls[i].speed = _speed;
+            balls[i].active = true;
+            balls[i].was_active_old = false;
+            balls[i].was_active_old_old = false;
+            return; 
+        }
+    }
+}
+void printPressStart_prog1(char x, char y, bool visible){
     if (visible){
         queue_draw_sprite(x,y,64,5,0,21,4);//press start
     }else {
         queue_draw_box(x,y,64,5,0);//press start heal
     }
 }
-void printGameOver(char x, char y, bool visible){
+void printGameOver_prog1(char x, char y, bool visible){
     if (visible){
         queue_draw_sprite(x,y,64,5,0,40,4);//press start
     }else {
         queue_draw_box(x,y,64,5,0);//press start heal
     }
 }
-void printBlinkMessage(char index){
+void printBlinkMessage_prog1(char index){
     //0 press start
     //1 game over
     if (blinkTimer++>0)
     {
         //queue_draw_sprite(38,64,52,6,0,14,4);//press start
-        if (index==0) printPressStart(32,64,true);
-        else printGameOver(32,64,true);
+        if (index==0) printPressStart_prog1(32,64,true);
+        else printGameOver_prog1(32,64,true);
         blinkMessageVisible=2;
         blinkTimer = (blinkTimer>45) ? blinkTimer=-80 : blinkTimer;
     }
     else
     {
         if (blinkMessageVisible) {
-            printPressStart(32,64,false);//prints a blank box
+            printPressStart_prog1(32,64,false);//prints a blank box
             blinkMessageVisible--;
         }
     }
 }
+
+#pragma code-name (pop)
+
 
 void BreakoutGameWrapper(){
     change_rom_bank(BANK_PROG1);
@@ -1243,51 +1276,20 @@ void BreakoutGameWrapper(){
 
     if (gamestate==STATE_BREAKOUT_READY)
     {
-        if (readyTimer-- == 0)
+        readyTimer--;
+        if (readyTimer <= 0)
         {
-            angle randomAngle;
-            randomAngle = get_random_spawn_angles_prog1();
-            spawn_new_ball_prog1(64,80,randomAngle.dx,-randomAngle.dy,2);
+            //angle randomAngle;
+            // randomAngle = get_random_spawn_angles_prog1();
+            // spawn_new_ball_prog1(64,80,randomAngle.dx,-randomAngle.dy,2);
+            spawn_new_rnd_ball_prog1();
             gamestate=STATE_BREAKOUT_PLAY;
-            //active_balls_count++;
+            readyTimer=100;
         }
     }
     //cover up previous paddle position
-    //queue_draw_box(paddleX_old_old,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0);//erase paddle
     erase_paddle_prog1();
 
-    //erase where ball has previously been
-    // queue_draw_box(box_x_old_old,box_y_old_old,BALLSIZE,BALLSIZE,0);//heal box
-    // queue_draw_box(boxA_x_old_old,boxA_y_old_old,BALLSIZE,BALLSIZE,0);//heal boxA
-    
-    // change_rom_bank(BANK_PROG1);
-    // BrickHeal_prog1(box_x_old_old,box_y_old_old,0);
-    // BrickHeal_prog1(boxA_x_old_old,boxA_y_old_old,0);
-    // if (demoMode)
-    // {
-        //printBlinkMessage(0);
-        // if (blinkTimer++>0){
-        //     //queue_draw_sprite(38,64,52,6,0,14,4);//press start
-        //     printPressStart(32,64,true);
-        //     blinkMessageVisible=2;
-        //     blinkTimer = (blinkTimer>45) ? blinkTimer=-80 : blinkTimer;
-        // }
-        // else
-        // {
-        //     if (blinkMessageVisible) {
-        //         //queue_draw_box(38,64,52,6,0);//press start heal
-        //         printPressStart(32,64,false);
-        //         blinkMessageVisible--;
-        //     }
-        // }
-    // }
-    // else //make sure to erase press start
-    // {
-    //     if (blinkMessageVisible) {//still need to erase what was there
-    //             printPressStart(32,64,false);//press start heal
-    //             blinkMessageVisible--;
-    //     }
-    // }
     if ((bricks_remaining<=0) || gamestate==STATE_BREAKOUT_MENU) {
         if (resetTimer--==100){
             gamestate=-1;//not sure what to do here
@@ -1320,55 +1322,56 @@ void BreakoutGameWrapper(){
     if (debugMode){
         change_rom_bank(BANK_PROG2);
         inputButtonsDraw_prog2();//debug display
-        // change_rom_bank(BANK_PROG2);
         inputBinaryDraw_prog2();//debug line
     }
     ToggleDemoMode();
 
-// change_rom_bank(BANK_PROG1);
     change_rom_bank(BANK_PROG1);
 
     DrawBricksWrapper_prog1();
 
     if (gamestate==STATE_BREAKOUT_PLAY || gamestate == STATE_BREAKOUT_MENU){
-    // boxMotion_prog1();
-    // boxAMotion_prog1();
         process_all_balls_prog1();
     }
 
-    // change_rom_bank(BANK_PROG1);
     update_player_paddle_prog1();
     render_paddle_prog1();
-    
     erase_balls_prog1();
+
     if (gamestate==STATE_BREAKOUT_PLAY){
         render_balls_prog1();
-        // queue_draw_sprite(box_x,box_y,BALLSIZE,BALLSIZE,4,0,1);//ball
-        // queue_draw_sprite(boxA_x,boxA_y,BALLSIZE,BALLSIZE,4,0,1);
     }
-    if (gamestate == STATE_BREAKOUT_GAMEOVER){
-        printBlinkMessage(1);
+    else if (gamestate == STATE_BREAKOUT_GAMEOVER){
+        printBlinkMessage_prog1(1);
     }
 
     paddleX_old_old = paddleX_old;
     paddleX_old = paddleX;
 
-    //legacy ball stuff to comment out
-    // box_x_old_old = box_x_old;
-    // box_x_old = box_x;
-    // box_y_old_old = box_y_old;
-    // box_y_old = box_y;
-    // boxA_x_old_old = boxA_x_old;
-    // boxA_x_old = boxA_x;
-    // boxA_y_old_old = boxA_y_old;
-    // boxA_y_old = boxA_y;
+    if ((gamestate == STATE_BREAKOUT_PLAY))//while game is still in play check gameover or ready
+    {
+        if (get_active_ball_count_prog1()<=0) //no balls in play
+        {
+            if (lives_left == 0) 
+            {
+                // This is where you decide: New Life or Game Over?
+                gamestate = STATE_BREAKOUT_GAMEOVER;
+            }
+            else
+            {
+                lives_left--;
+                gamestate = STATE_BREAKOUT_READY; //player serves ball or it auto-spawns
+                readyTimer=100;
+            }
 
-    change_rom_bank(BANK_PROG1);
-    if (!get_active_ball_count_prog1() && !lives_left) {
-        // Check if player has "lives" left or go straight to Game Over
-        gamestate = STATE_BREAKOUT_GAMEOVER;
-        // Trigger the Bank 4 "Game Over" crumble here
+        }
     }
+
+    // if (!get_active_ball_count_prog1() && !lives_left) {
+    //     // Check if player has "lives" left or go straight to Game Over
+    //     gamestate = STATE_BREAKOUT_GAMEOVER;
+    //     // Trigger the Bank 4 "Game Over" crumble here
+    // }
 }
 
 #pragma code-name (push, "PROG2")
@@ -1430,7 +1433,7 @@ void bake_animation_frames_prog1()
     char oldBanks = banksMirror; 
     unsigned int animOffset = 24*128;//start of animation frames in bank 3
     unsigned char x,y;
-    unsigned char pixel;
+    //unsigned char pixel;
 
     // 1. SET THE HARDWARE MODE
     // Clear Bit 0 (DMA_ENABLE) and Clear Bit 1 (DMA_CPU_TO_VRAM)
