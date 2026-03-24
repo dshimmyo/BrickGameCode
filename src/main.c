@@ -170,7 +170,7 @@ BrickLayout brickLayouts[NUM_BRICK_LAYOUTS]=
     {120,1}
 };
 
-bool demoMode = false;
+bool demoMode = true;
 bool debugMode = false;
 
 //boxes, make more modular
@@ -491,13 +491,14 @@ void update_ball_logic_prog1(Ball *b)
             //randomizeBox(&b->x, &b->y, &b->dx, &b->dy, &b->speed);
             b->active = false;//despawn, stops rendering
             soundTest();
-            lives_left--;
+            if (!(active_balls_count)) lives_left--;//only lose a life if no balls are on the screen
             // Check if this was the LAST ball
             if (lives_left == 0) {
                 // This is where you decide: New Life or Game Over?
                 gamestate = STATE_BREAKOUT_GAMEOVER;
             }
-            else
+            else 
+            if (lives_left && !active_balls_count)
             {
                 gamestate = STATE_BREAKOUT_READY; //player serves ball or it auto-spawns
                 readyTimer=100;
@@ -652,6 +653,20 @@ int ConstVelocity_prog1(char source, char target, char vel){
     }
     return ClampPaddleX_prog1(result);
 }
+
+char paddleXFromClosestBall_prog1(){
+    unsigned char lowest_y = 0;
+    signed char target_ball_index = -1;
+    unsigned char i;
+    // Find the ball closest to the paddle
+    for (i = 0; i < MAX_BALLS; i++) {
+        if (balls[i].active && balls[i].y > lowest_y) {
+            lowest_y = balls[i].y;
+            target_ball_index = i;
+        }
+    }
+    return ConstVelocity_prog1(paddleX, balls[target_ball_index].x - (PADDLEWIDTH>>1) + rndPaddleOffset,3);//
+}
 char paddleXFromClosestBox_prog1(){
     char midPaddle = paddleX + (PADDLEWIDTH>>1);
     char boxA_dist = (boxA_x > midPaddle) ? boxA_x - midPaddle : midPaddle - boxA_x;
@@ -771,9 +786,15 @@ void NewLevel()
     // randomizeBox_prog1(&boxA_x, &boxA_y, &dxA, &dyA, &ballSpeedA);
     change_rom_bank(BANK_PROG1);
     init_ball_system_prog1();
-    active_balls_count = 1;
+    //active_balls_count = 1;
     randomAngle = get_random_spawn_angles_prog1();
-    spawn_new_ball_prog1(64,80,randomAngle.dx,-randomAngle.dy,2);
+    spawn_new_ball_prog1(rnd_range(20,100),80,randomAngle.dx,-randomAngle.dy,2);
+    randomAngle = get_random_spawn_angles_prog1();
+    spawn_new_ball_prog1(rnd_range(20,100),80,randomAngle.dx,-randomAngle.dy,2);
+    // randomAngle = get_random_spawn_angles_prog1();
+    // spawn_new_ball_prog1(rnd_range(20,100),80,randomAngle.dx,-randomAngle.dy,2);
+    // randomAngle = get_random_spawn_angles_prog1();
+    // spawn_new_ball_prog1(rnd_range(20,100),80,randomAngle.dx,-randomAngle.dy,2);
     breakoutRefresh=0;
     breakoutBricksRefresh=0;
 }
@@ -1134,7 +1155,9 @@ void BreakoutBGRefresh_prog1()
 }
 void update_player_paddle_prog1(){
     if (demoMode){
-        paddleX = paddleXFromClosestBox_prog1();
+        //paddleX = paddleXFromClosestBox_prog1();
+        paddleX = paddleXFromClosestBall_prog1();
+        //update_attract_paddle();
     } else {
         if (controller_style == CONTROLLER_STYLE_PADDLE0){
             paddleX = paddleXFromPot8opt_prog1(button_byte);
@@ -1161,6 +1184,7 @@ void spawn_new_ball_prog1(unsigned char x, unsigned char y, signed char dx, sign
             balls[i].active = true;
             balls[i].was_active_old = false;
             balls[i].was_active_old_old = false;
+            active_balls_count++;
             return; 
         }
     }
@@ -1214,7 +1238,7 @@ void BreakoutGameWrapper(){
             randomAngle = get_random_spawn_angles_prog1();
             spawn_new_ball_prog1(64,80,randomAngle.dx,-randomAngle.dy,2);
             gamestate=STATE_BREAKOUT_PLAY;
-            active_balls_count++;
+            //active_balls_count++;
         }
     }
     //cover up previous paddle position
@@ -1312,7 +1336,6 @@ void BreakoutGameWrapper(){
         // queue_draw_sprite(boxA_x,boxA_y,BALLSIZE,BALLSIZE,4,0,1);
     }
     if (gamestate == STATE_BREAKOUT_GAMEOVER){
-        demoMode = 0;
         printBlinkMessage(1);
     }
 
