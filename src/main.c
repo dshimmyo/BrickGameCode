@@ -53,19 +53,26 @@ unsigned int currentNumBricksH = 10;//10;//15;//30;//60;
 
 #define MAX_NOISE 64
 
-#define STATE_CONTROLLER_SELECT 10
-#define STATE_BREAKOUT_MENU 20
-#define STATE_BREAKOUT_READY 25
-#define STATE_ATTRACT 27
-#define STATE_BREAKOUT_PLAY 30
-#define STATE_BREAKOUT_GAMEOVER 40
-#define STATE_BREAKOUT_LEADERBOARD 50
-
 #define CONTROLLER_STYLE_PADDLE0 0
 #define CONTROLLER_STYLE_GPAD1 1
 #define MAX_BALLS 8 //planning for insane mode
 
-char gamestate = 0;
+//char gamestate = 0;
+enum {
+STATE_CONTROLLER_SELECT,
+STATE_BREAKOUT_MENU,
+STATE_BREAKOUT_READY,
+STATE_ATTRACT,
+STATE_BREAKOUT_PLAY,
+STATE_BREAKOUT_GAMEOVER
+} gamestate;
+
+enum {
+    SUBSTATE_READY,
+    SUBSTATE_PLAY
+} substate;
+
+
 char controller_style = 0;
 unsigned char lives_left = 3;
 char breakoutRefresh=0;//set to true to refresh the whole screen
@@ -1358,16 +1365,21 @@ void printBlinkMessage_prog1(char index){
     else
     {
         if (blinkMessageVisible) {
-            printPressStart_prog1(32,64,false);//prints a blank box
-            blinkMessageVisible--;
+            messageEraseCount=2;
+            //printPressStart_prog1(32,64,false);//prints a blank box
+            //blinkMessageVisible--;
+            blinkMessageVisible = 0;
         }
     }
 }
 
 #pragma code-name (pop)
-void eraseBlinkMessage()
+void eraseBlinkMessage(char *counter)
 {
-    printPressStart_prog1(32,64,false);//prints a blank box
+    if (*counter>0){
+        printPressStart_prog1(32,64,false);//prints a blank box
+        *counter = *counter - 1;
+    }
 }
 
 void BreakoutGameWrapper(){
@@ -1443,7 +1455,14 @@ void BreakoutGameWrapper(){
     render_paddle_prog1();
     erase_balls_prog1();
 
-    if (gamestate==STATE_BREAKOUT_PLAY || gamestate == STATE_BREAKOUT_MENU){
+    if (gamestate==STATE_BREAKOUT_PLAY){
+        render_balls_prog1();
+        if (demoMode){//hack "press start"
+            printBlinkMessage_prog1(0);
+        }
+    } 
+    else if (gamestate == STATE_ATTRACT){
+        printBlinkMessage_prog1(0);
         render_balls_prog1();
     }
     else if (gamestate == STATE_BREAKOUT_GAMEOVER){
@@ -1471,9 +1490,7 @@ void BreakoutGameWrapper(){
 
         }
     }
-    if (demoMode){//hack "press start"
-        printBlinkMessage_prog1(0);
-    }
+
 
 }
 
@@ -1481,7 +1498,8 @@ void BreakoutGameWrapper(){
 void SelectControllerScreen_prog2()
 {
     char top = 60;
-    
+    await_draw_queue();
+
     text_init();
     text_color = TEXT_COLOR_WHITE;
     text_cursor_x = 10;
@@ -1758,16 +1776,15 @@ void init_ball_system_prog1() {
 
 void GameWrapper()
 {
-    if (demoMode || gamestate==STATE_ATTRACT) {
-        change_rom_bank(BANK_PROG2);
-        update_paddle_offset_prog2();
-    }
+    // if (demoMode || gamestate==STATE_ATTRACT) {
+    //     change_rom_bank(BANK_PROG2);
+    //     update_paddle_offset_prog2();
+    // }
 
     if (gamestate == STATE_CONTROLLER_SELECT)
     {
         change_rom_bank(BANK_PROG1);
         BreakoutBGRefresh_prog1();
-        await_draw_queue();
 
         change_rom_bank(BANK_PROG2);
         SelectControllerScreen_prog2();
@@ -1776,6 +1793,48 @@ void GameWrapper()
     {
         BreakoutGameWrapper();
     }
+}
+
+void GameWrapperStateMachine()
+{
+    bool buttonCPress;
+    bool buttonAPress;
+    bool buttonStartPress;
+    //sample inputs first
+    buttonAPress = (player1_buttons & INPUT_MASK_A) && (~player1_old_buttons & INPUT_MASK_A);
+    buttonCPress = (player1_buttons & INPUT_MASK_C) && !(player1_old_buttons & INPUT_MASK_C);
+    buttonStartPress = player1_buttons & INPUT_MASK_START && ~player1_old_buttons & INPUT_MASK_START;
+    if (buttonStartPress)//toggle demo mode automated/player modes
+    {
+        demoMode = !demoMode;
+        if (!demoMode) messageEraseCount+=2;
+    }
+    change_rom_bank(BANK_PROG1);
+    button_byte = buttons_to_byte_xyzm_prog1(player1_buttons);//gets paddle input
+    BreakoutBGRefresh_prog1();//always need the black background and borders
+
+    switch (gamestate) {
+        case STATE_CONTROLLER_SELECT:
+        change_rom_bank(BANK_PROG2);
+        SelectControllerScreen_prog2();
+        break;
+
+        case STATE_ATTRACT:
+        break;
+
+        case STATE_BREAKOUT_READY:
+        readyTimer--;
+        if (readyTimer <= 0)
+        {
+            spawn_new_rnd_ball_prog1();
+            gamestate=STATE_BREAKOUT_PLAY;
+            readyTimer=100;
+        }
+        break;
+
+
+    }
+
 }
 
 void main () {
@@ -1795,7 +1854,7 @@ void main () {
     {                                     //  Run forever
         GameWrapper();
         queue_draw_box(4,10,33,9,0);//clear scores with bg sprite
-        if (messageEraseCount) {eraseBlinkMessage(); messageEraseCount--;}
+        eraseBlinkMessage(&messageEraseCount);
         queue_clear_border(2);
         await_draw_queue();
         print_scores(score);
