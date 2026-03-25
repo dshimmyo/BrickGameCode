@@ -151,12 +151,13 @@ unsigned char  anim_queue_count = 0;
 
 unsigned char animatedBricks[MAX_BRICK_COLS*NUM_BRICK_ROWS]; //this needs to be re-engineered
 
-#define NUM_BRICK_LAYOUTS 14
+#define NUM_BRICK_LAYOUTS 16
 BrickLayout brickLayouts[NUM_BRICK_LAYOUTS]=
 {
     //{cols,width}
     {1,120},
     {2,60},
+    {3,40},
     {4,30},
     {5,24},
     {6,20},
@@ -167,6 +168,7 @@ BrickLayout brickLayouts[NUM_BRICK_LAYOUTS]=
     {20,6},
     {24,5},
     {30,4},
+    {40,3},
     {60,2},
     {120,1}
 };
@@ -686,9 +688,9 @@ void GenNextLevel_prog1(char procLevel)
     // change_rom_bank(BANK_PROG1);
     BreakoutBricksSetupWrapper_prog1(3);
 }
+unsigned char everyOtherFrame;
 char paddleXFromBallArray_prog1() {
-    char halfPaddle = PADDLEWIDTH>>1;
-    int midPaddle = paddleX + halfPaddle;
+    int midPaddle = paddleX + (PADDLEWIDTH>>1);
     
     // Tracking variables for our "Best Candidates"
     char highestBallIdx = -1;
@@ -700,15 +702,16 @@ char paddleXFromBallArray_prog1() {
     int maxDy = -512; // Start with lowest possible dy
     int minClosestScore = 255;
     unsigned char i;
+    if ((everyOtherFrame++) & 0x00000001) return paddleX;//skip every other frame
     //int offset = (int)rndPaddleOffset; // Force the 8-bit sign to fill the 16-bit int
     for (i = 0; i < MAX_BALLS; i++) {
         int xDist;
         if (!balls[i].active) continue;//jump to end of loop body
 
         // 1. Find Highest Ball (Smallest Y) - useful when all are moving up
-        if (highestBallIdx<0) highestBallIdx = i;
-        if (downestDyIdx<0) downestDyIdx = i;
-        if (closestBallIdx<0) closestBallIdx = i;
+        // if (highestBallIdx<0) highestBallIdx = i;
+        // if (downestDyIdx<0) downestDyIdx = i;
+        // if (closestBallIdx<0) closestBallIdx = i;
         else if (balls[i].y < minPosY) {
             minPosY = balls[i].y;
             highestBallIdx = i;
@@ -739,24 +742,24 @@ char paddleXFromBallArray_prog1() {
     // If even the "most downward" ball is moving UP, follow the highest ball 
     // (It's the most likely to bounce off a brick and come back down first)
     if (balls[downestDyIdx].dy < 0) {
-        int temp = balls[highestBallIdx].x - halfPaddle + rndPaddleOffset;
-        if (temp < 0) temp = 0;
-        if (temp > 120) temp = 120;
-        return ConstVelocity_prog1((char) paddleX, temp, 3);
+        int temp = balls[highestBallIdx].x - (PADDLEWIDTH>>1) + rndPaddleOffset;
+        // if (temp < 0) temp = 0;
+        // if (temp > 120) temp = 120;
+        return ConstVelocity_prog1((char) paddleX, temp, 6);
     } 
     // If we have a ball moving downward, prioritize the one closest to our X
     else if (closestBallIdx != -1) {
-        int temp = balls[closestBallIdx].x - halfPaddle + rndPaddleOffset;
-        if (temp < 0) temp = 0;
-        if (temp > 120) temp = 120;
-        return ConstVelocity_prog1((char) paddleX, temp, 3);
+        int temp = balls[closestBallIdx].x - (PADDLEWIDTH>>1) + rndPaddleOffset;
+        // if (temp < 0) temp = 0;
+        // if (temp > 120) temp = 120;
+        return ConstVelocity_prog1((char) paddleX, temp, 6);
     } 
     // Fallback: Just track the one with the most downward momentum
     else {
-        int temp = balls[downestDyIdx].x - halfPaddle + rndPaddleOffset;
-        if (temp < 0) temp = 0;
-        if (temp > 120) temp = 120;
-        return ConstVelocity_prog1((char) paddleX, temp, 3);
+        int temp = balls[downestDyIdx].x - (PADDLEWIDTH>>1) + rndPaddleOffset;
+        // if (temp < 0) temp = 0;
+        // if (temp > 120) temp = 120;
+        return ConstVelocity_prog1((char) paddleX, temp, 6);
     }
 
     // TEMP DEBUG LOGIC: Just follow the lowest active ball
