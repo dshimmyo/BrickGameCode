@@ -1159,7 +1159,7 @@ void BreakoutBGRefresh_prog1()
     else//clean up edges
     {
         //queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2 //full bg
-        queue_draw_box(2,120-(BALLSIZE+1),124,BALLSIZE+1,0);//floor bar - fixes out-of-bounds ball ghosts
+        queue_draw_box(2,120-(BALLSIZE+2),124,BALLSIZE+2,0);//floor bar - fixes out-of-bounds ball ghosts
 
         //queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
         //queue_draw_box(1,(CEILING-2),126,2,0b01111000);//ceiling bar - fixes ball ghosts
