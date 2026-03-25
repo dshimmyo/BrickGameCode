@@ -601,8 +601,13 @@ void update_paddle_offset_prog2(){
         rndPaddleOffsetTimer=0;
     }
 }
+
+#pragma code-name (pop)
+
+
+#pragma code-name (push, "PROG1")
 // Convert individual button states to a 8-bit byte
-unsigned char buttons_to_byte_xyzm_prog2(int player1_buttons) {
+unsigned char buttons_to_byte_xyzm_prog1(int player1_buttons) {
     char result = 0;
     
     // This could be optimized further if you know your masks are powers of 2
@@ -617,10 +622,6 @@ unsigned char buttons_to_byte_xyzm_prog2(int player1_buttons) {
 
     return ~result;//invert result
 }
-#pragma code-name (pop)
-
-
-#pragma code-name (push, "PROG1")
 char ClampPaddleX_prog1(int paddlex){
     if (paddlex < BRICK_LEFT){
         paddlex = BRICK_LEFT;
@@ -907,23 +908,18 @@ void ToggleDemoMode()
     }
 }
 
-
-
-
-
-void NewGame()
-{
-    lives_left = 3;
-    score = 0;
-}
-void init_game()//used to refresh the screen when all the bricks are gone
+#pragma code-name (push, "PROG1")
+// void NewGame_prog1()
+// {
+//     lives_left = 3;
+//     score = 0;
+// }
+void init_game_prog1()//used to refresh the screen when all the bricks are gone
 {
     lives_left = 3;
     //NewLevel();
     resetTimer = 100;
 }
-
-#pragma code-name (push, "PROG1")
 void DrawBricks_prog1(){//only gets used to refresh the whole fully-populated field
     unsigned char row;
     //queue_draw_sprite(1,BRICK_TOP,126,BRICKHEIGHT*NUMBRICKSV,1,BRICK_TOP,2);//bg in bank 2
@@ -1413,8 +1409,7 @@ void BreakoutGameWrapper(){
         gamestate=STATE_BREAKOUT_PLAY;
     }
 
-    change_rom_bank(BANK_PROG2);
-    button_byte = buttons_to_byte_xyzm_prog2(player1_buttons);//gets paddle input
+    button_byte = buttons_to_byte_xyzm_prog1(player1_buttons);//gets paddle input
 
     if (player1_buttons & INPUT_MASK_A && ~player1_old_buttons & INPUT_MASK_A) 
     {
@@ -1782,11 +1777,10 @@ void main () {
     load_spritesheet(ASSET__gfx__paddle_bmp,1);
     load_spritesheet(ASSET__gfx__BreakoutBrickBG_bmp,2);
     load_spritesheet(ASSET__gfx__PressStart_bmp,4);
-    change_rom_bank(BANK_PROG1);
-    bake_gradient_mask_prog1();//only needs to be done once
-    init_game();
     scoring_init();
     change_rom_bank(BANK_PROG1);
+    bake_gradient_mask_prog1();//only needs to be done once
+    init_game_prog1();
     init_ball_system_prog1();
     BreakoutBricksSetupWrapper_prog1(3); //redundant but keeps vram properly setup
     gamestate = STATE_CONTROLLER_SELECT;
