@@ -71,7 +71,7 @@ unsigned char lives_left = 3;
 char breakoutRefresh=0;//set to true to refresh the whole screen
 char breakoutBricksRefresh=0;//set to true to refresh the whole screen
 unsigned int bricks_remaining = 0;
-
+char messageEraseCount = 0;//set to 2 or 3 to erase messages for 2 or 3 frames
 
 //typedefs
 typedef struct {
@@ -903,13 +903,13 @@ void inputBinaryDraw_prog2()
 
 
 #pragma code-name (push, "PROG1")
-void ToggleDemoMode_prog1()
-{
-    if (player1_buttons & INPUT_MASK_START && ~player1_old_buttons & INPUT_MASK_START)
-    {
-        demoMode = !demoMode;
-    }
-}
+// void ToggleDemoMode_prog1()
+// {
+//     if (player1_buttons & INPUT_MASK_START && ~player1_old_buttons & INPUT_MASK_START)
+//     {
+//         demoMode = !demoMode;
+//     }
+// }
 
 // void NewGame_prog1()
 // {
@@ -1365,10 +1365,27 @@ void printBlinkMessage_prog1(char index){
 }
 
 #pragma code-name (pop)
-
+void eraseBlinkMessage()
+{
+    printPressStart_prog1(32,64,false);//prints a blank box
+}
 
 void BreakoutGameWrapper(){
+    bool buttonCPress;
+    bool buttonAPress;
+    bool buttonStartPress;
+    //sample inputs first
+    buttonAPress = (player1_buttons & INPUT_MASK_A) && (~player1_old_buttons & INPUT_MASK_A);
+    buttonCPress = (player1_buttons & INPUT_MASK_C) && !(player1_old_buttons & INPUT_MASK_C);
+    buttonStartPress = player1_buttons & INPUT_MASK_START && ~player1_old_buttons & INPUT_MASK_START;
+    if (buttonStartPress)//toggle demo mode automated/player modes
+    {
+        demoMode = !demoMode;
+        if (!demoMode) messageEraseCount+=2;
+    }
     change_rom_bank(BANK_PROG1);
+    button_byte = buttons_to_byte_xyzm_prog1(player1_buttons);//gets paddle input
+
     BreakoutBGRefresh_prog1();
 
     if (gamestate==STATE_BREAKOUT_READY)
@@ -1376,9 +1393,6 @@ void BreakoutGameWrapper(){
         readyTimer--;
         if (readyTimer <= 0)
         {
-            //angle randomAngle;
-            // randomAngle = get_random_spawn_angles_prog1();
-            // spawn_new_ball_prog1(64,80,randomAngle.dx,-randomAngle.dy,2);
             spawn_new_rnd_ball_prog1();
             gamestate=STATE_BREAKOUT_PLAY;
             readyTimer=100;
@@ -1397,10 +1411,9 @@ void BreakoutGameWrapper(){
             resetTimer=100;
             NewLevel_prog1();
             gamestate=STATE_BREAKOUT_PLAY;
-            //init_game();
         }
     }
-    else if (((player1_buttons & INPUT_MASK_C) && !(player1_old_buttons & INPUT_MASK_C)))//total hack for testing
+    else if (buttonCPress)//total hack for testing
     {
         gamestate=-1;
         GenNextLevel_prog1(cycleLevel++ % NUM_BRICK_LAYOUTS);
@@ -1409,9 +1422,8 @@ void BreakoutGameWrapper(){
         gamestate=STATE_BREAKOUT_PLAY;
     }
 
-    button_byte = buttons_to_byte_xyzm_prog1(player1_buttons);//gets paddle input
 
-    if (player1_buttons & INPUT_MASK_A && ~player1_old_buttons & INPUT_MASK_A) //toggles debug mode
+    if (buttonAPress) //toggles debug mode
     {
         debugMode = !debugMode;
     }
@@ -1421,7 +1433,6 @@ void BreakoutGameWrapper(){
         inputBinaryDraw_prog2();//debug line
         change_rom_bank(BANK_PROG1);//switch back to prog1
     }
-    ToggleDemoMode_prog1();//toggle legacy attract mode
     DrawBricksWrapper_prog1();//handles full-screen refresh and optimized rendering
 
     if (gamestate==STATE_BREAKOUT_PLAY || gamestate == STATE_BREAKOUT_MENU){//menu should rename to attract
@@ -1460,12 +1471,10 @@ void BreakoutGameWrapper(){
 
         }
     }
+    if (demoMode){//hack "press start"
+        printBlinkMessage_prog1(0);
+    }
 
-    // if (!get_active_ball_count_prog1() && !lives_left) {
-    //     // Check if player has "lives" left or go straight to Game Over
-    //     gamestate = STATE_BREAKOUT_GAMEOVER;
-    //     // Trigger the Bank 4 "Game Over" crumble here
-    // }
 }
 
 #pragma code-name (push, "PROG2")
@@ -1786,6 +1795,7 @@ void main () {
     {                                     //  Run forever
         GameWrapper();
         queue_draw_box(4,10,33,9,0);//clear scores with bg sprite
+        if (messageEraseCount) {eraseBlinkMessage(); messageEraseCount--;}
         queue_clear_border(2);
         await_draw_queue();
         print_scores(score);
