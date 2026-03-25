@@ -56,6 +56,7 @@ unsigned int currentNumBricksH = 10;//10;//15;//30;//60;
 #define STATE_CONTROLLER_SELECT 10
 #define STATE_BREAKOUT_MENU 20
 #define STATE_BREAKOUT_READY 25
+#define STATE_ATTRACT 27
 #define STATE_BREAKOUT_PLAY 30
 #define STATE_BREAKOUT_GAMEOVER 40
 #define STATE_BREAKOUT_LEADERBOARD 50
@@ -900,7 +901,9 @@ void inputBinaryDraw_prog2()
 #pragma code-name (pop)
 
 
-void ToggleDemoMode()
+
+#pragma code-name (push, "PROG1")
+void ToggleDemoMode_prog1()
 {
     if (player1_buttons & INPUT_MASK_START && ~player1_old_buttons & INPUT_MASK_START)
     {
@@ -908,7 +911,6 @@ void ToggleDemoMode()
     }
 }
 
-#pragma code-name (push, "PROG1")
 // void NewGame_prog1()
 // {
 //     lives_left = 3;
@@ -1084,9 +1086,7 @@ void DrawBricksWrapper_prog1(){
     {
         DrawBricksErase_prog1();
         #if BRICK_ANIMATION
-        //if (currentBrickWidth>1){
             process_anim_queue_prog1();
-        //}
         #endif
     }
 }
@@ -1411,22 +1411,20 @@ void BreakoutGameWrapper(){
 
     button_byte = buttons_to_byte_xyzm_prog1(player1_buttons);//gets paddle input
 
-    if (player1_buttons & INPUT_MASK_A && ~player1_old_buttons & INPUT_MASK_A) 
+    if (player1_buttons & INPUT_MASK_A && ~player1_old_buttons & INPUT_MASK_A) //toggles debug mode
     {
         debugMode = !debugMode;
     }
-    if (debugMode){
+    if (debugMode){//old legacy code for testing
         change_rom_bank(BANK_PROG2);
         inputButtonsDraw_prog2();//debug display
         inputBinaryDraw_prog2();//debug line
+        change_rom_bank(BANK_PROG1);//switch back to prog1
     }
-    ToggleDemoMode();
+    ToggleDemoMode_prog1();//toggle legacy attract mode
+    DrawBricksWrapper_prog1();//handles full-screen refresh and optimized rendering
 
-    change_rom_bank(BANK_PROG1);
-
-    DrawBricksWrapper_prog1();
-
-    if (gamestate==STATE_BREAKOUT_PLAY || gamestate == STATE_BREAKOUT_MENU){
+    if (gamestate==STATE_BREAKOUT_PLAY || gamestate == STATE_BREAKOUT_MENU){//menu should rename to attract
         process_all_balls_prog1();
     }
 
@@ -1434,7 +1432,7 @@ void BreakoutGameWrapper(){
     render_paddle_prog1();
     erase_balls_prog1();
 
-    if (gamestate==STATE_BREAKOUT_PLAY){
+    if (gamestate==STATE_BREAKOUT_PLAY || gamestate == STATE_BREAKOUT_MENU){
         render_balls_prog1();
     }
     else if (gamestate == STATE_BREAKOUT_GAMEOVER){
@@ -1751,7 +1749,7 @@ void init_ball_system_prog1() {
 
 void GameWrapper()
 {
-    if (demoMode) {
+    if (demoMode || gamestate==STATE_ATTRACT) {
         change_rom_bank(BANK_PROG2);
         update_paddle_offset_prog2();
     }
@@ -1767,7 +1765,6 @@ void GameWrapper()
     }
     else
     {
-        change_rom_bank(BANK_PROG1);
         BreakoutGameWrapper();
     }
 }
