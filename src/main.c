@@ -197,13 +197,13 @@ bool debugMode = false;
 unsigned char active_balls_count = 0;
 Ball balls[MAX_BALLS];//pre-allocate enough space for MAX_BALLS
 
-int paddleX = 64;//global paddle xpos
-int paddleX_old=64;
-int paddleX_old_old=64;
+char paddleX = 64;//global paddle xpos
+char paddleX_old=64;
+char paddleX_old_old=64;
 unsigned char button_byte=0;//8-bit byte representing button states, for debugging and potential use in game mechanics
 unsigned int score = 0;//global score variable
 int resetTimer = 100;//delay between brick reset and ball reset
-char rndPaddleOffset = 0;
+int rndPaddleOffset = 0;
 unsigned char rndPaddleOffsetTimer = 0;
 
 int blinkTimer=0;
@@ -306,13 +306,9 @@ bool detectPaddleCollision_prog1(char sourceXLow,char sourceXHi,char sourceYLow,
     int tempDy = *_dy;//keep changes local until done
 
     if (tempDy < 0) return false;//don't waste time on already bounced balls
-    //if (sourceXLow == paddleX+PADDLEWIDTH-1) paddleHitRegion = 7;
     if (sourceXLow > paddleX) paddleHitRegion = (sourceXLow - paddleX)/(PADDLEWIDTH / 8);
     else paddleHitRegion = 0;
-    //paddleHitRegion = (paddleHitRegion < 0) ? 0 : paddleHitRegion;
-    //boxes draw left-right top-down 0->127, 7->120
-    //source is ball, target is paddle
-    //targetLow should be same as PADDLEY, redundant
+    
     if (sourceYHi < PADDLEY) return false;
     else if (sourceYLow > PADDLEY+PADDLEHEIGHT/*targetYLow + PADDLEHEIGHT*/) return false;
     else if (sourceXHi < paddleX) return false;
@@ -598,7 +594,8 @@ void boxAMotion_prog1()
 void update_paddle_offset_prog2(){
     if (rndPaddleOffsetTimer++ > 128)
     {
-        rndPaddleOffset = rnd_range(-(PADDLEWIDTH>>1),(PADDLEWIDTH>>1));
+        rndPaddleOffset = rnd_range(0,PADDLEWIDTH>>1);
+        if (rnd_range(0,127)<64) rndPaddleOffset *= -1; 
         rndPaddleOffsetTimer=0;
     }
 }
@@ -622,7 +619,7 @@ unsigned char buttons_to_byte_xyzm_prog2(int player1_buttons) {
 
 
 #pragma code-name (push, "PROG1")
-int ClampPaddleX_prog1(int paddlex){
+char ClampPaddleX_prog1(int paddlex){
     if (paddlex < BRICK_LEFT){
         paddlex = BRICK_LEFT;
     } else if (paddlex>BRICK_RIGHT-PADDLEWIDTH){
@@ -647,14 +644,14 @@ char paddleXFromPot8opt_prog1(unsigned char potVal)
 
     return ClampPaddleX_prog1(newPotVal);//(((newPotVal<<1)/3 + paddleX/3));//no smoothing
 }
-int paddleXFromDPad_prog1()
+char paddleXFromDPad_prog1()
 {
     int result = paddleX;
     if ((player1_buttons & INPUT_MASK_RIGHT)) result += 3;
     else if ((player1_buttons & INPUT_MASK_LEFT)) result -= 3;
     return ClampPaddleX_prog1(result);
 }
-int ConstVelocity_prog1(char source, char target, char vel){
+char ConstVelocity_prog1(char source, char target, char vel){
     int result = source;
     if (source < target){
         result = source + vel;
@@ -667,19 +664,19 @@ int ConstVelocity_prog1(char source, char target, char vel){
     return ClampPaddleX_prog1(result);
 }
 
-// char paddleXFromClosestBall_prog1(){
-//     unsigned char lowest_y = 0;
-//     signed char target_ball_index = -1;
-//     unsigned char i;
-//     // Find the ball closest to the paddle
-//     for (i = 0; i < MAX_BALLS; i++) {
-//         if (balls[i].active && balls[i].y > lowest_y) {
-//             lowest_y = balls[i].y;
-//             target_ball_index = i;
-//         }
-//     }
-//     return ConstVelocity_prog1(paddleX, balls[target_ball_index].x - (PADDLEWIDTH>>1) + rndPaddleOffset,3);//
-// }
+char paddleXFromClosestBall_prog1(){
+    unsigned char lowest_y = 0;
+    signed char target_ball_index = -1;
+    unsigned char i;
+    // Find the ball closest to the paddle
+    for (i = 0; i < MAX_BALLS; i++) {
+        if (balls[i].active && balls[i].y > lowest_y) {
+            lowest_y = balls[i].y;
+            target_ball_index = i;
+        }
+    }
+    return ConstVelocity_prog1(paddleX, balls[target_ball_index].x - (PADDLEWIDTH>>1) + rndPaddleOffset,3);//
+}
 void GenNextLevel_prog1(char procLevel)
 {
     BrickLayout bl;
@@ -689,8 +686,8 @@ void GenNextLevel_prog1(char procLevel)
     // change_rom_bank(BANK_PROG1);
     BreakoutBricksSetupWrapper_prog1(3);
 }
-int paddleXFromBallArray_prog1() {
-    int halfPaddle = PADDLEWIDTH/2;
+char paddleXFromBallArray_prog1() {
+    char halfPaddle = PADDLEWIDTH>>1;
     int midPaddle = paddleX + halfPaddle;
     
     // Tracking variables for our "Best Candidates"
@@ -704,7 +701,7 @@ int paddleXFromBallArray_prog1() {
     int minClosestScore = 255;
     unsigned char i;
     int offset = (int)rndPaddleOffset; // Force the 8-bit sign to fill the 16-bit int
-    for (i = 0; i < MAX_BALLS; i++) {
+    /*for (i = 0; i < MAX_BALLS; i++) {
         int xDist;
         if (!balls[i].active) continue;
 
@@ -733,7 +730,7 @@ int paddleXFromBallArray_prog1() {
 
     // Safety check: if no balls are active, just stay put or return 0
     if (highestBallIdx == -1) return paddleX;
-
+*/
     // --- Decision Logic (Refined from your original) ---
     
     // If even the "most downward" ball is moving UP, follow the highest ball 
