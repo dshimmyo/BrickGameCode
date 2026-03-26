@@ -25,6 +25,7 @@
 
 #define BACKGROUNDSPRITEBANK 2
 #define BAKEDBACKGROUNDSPRITEBANK 1
+#define LOADSPRITEBG false
 
 //brick presets
 //8cols 15 pixels wide 
@@ -1725,13 +1726,15 @@ void render_paddle_prog1()
     queue_draw_sprite(paddleX,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0,0,5);
 }
 void erase_paddle_prog1(){
-    queue_draw_box(paddleX_old_old,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0);//erase paddle
+    //queue_draw_box(paddleX_old_old,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0);//erase paddle
+    EraseRect(paddleX_old_old,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT);
 }
 void erase_balls_prog1(){
     unsigned char i;
     for (i = 0; i < MAX_BALLS; i++) {
         if (balls[i].active || balls[i].was_active_old || balls[i].was_active_old_old) {
-            queue_draw_box(balls[i].x_old_old ,balls[i].y_old_old,BALLSIZE,BALLSIZE,0);//heal box
+            //queue_draw_box(balls[i].x_old_old ,balls[i].y_old_old,BALLSIZE,BALLSIZE,0);//heal box
+            EraseRect(balls[i].x_old_old ,balls[i].y_old_old,BALLSIZE,BALLSIZE);
             BrickHeal_prog1(balls[i].x_old_old ,balls[i].y_old_old,0);
         }
     }
@@ -1758,7 +1761,11 @@ void BakeBreakoutBackground_prog1(char bank){
     char oldBanks = banksMirror; 
     unsigned char x,y;
     char yOffset = 0;
-    
+
+    #if LOADSPRITEBG
+    load_spritesheet(ASSET__gfx__n44thumb_bmp,bank);
+    #endif
+
     // 1. SET THE HARDWARE MODE
     // Clear Bit 0 (DMA_ENABLE) and Clear Bit 1 (DMA_CPU_TO_VRAM)
     flagsMirror &= ~(DMA_ENABLE | DMA_CPU_TO_VRAM); 
@@ -1768,7 +1775,8 @@ void BakeBreakoutBackground_prog1(char bank){
     banksMirror = bankflip | GRAM_PAGE(bank);
     *bank_reg = banksMirror;
 
-    // queue_clear_screen(0);
+    #if !LOADSPRITEBG
+    //queue_clear_screen(0);
     for (y=0;y<128;y++)//blank the screen
     {
         for (x=0;x<128;x++)
@@ -1776,6 +1784,7 @@ void BakeBreakoutBackground_prog1(char bank){
             vram[y*128+x] = 0b00100000;
         }
     }
+    #endif
 
     // queue_draw_box(1,7,128,3,0b01111000);//top border
     {
