@@ -183,7 +183,7 @@ BrickLayout brickLayouts[NUM_BRICK_LAYOUTS]=
     {120,1}
 };
 
-bool demoMode = true;
+bool demoMode = false;
 bool debugMode = false;
 
 // //boxes, make more modular
@@ -928,8 +928,9 @@ void inputBinaryDraw_prog2()
 // }
 void init_game_prog1()//used to refresh the screen when all the bricks are gone
 {
+    cycleLevel=0;
     lives_left = 3;
-    ///resetTimer = 100;
+    resetTimer = 100;
     score = 0;
     hiscore = (hiscore<100) ? 100 : hiscore;//default 100
     subState = SUBSTATE_NEW_LEVEL;
@@ -1809,15 +1810,18 @@ void GameWrapperStateMachine()
     buttonBPress = (player1_buttons & INPUT_MASK_B) && (~player1_old_buttons & INPUT_MASK_B);
     buttonCPress = (player1_buttons & INPUT_MASK_C) && (~player1_old_buttons & INPUT_MASK_C);
     buttonStartPress = player1_buttons & INPUT_MASK_START && ~player1_old_buttons & INPUT_MASK_START;
-    if (buttonStartPress)//toggle demo mode automated/player modes
-    {
-        demoMode = !demoMode;
-        if (!demoMode) messageEraseCount+=2;
-    }
+    // if (buttonStartPress)//toggle demo mode automated/player modes
+    // {
+    //     demoMode = !demoMode;
+    //     if (!demoMode) messageEraseCount+=2;
+    // }
     change_rom_bank(BANK_PROG1);
     button_byte = buttons_to_byte_xyzm_prog1(player1_buttons);//gets paddle input
     BreakoutBGRefresh_prog1();//always need the black background and borders
-
+    if (gameState==STATE_ATTRACT) {
+        change_rom_bank(BANK_PROG2);
+        update_paddle_offset_prog2();
+    }
     switch (gameState) {
         case STATE_CONTROLLER_SELECT:
         change_rom_bank(BANK_PROG2);
@@ -1901,23 +1905,27 @@ void GameWrapperStateMachine()
                     init_game_prog1();
                     gameState = STATE_BREAKOUT_PLAY;
                     subState = SUBSTATE_NEW_LEVEL;
+                    messageEraseCount=2;
                 }
                 break;
             }
         break;
 
         case STATE_BREAKOUT_GAMEOVER:
-        printBlinkMessage_prog1(1);
         resetTimer--;
         if (resetTimer<=0){
-            //init_game_prog1();
-            resetTimer=100;
+            init_game_prog1();
+            //resetTimer=100;
             gameState = STATE_ATTRACT;
             messageEraseCount=2;
-            lives_left = 3;
-            score = 0;
-            hiscore = (hiscore<100) ? 100 : hiscore;//default 100
-            subState = SUBSTATE_NEW_LEVEL;
+            //lives_left = 3;
+            //score = 0;
+            //hiscore = (hiscore<100) ? 100 : hiscore;//default 100
+            //subState = SUBSTATE_NEW_LEVEL;
+        }
+        else
+        {
+            printBlinkMessage_prog1(1);
         }
         break;
 
