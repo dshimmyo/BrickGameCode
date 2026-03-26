@@ -40,8 +40,8 @@
 #define NUM_BRICK_ROWS 6
 
 //dynamic brick layout
-unsigned char currentBrickWidth = 12;//12;//8;//4;//2;
-unsigned int currentNumBricksH = 10;//10;//15;//30;//60;
+unsigned char currentBrickWidth = 120;//12;//8;//4;//2;
+unsigned int currentNumBricksH = 1;//10;//15;//30;//60;
 
 #define CEILING 21
 
@@ -150,11 +150,11 @@ unsigned char brickRowPoints[6]={4,3,2,2,1,1};//number of points gained by hitti
 
 EntityRow brickRows[NUM_BRICK_ROWS];//init in NewLevel()
 
-EraseTask erase_queue[8];
+#define ERASE_QUEUE_MAX 8
+EraseTask erase_queue[ERASE_QUEUE_MAX];
 unsigned char erase_queue_count = 0;
 
-#define ERASE_QUEUE_MAX 16
-#define NUM_ANIM_FRAMES 8
+#define NUM_ANIM_FRAMES 4 //8 a little sluggish
 #define ANIM_QUEUE_MAX 4
 EraseTask anim_queue[ANIM_QUEUE_MAX];//[NUM_ANIM_FRAMES*2*MAX_BALLS];//10 frames of animation over maybe double frames for up to two balls animframes * 2X * maxballs
 unsigned char  anim_queue_count = 0;
@@ -502,28 +502,22 @@ void update_ball_logic_prog1(Ball *b)
         b->x += dxTot >> 8;
         b->y += dyTot >> 8;
 
+
+        // --- BRICKS ---
+        // Pass the ball's specific variables to your collision detector
+        // order-of-operations, check brick collisions before wall collisions so we
+        // don't risk missing a thin brick
+
+        check_brick_collision_prog1(&b->x, &b->y, &b->dx, &b->dy, &b->speed);
+
         // --- CEILING / OUT OF BOUNDS ---
         if(b->y <= CEILING + 1) {
             b->dy = (b->dy < 0) ? -b->dy : b->dy;
             soundCeiling();
         } 
         else if(b->y >= 120 - BALLSIZE) {
-            // For now, we randomize/reset. Later, we can set b->active = false;
-            //randomizeBox(&b->x, &b->y, &b->dx, &b->dy, &b->speed);
             b->active = false;//despawn, stops rendering
             soundTest();
-            // if (!(get_active_ball_count_prog1())) lives_left--;//only lose a life if no balls are on the screen
-            // // Check if this was the LAST ball
-            // if (lives_left == 0) {
-            //     // This is where you decide: New Life or Game Over?
-            //     gamestate = STATE_BREAKOUT_GAMEOVER;
-            // }
-            // else 
-            // if ((lives_left>0) && (active_balls_count==0))
-            // {
-            //     gamestate = STATE_BREAKOUT_READY; //player serves ball or it auto-spawns
-            //     readyTimer=100;
-            // }
         }
 
         // --- WALLS ---
@@ -532,9 +526,10 @@ void update_ball_logic_prog1(Ball *b)
             b->dx = (b->dx < 0) ? -b->dx : b->dx;
             soundWall();
         } 
-        else if(b->x >= BRICK_RIGHT - BALLSIZE + 1) 
+        else if(b->x >= BRICK_RIGHT )//was BRICK_RIGHT - BALLSIZE + 1 
         {
             b->dx = (b->dx > 0) ? -b->dx : b->dx;
+            //b->x = BRICK_RIGHT-1;//fix intersection, "snap" ball, not sure I like this
             soundWall();
         } 
         
@@ -546,9 +541,7 @@ void update_ball_logic_prog1(Ball *b)
         b->dyRem = 0; 
         }
 
-        // --- BRICKS ---
-        // Pass the ball's specific variables to your collision detector
-        check_brick_collision_prog1(&b->x, &b->y, &b->dx, &b->dy, &b->speed);
+        
     }
 
     // Update the remainder for the next frame
