@@ -1228,17 +1228,7 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
 void BreakoutBGRefresh_prog1()
 {
     if (breakoutRefresh<2){
-        //queue_clear_border(2);
-
-        // queue_clear_screen(0);
-        // queue_draw_box(1,7,128,3,0b01111000);//top border
-        // queue_draw_box(1,(CEILING-2),124,2,0b01111000);//ceiling bar - fixes ball ghosts
-        // queue_draw_box(0,7,BRICK_LEFT,127,0b01111000);//left bar
-        // queue_draw_box(BRICK_RIGHT+1,7,3,113,0b01111000);//rt bar
-        EraseRect(1,7,127,120);
-        //old sprite bg
-        // queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
-        // queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
+        EraseRect(1,7,127,120);//replace the screen with pre-rendered sprite
         breakoutRefresh++;//runs twice to cover two buffers
     }
     else//clean up edges
@@ -1507,11 +1497,15 @@ void SelectControllerScreen_prog2(bool buttonAPress, bool buttonBPress)
     {
         controller_style = CONTROLLER_STYLE_GPAD1;
         gameState = STATE_ATTRACT;
+        breakoutRefresh=0;//triggers a bg refresh
+        breakoutBricksRefresh=0;//triggers bricks refresh
     }
     else if (buttonAPress) 
     {
         controller_style = CONTROLLER_STYLE_PADDLE0;
         gameState = STATE_ATTRACT;
+        breakoutRefresh=0;//triggers a bg refresh
+        breakoutBricksRefresh=0;//triggers bricks refresh
     }
 }
 #pragma code-name (pop);
@@ -2038,7 +2032,16 @@ void GameWrapperStateMachine()
     paddleX_old_old = paddleX_old;
     paddleX_old = paddleX;
 }
-
+void queue_erase(char x,char y, char w, char h,char frames){
+    if (erase_queue_count < ERASE_QUEUE_MAX) {
+            erase_queue[erase_queue_count].frames_left = 1; // Two buffers to clean
+            erase_queue[erase_queue_count].x = x;
+            erase_queue[erase_queue_count].y = y;
+            erase_queue[erase_queue_count].w = w;
+            erase_queue[erase_queue_count].h = h;
+            erase_queue_count++;
+    }
+}
 void main () {
     init_music();
     load_spritesheet(ASSET__gfx__paddle_bmp,PADDLESPRITEBANK);
