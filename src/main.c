@@ -23,6 +23,9 @@
 #define BALLCENTEROFFSET ((BALLSIZE>2) ? BALLSIZE>>1 : 0)
 #define BINARYTESTPOSY 10
 
+#define BACKGROUNDSPRITEBANK 2
+#define BAKEDBACKGROUNDSPRITEBANK 1
+
 //brick presets
 //8cols 15 pixels wide 
 //10cols 12 pixels wide 
@@ -140,6 +143,7 @@ void render_balls_prog1();
 angle get_random_spawn_angles_prog1();
 void init_ball_system_prog1();
 unsigned char get_active_ball_count_prog1();
+void EraseRect(char x, char y, char w, char h);
 
 #define NUM_ANGLES 22
 #pragma rodata-name (push, "PROG1")
@@ -1040,7 +1044,8 @@ void DrawBricksErase_prog1(){ //erase bricks in the queue
         posy = erase_queue[i].y;//BRICK_TOP + BRICK_HEIGHT * row;//brickRow[y].posy;//brickRowYPos[y];
 
         // Draw the "hole" in the current back-buffer
-        queue_draw_box(erase_queue[i].x,posy,erase_queue[i].w,erase_queue[i].h,0);//paint box
+        //queue_draw_box(erase_queue[i].x,posy,erase_queue[i].w,erase_queue[i].h,0);//paint box
+        EraseRect(erase_queue[i].x,posy,erase_queue[i].w,erase_queue[i].h);
         erase_queue[i].frames_left--;
 
         // If it's been erased from both buffers, remove it from the queue
@@ -1221,12 +1226,12 @@ void BreakoutBGRefresh_prog1()
     if (breakoutRefresh<2){
         //queue_clear_border(2);
 
-        queue_clear_screen(0);
-        queue_draw_box(1,7,128,3,0b01111000);//top border
-        queue_draw_box(1,(CEILING-2),126,2,0b01111000);//ceiling bar - fixes ball ghosts
-        queue_draw_box(0,7,BRICK_LEFT,127,0b01111000);//left bar
-        queue_draw_box(BRICK_RIGHT+1,7,3,113,0b01111000);//rt bar
-
+        // queue_clear_screen(0);
+        // queue_draw_box(1,7,128,3,0b01111000);//top border
+        // queue_draw_box(1,(CEILING-2),124,2,0b01111000);//ceiling bar - fixes ball ghosts
+        // queue_draw_box(0,7,BRICK_LEFT,127,0b01111000);//left bar
+        // queue_draw_box(BRICK_RIGHT+1,7,3,113,0b01111000);//rt bar
+        EraseRect(1,7,127,120);
         //old sprite bg
         // queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2
         // queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
@@ -1234,18 +1239,14 @@ void BreakoutBGRefresh_prog1()
     }
     else//clean up edges
     {
-        //queue_draw_sprite(1,7,126,113,1,1,2);//bg in bank 2 //full bg
-        queue_draw_box(2,120-(BALLSIZE+2),124,BALLSIZE+2,0);//floor bar - fixes out-of-bounds ball ghosts
-
-        //queue_draw_sprite(1,(CEILING-2),126,2,1,1,2);//ceiling bar
-        //queue_draw_box(1,(CEILING-2),126,2,0b01111000);//ceiling bar - fixes ball ghosts
-        queue_draw_box(2,(CEILING-2),124,2,0b01111000);//ceiling bar - fixes ball ghosts
-
-        //queue_draw_sprite(1,7,3,127,1,7,2);//left bar
-        queue_draw_box(0,7,BRICK_LEFT,127,0b01111000);//left bar - fix ball ghosts
-
-        //queue_draw_sprite(124,7,3,113,124,1,2);//rt bar
-        queue_draw_box(BRICK_RIGHT+1,7,3,113,0b01111000);//rt bar - fix ball ghosts
+        //queue_draw_box(2,120-(BALLSIZE+2),124,BALLSIZE+2,0);//floor bar - fixes out-of-bounds ball ghosts
+        EraseRect(2,120-(BALLSIZE+2),124,BALLSIZE+2);
+        //queue_draw_box(2,(CEILING-2),124,2,0b01111000);//ceiling bar - fixes ball ghosts
+        EraseRect(2,(CEILING-2),124,2);
+        //queue_draw_box(0,7,BRICK_LEFT,127,0b01111000);//left bar - fix ball ghosts
+        EraseRect(0,7,BRICK_LEFT,127);
+        //queue_draw_box(BRICK_RIGHT+1,7,3,113,0b01111000);//rt bar - fix ball ghosts
+        EraseRect(BRICK_RIGHT+1,7,3,113);
 
     }
 }
@@ -1315,15 +1316,20 @@ void spawn_new_rnd_ball_prog1() {
 void printPressStart_prog1(char x, char y, bool visible){
     if (visible){
         queue_draw_sprite(x,y,64,5,0,21,4);//press start
-    }else {
-        queue_draw_box(x,y,64,5,0);//press start heal
+    } else {
+        //queue_draw_box(x,y,64,5,0);//press start heal
+        //queue_draw_sprite(x,y,64,5,x,y,BAKEDBACKGROUNDSPRITEBANK);//press start
+        EraseRect(x,y,64,5);
     }
 }
 void printGameOver_prog1(char x, char y, bool visible){
     if (visible){
         queue_draw_sprite(x,y,64,5,0,40,4);//press start
     }else {
-        queue_draw_box(x,y,64,5,0);//press start heal
+        //queue_draw_box(x,y,64,5,0);//press start heal
+        //queue_draw_sprite(x,y,64,5,x,y,BAKEDBACKGROUNDSPRITEBANK);//press start
+        EraseRect(x,y,64,5);
+
     }
 }
 void printBlinkMessage_prog1(char index){
@@ -1600,7 +1606,9 @@ void process_anim_queue_prog1() {
         //animate_dissolve_prog1(task->col, task->row, task->frames_left);
 
         // 3. Draw the resulting sprite to the screen
-        queue_draw_box(task->x,task->y,task->w,task->h,0);
+        //queue_draw_box(task->x,task->y,task->w,task->h,0);
+        EraseRect(task->x,task->y,task->w,task->h);
+
         animFrame = NUM_ANIM_FRAMES - (task->frames_left/2-2);
         //queue_draw_sprite(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,task->col * currentBrickWidth, task->row * BRICK_HEIGHT,3);//brick sprite has no y offset
         animFrameMaxPixel = (animFrame+1) * currentBrickWidth;
@@ -1708,13 +1716,13 @@ void render_balls_prog1() {
         if (balls[i].active) {
             // Only draw the ones currently in play
             //draw_sprite(balls[i].x, balls[i].y, BALL_SPRITE_ID);
-            queue_draw_sprite(balls[i].x, balls[i].y,BALLSIZE,BALLSIZE,4,0,1);//hacky use of paddle sprite bank
+            queue_draw_sprite(balls[i].x, balls[i].y,BALLSIZE,BALLSIZE,4,0,5);//hacky use of paddle sprite bank
         }
     }
 }
 void render_paddle_prog1() 
 {
-    queue_draw_sprite(paddleX,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0,0,1);
+    queue_draw_sprite(paddleX,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0,0,5);
 }
 void erase_paddle_prog1(){
     queue_draw_box(paddleX_old_old,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0);//erase paddle
@@ -1745,8 +1753,112 @@ void init_ball_system_prog1() {
         balls[i].was_active_old_old = false;
     }
 }
-#pragma code-name (pop);
+void BakeBreakoutBackground_prog1(char bank){
+    char oldFlags = flagsMirror; // Save the original screen/DMA settings
+    char oldBanks = banksMirror; 
+    unsigned char x,y;
+    char yOffset = 0;
+    
+    // 1. SET THE HARDWARE MODE
+    // Clear Bit 0 (DMA_ENABLE) and Clear Bit 1 (DMA_CPU_TO_VRAM)
+    flagsMirror &= ~(DMA_ENABLE | DMA_CPU_TO_VRAM); 
+    *dma_flags = flagsMirror;
 
+    // 2. BANK IN THE SPRITES
+    banksMirror = bankflip | GRAM_PAGE(bank);
+    *bank_reg = banksMirror;
+
+    // queue_clear_screen(0);
+    for (y=0;y<128;y++)//blank the screen
+    {
+        for (x=0;x<128;x++)
+        {
+            vram[y*128+x] = 0b00100000;
+        }
+    }
+
+    // queue_draw_box(1,7,128,3,0b01111000);//top border
+    {
+        char posx = 1;
+        char posy = 7;
+        char w = 128;
+        char h = 3;
+        char c = 0b01111000;
+
+        //for (y=posy-h+1+yOffset;y<posy+1+yOffset;y++)
+        for (y=posy;y<posy+h;y++)
+        {
+            for (x=posx;x<128;x++)
+            {
+                vram[y*128+x] = c;
+            }
+        }
+    }
+    // queue_draw_box(1,(CEILING-2),124,2,0b01111000);//ceiling bar - fixes ball ghosts
+    {
+        char posx = 1;
+        char posy = (CEILING-2);
+        char w = 124;
+        char h = 2;
+        char c = 0b01111000;
+
+        for (y=posy;y<posy+h;y++)
+        {
+            for (x=posx;x<128;x++)
+            {
+                vram[y*128+x] = c;
+            }
+        }
+    }
+    // queue_draw_box(0,7,BRICK_LEFT,127,0b01111000);//left bar
+    {
+        char posx = 0;
+        char posy = 7;
+        char w = BRICK_LEFT;
+        char h = 127;
+        for (y=posy;y<posy+h;y++)
+        {
+            for (x=posx;x<posx+w;x++)
+            {
+                vram[y*128+x] = 0b01111000;
+            }
+        }
+    }
+    // queue_draw_box(BRICK_RIGHT+1,7,3,113,0b01111000);//rt bar
+    {
+        char posx = BRICK_RIGHT+1;
+        char posy = 7;
+        char w = 3;
+        char h = 113;
+        for (y=posy;y<posy+h;y++)
+        {
+            for (x=posx;x<posx+w;x++)
+            {
+                vram[y*128+x] = 0b01111000;
+            }
+        }
+    }
+
+    // 4. RESTORE EVERYTHING
+    flagsMirror = oldFlags;
+    banksMirror = oldBanks;
+    *dma_flags = flagsMirror;
+    *bank_reg = banksMirror;
+}
+
+#define LIVESRIGHT (BRICK_RIGHT - 4)
+#define LIVESYPOS (CEILING - 2)
+#define LIVESWIDTH (BALLSIZE+2)
+// void draw_lives_prog1()
+// {
+//     char i;
+//     for (i=0;i<)
+// }
+
+#pragma code-name (pop);
+void EraseRect(char x, char y, char w, char h) {
+    queue_draw_sprite(x, y, w, h,x,y, BAKEDBACKGROUNDSPRITEBANK); 
+}
 
 void GameWrapper()
 {
@@ -1910,11 +2022,14 @@ void GameWrapperStateMachine()
 
 void main () {
     init_music();
-    load_spritesheet(ASSET__gfx__paddle_bmp,1);
-    load_spritesheet(ASSET__gfx__BreakoutBrickBG_bmp,2);
+    load_spritesheet(ASSET__gfx__paddle_bmp,5);
+    //load_spritesheet(ASSET__gfx__BreakoutBrickBG_bmp,BACKGROUNDSPRITEBANK);//load bg into bank 2
     load_spritesheet(ASSET__gfx__PressStart_bmp,4);
+
     scoring_init();
     change_rom_bank(BANK_PROG1);
+    BakeBreakoutBackground_prog1(BAKEDBACKGROUNDSPRITEBANK);//bank 1
+
     bake_gradient_mask_prog1();//only needs to be done once
     init_game_prog1();
     init_ball_system_prog1();
@@ -1925,7 +2040,8 @@ void main () {
     {                                     //  Run forever
         //GameWrapper();
         GameWrapperStateMachine();
-        queue_draw_box(4,10,33,9,0);//clear scores with bg sprite
+        //queue_draw_box(4,10,33,9,0);//clear scores with bg sprite
+        EraseRect(4,10,33,9);//clear scores with bg sprite
         eraseBlinkMessage(&messageEraseCount);
         queue_clear_border(2);
         await_draw_queue();
