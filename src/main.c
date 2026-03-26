@@ -25,6 +25,7 @@
 
 #define BACKGROUNDSPRITEBANK 2
 #define BAKEDBACKGROUNDSPRITEBANK 1
+
 #define LOADSPRITEBG false
 
 //brick presets
@@ -1778,6 +1779,14 @@ void BakeBreakoutBackground_prog1(char bank){
     #if !LOADSPRITEBG
     //queue_clear_screen(0);
     for (y=0;y<128;y++)//blank the screen
+    {
+        for (x=0;x<128;x++)
+        {
+            vram[y*128+x] = 0b00100000;
+        }
+    }
+    #else
+    for (y=0;y<CEILING;y++)//blank the screen
     {
         for (x=0;x<128;x++)
         {
