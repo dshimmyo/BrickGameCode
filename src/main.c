@@ -24,9 +24,9 @@
 #define BINARYTESTPOSY 10
 
 #define BAKEDBACKGROUNDSPRITEBANK 1
-#define PADDLESPRITEBANK 5
-#define PRESSSTARTSPRITEBANK 4
-#define BRICKSSPRITEBANK 3
+#define BRICKSSPRITEBANK 2//3
+#define PRESSSTARTSPRITEBANK 3//4
+#define PADDLESPRITEBANK 4//5
 
 #define LOADSPRITEBG false
 
@@ -701,7 +701,7 @@ void GenNextLevel_prog1(char procLevel)
     currentBrickWidth = bl.brickWidth;
     currentNumBricksH = bl.numColumns;
     // change_rom_bank(BANK_PROG1);
-    BreakoutBricksSetupWrapper_prog1(3);
+    BreakoutBricksSetupWrapper_prog1(BRICKSSPRITEBANK);
 }
 unsigned char everyOtherFrame;
 char paddleXFromBallArray_prog1() {
@@ -1545,7 +1545,7 @@ void bake_animation_frames_prog1()
     *dma_flags = flagsMirror;
 
     // 2. BANK IN THE SPRITES
-    banksMirror = bankflip | GRAM_PAGE(3);
+    banksMirror = bankflip | GRAM_PAGE(BRICKSSPRITEBANK);
     *bank_reg = banksMirror;
 
     //copy pixels from top of vram area, every pixel for 128 x 24 pixels
@@ -1653,7 +1653,7 @@ void bevel_all_bricks_prog1() {
     *dma_flags = flagsMirror;
 
     // 2. BANK IN THE SPRITES
-    banksMirror = bankflip | GRAM_PAGE(3);
+    banksMirror = bankflip | GRAM_PAGE(BRICKSSPRITEBANK);
     *bank_reg = banksMirror;
 
     // 3. THE PAINT LOOP (128x24 block)
@@ -2052,7 +2052,7 @@ void main () {
     bake_gradient_mask_prog1();//only needs to be done once
     init_game_prog1();
     init_ball_system_prog1();
-    BreakoutBricksSetupWrapper_prog1(3); //redundant but keeps vram properly setup
+    BreakoutBricksSetupWrapper_prog1(BRICKSSPRITEBANK); //redundant but keeps vram properly setup
     gameState = STATE_CONTROLLER_SELECT;
 
     while (1) 
