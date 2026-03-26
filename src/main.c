@@ -58,20 +58,22 @@ unsigned int currentNumBricksH = 10;//10;//15;//30;//60;
 #define MAX_BALLS 8 //planning for insane mode
 
 //char gamestate = 0;
-enum {
+typedef enum {
 STATE_CONTROLLER_SELECT,
 STATE_BREAKOUT_MENU,
 STATE_BREAKOUT_READY,
 STATE_ATTRACT,
 STATE_BREAKOUT_PLAY,
 STATE_BREAKOUT_GAMEOVER
-} gamestate;
+} GameState;
+GameState gameState;
 
-enum {
-    SUBSTATE_READY,
+typedef enum {
+    SUBSTATE_NEW_LEVEL,
+    SUBSTATE_NEW_BALL,
     SUBSTATE_PLAY
-} substate;
-
+} GameplaySubState;
+GameplaySubState subState;
 
 char controller_style = 0;
 unsigned char lives_left = 3;
@@ -212,6 +214,7 @@ char paddleX_old=64;
 char paddleX_old_old=64;
 unsigned char button_byte=0;//8-bit byte representing button states, for debugging and potential use in game mechanics
 unsigned int score = 0;//global score variable
+unsigned int hiscore = 100;//global score variable
 int resetTimer = 100;//delay between brick reset and ball reset
 int rndPaddleOffset = 0;
 unsigned char rndPaddleOffsetTimer = 0;
@@ -926,8 +929,10 @@ void inputBinaryDraw_prog2()
 void init_game_prog1()//used to refresh the screen when all the bricks are gone
 {
     lives_left = 3;
-    //NewLevel();
-    resetTimer = 100;
+    ///resetTimer = 100;
+    score = 0;
+    hiscore = (hiscore<100) ? 100 : hiscore;//default 100
+    subState = SUBSTATE_NEW_LEVEL;
 }
 void DrawBricks_prog1(){//only gets used to refresh the whole fully-populated field
     unsigned char row;
@@ -1272,11 +1277,8 @@ void BreakoutBGRefresh_prog1()
     }
 }
 void update_player_paddle_prog1(){
-    if (demoMode){
-        //paddleX = paddleXFromClosestBox_prog1();
-        //paddleX = paddleXFromClosestBall_prog1();
+    if (demoMode || gameState==STATE_ATTRACT){
         paddleX = paddleXFromBallArray_prog1();
-        //update_attract_paddle();
     } else {
         if (controller_style == CONTROLLER_STYLE_PADDLE0){
             paddleX = paddleXFromPot8opt_prog1(button_byte);
@@ -1382,7 +1384,7 @@ void eraseBlinkMessage(char *counter)
     }
 }
 
-void BreakoutGameWrapper(){
+/*void BreakoutGameWrapper(){
     bool buttonCPress;
     bool buttonAPress;
     bool buttonStartPress;
@@ -1400,38 +1402,38 @@ void BreakoutGameWrapper(){
 
     BreakoutBGRefresh_prog1();
 
-    if (gamestate==STATE_BREAKOUT_READY)
+    if (gameState==STATE_BREAKOUT_READY)
     {
         readyTimer--;
         if (readyTimer <= 0)
         {
             spawn_new_rnd_ball_prog1();
-            gamestate=STATE_BREAKOUT_PLAY;
+            gameState=STATE_BREAKOUT_PLAY;
             readyTimer=100;
         }
     }
     //cover up previous paddle position
     erase_paddle_prog1();
 
-    if ((bricks_remaining<=0) || gamestate==STATE_BREAKOUT_MENU) {
+    if ((bricks_remaining<=0) || gameState==STATE_BREAKOUT_MENU) {
         if (resetTimer--==100){
-            gamestate=-1;//not sure what to do here
+            //gameState=-1;//stopsGameplay
         }
         if (!resetTimer) {
             GenNextLevel_prog1(cycleLevel++ % NUM_BRICK_LAYOUTS);
 
             resetTimer=100;
             NewLevel_prog1();
-            gamestate=STATE_BREAKOUT_PLAY;
+            gameState=STATE_BREAKOUT_PLAY;
         }
     }
     else if (buttonCPress)//total hack for testing
     {
-        gamestate=-1;
+        gameState=-1;
         GenNextLevel_prog1(cycleLevel++ % NUM_BRICK_LAYOUTS);
         resetTimer=100;
         NewLevel_prog1();
-        gamestate=STATE_BREAKOUT_PLAY;
+        gameState=STATE_BREAKOUT_PLAY;
     }
 
 
@@ -1447,7 +1449,7 @@ void BreakoutGameWrapper(){
     }
     DrawBricksWrapper_prog1();//handles full-screen refresh and optimized rendering
 
-    if (gamestate==STATE_BREAKOUT_PLAY || gamestate == STATE_BREAKOUT_MENU){//menu should rename to attract
+    if (gameState==STATE_BREAKOUT_PLAY || gameState == STATE_BREAKOUT_MENU){//menu should rename to attract
         process_all_balls_prog1();
     }
 
@@ -1455,36 +1457,36 @@ void BreakoutGameWrapper(){
     render_paddle_prog1();
     erase_balls_prog1();
 
-    if (gamestate==STATE_BREAKOUT_PLAY){
+    if (gameState==STATE_BREAKOUT_PLAY){
         render_balls_prog1();
         if (demoMode){//hack "press start"
             printBlinkMessage_prog1(0);
         }
     } 
-    else if (gamestate == STATE_ATTRACT){
+    else if (gameState == STATE_ATTRACT){
         printBlinkMessage_prog1(0);
         render_balls_prog1();
     }
-    else if (gamestate == STATE_BREAKOUT_GAMEOVER){
+    else if (gameState == STATE_BREAKOUT_GAMEOVER){
         printBlinkMessage_prog1(1);
     }
 
     paddleX_old_old = paddleX_old;
     paddleX_old = paddleX;
 
-    if ((gamestate == STATE_BREAKOUT_PLAY))//while game is still in play check gameover or ready
+    if ((gameState == STATE_BREAKOUT_PLAY))//while game is still in play check gameover or ready
     {
         if (get_active_ball_count_prog1()<=0) //no balls in play
         {
             if (lives_left == 0) 
             {
                 // This is where you decide: New Life or Game Over?
-                gamestate = STATE_BREAKOUT_GAMEOVER;
+                gameState = STATE_BREAKOUT_GAMEOVER;
             }
             else
             {
                 lives_left--;
-                gamestate = STATE_BREAKOUT_READY; //player serves ball or it auto-spawns
+                gameState = STATE_BREAKOUT_READY; //player serves ball or it auto-spawns
                 readyTimer=100;
             }
 
@@ -1492,10 +1494,10 @@ void BreakoutGameWrapper(){
     }
 
 
-}
+}*/
 
 #pragma code-name (push, "PROG2")
-void SelectControllerScreen_prog2()
+void SelectControllerScreen_prog2(bool buttonAPress, bool buttonBPress)
 {
     char top = 60;
     await_draw_queue();
@@ -1518,17 +1520,15 @@ void SelectControllerScreen_prog2()
     text_cursor_y = 40 + top;
 
     text_print_string("for Gamepad");
-    if ((player1_buttons & INPUT_MASK_B) && !(player1_old_buttons & INPUT_MASK_B)) 
+    if (buttonBPress) 
     {
         controller_style = CONTROLLER_STYLE_GPAD1;
-        gamestate = STATE_BREAKOUT_MENU;
-        //NewLevel();
+        gameState = STATE_ATTRACT;
     }
-    else if ((player1_buttons & INPUT_MASK_A) && !(player1_old_buttons & INPUT_MASK_A)) 
+    else if (buttonAPress) 
     {
         controller_style = CONTROLLER_STYLE_PADDLE0;
-        gamestate = STATE_BREAKOUT_MENU;
-        //NewLevel();
+        gameState = STATE_ATTRACT;
     }
 }
 #pragma code-name (pop);
@@ -1724,9 +1724,9 @@ void process_all_balls_prog1() {
     }
 
     // Transition to Game Over if the wave is dead
-    if (lives_left == 0 && gamestate == STATE_BREAKOUT_PLAY) {
-        gamestate = STATE_BREAKOUT_GAMEOVER;
-    }
+    // if (lives_left == 0 && gameState == STATE_BREAKOUT_PLAY) {
+    //     gameState = STATE_BREAKOUT_GAMEOVER;
+    // }
 }
 void render_balls_prog1() {
     unsigned char i;
@@ -1776,33 +1776,38 @@ void init_ball_system_prog1() {
 
 void GameWrapper()
 {
+    bool buttonAPress;
+    bool buttonBPress;
     // if (demoMode || gamestate==STATE_ATTRACT) {
     //     change_rom_bank(BANK_PROG2);
     //     update_paddle_offset_prog2();
     // }
+    buttonAPress = (player1_buttons & INPUT_MASK_A) && (~player1_old_buttons & INPUT_MASK_A);
+    buttonBPress = (player1_buttons & INPUT_MASK_B) && (~player1_old_buttons & INPUT_MASK_B);
 
-    if (gamestate == STATE_CONTROLLER_SELECT)
+    if (gameState == STATE_CONTROLLER_SELECT)
     {
         change_rom_bank(BANK_PROG1);
         BreakoutBGRefresh_prog1();
 
         change_rom_bank(BANK_PROG2);
-        SelectControllerScreen_prog2();
+        SelectControllerScreen_prog2(buttonAPress,buttonBPress);
     }
     else
     {
-        BreakoutGameWrapper();
+        //BreakoutGameWrapper();
     }
 }
-
 void GameWrapperStateMachine()
 {
     bool buttonCPress;
     bool buttonAPress;
+    bool buttonBPress;
     bool buttonStartPress;
     //sample inputs first
     buttonAPress = (player1_buttons & INPUT_MASK_A) && (~player1_old_buttons & INPUT_MASK_A);
-    buttonCPress = (player1_buttons & INPUT_MASK_C) && !(player1_old_buttons & INPUT_MASK_C);
+    buttonBPress = (player1_buttons & INPUT_MASK_B) && (~player1_old_buttons & INPUT_MASK_B);
+    buttonCPress = (player1_buttons & INPUT_MASK_C) && (~player1_old_buttons & INPUT_MASK_C);
     buttonStartPress = player1_buttons & INPUT_MASK_START && ~player1_old_buttons & INPUT_MASK_START;
     if (buttonStartPress)//toggle demo mode automated/player modes
     {
@@ -1813,28 +1818,113 @@ void GameWrapperStateMachine()
     button_byte = buttons_to_byte_xyzm_prog1(player1_buttons);//gets paddle input
     BreakoutBGRefresh_prog1();//always need the black background and borders
 
-    switch (gamestate) {
+    switch (gameState) {
         case STATE_CONTROLLER_SELECT:
         change_rom_bank(BANK_PROG2);
-        SelectControllerScreen_prog2();
+        SelectControllerScreen_prog2(buttonAPress,buttonBPress);
         break;
 
         case STATE_ATTRACT:
+        case STATE_BREAKOUT_PLAY:
+            switch (subState){
+                case SUBSTATE_NEW_LEVEL:
+                change_rom_bank(BANK_PROG1);
+                DrawBricksWrapper_prog1();//handles full-screen refresh and optimized rendering
+                update_player_paddle_prog1();
+                erase_balls_prog1();
+                render_balls_prog1();
+                erase_paddle_prog1();
+                render_paddle_prog1();
+                if (gameState == STATE_ATTRACT) printBlinkMessage_prog1(0);
+                if (resetTimer>0){
+                    resetTimer--;
+                }
+                else{
+                    GenNextLevel_prog1(cycleLevel++ % NUM_BRICK_LAYOUTS);
+                    resetTimer=100;
+                    NewLevel_prog1();
+                    subState=SUBSTATE_PLAY;
+                }
+                break;
+
+                case SUBSTATE_NEW_BALL:
+                change_rom_bank(BANK_PROG1);
+                DrawBricksWrapper_prog1();//handles full-screen refresh and optimized rendering
+                update_player_paddle_prog1();
+                erase_balls_prog1();
+                render_balls_prog1();
+                erase_paddle_prog1();
+                render_paddle_prog1();
+                if (gameState == STATE_ATTRACT) printBlinkMessage_prog1(0);
+                if (resetTimer>0){
+                    resetTimer--;
+                }
+                else{
+                    //GenNextLevel_prog1(cycleLevel++ % NUM_BRICK_LAYOUTS);
+                    resetTimer=100;
+                    spawn_new_rnd_ball_prog1();
+                    subState=SUBSTATE_PLAY;
+                }
+                break;
+
+                case SUBSTATE_PLAY:
+                change_rom_bank(BANK_PROG1);
+                DrawBricksWrapper_prog1();//handles full-screen refresh and optimized rendering
+                process_all_balls_prog1();
+                update_player_paddle_prog1();
+                erase_paddle_prog1();
+                render_paddle_prog1();
+                erase_balls_prog1();
+                render_balls_prog1();
+                if (gameState== STATE_ATTRACT) printBlinkMessage_prog1(0);
+                if (bricks_remaining<=0) {
+                    resetTimer=100;
+                    subState = SUBSTATE_NEW_LEVEL;
+                } 
+                else if (get_active_ball_count_prog1()<=0) //no balls in play
+                {
+                    if (lives_left == 0) 
+                    {
+                        // This is where you decide: New Life or Game Over?
+                        gameState = STATE_BREAKOUT_GAMEOVER;
+                        resetTimer = 500;
+                    }
+                    else
+                    {
+                        if (gameState==STATE_BREAKOUT_PLAY) lives_left--;//infinite lives in attract mode
+                        subState = SUBSTATE_NEW_BALL; //player serves ball or it auto-spawns
+                        resetTimer=100;
+                    }
+
+                }
+                if ((gameState == STATE_ATTRACT) && (buttonStartPress || buttonAPress)){
+                    init_game_prog1();
+                    gameState = STATE_BREAKOUT_PLAY;
+                    subState = SUBSTATE_NEW_LEVEL;
+                }
+                break;
+            }
         break;
 
-        case STATE_BREAKOUT_READY:
-        readyTimer--;
-        if (readyTimer <= 0)
-        {
-            spawn_new_rnd_ball_prog1();
-            gamestate=STATE_BREAKOUT_PLAY;
-            readyTimer=100;
+        case STATE_BREAKOUT_GAMEOVER:
+        printBlinkMessage_prog1(1);
+        resetTimer--;
+        if (resetTimer<=0){
+            //init_game_prog1();
+            resetTimer=100;
+            gameState = STATE_ATTRACT;
+            messageEraseCount=2;
+            lives_left = 3;
+            score = 0;
+            hiscore = (hiscore<100) ? 100 : hiscore;//default 100
+            subState = SUBSTATE_NEW_LEVEL;
         }
         break;
 
 
     }
-
+    paddleX_old_old = paddleX_old;
+    paddleX_old = paddleX;
 }
 
 void main () {
@@ -1848,11 +1938,12 @@ void main () {
     init_game_prog1();
     init_ball_system_prog1();
     BreakoutBricksSetupWrapper_prog1(3); //redundant but keeps vram properly setup
-    gamestate = STATE_CONTROLLER_SELECT;
+    gameState = STATE_CONTROLLER_SELECT;
 
     while (1) 
     {                                     //  Run forever
-        GameWrapper();
+        //GameWrapper();
+        GameWrapperStateMachine();
         queue_draw_box(4,10,33,9,0);//clear scores with bg sprite
         eraseBlinkMessage(&messageEraseCount);
         queue_clear_border(2);
