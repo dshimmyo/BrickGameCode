@@ -1879,30 +1879,30 @@ void EraseRect(char x, char y, char w, char h) {
     queue_draw_sprite(x, y, w, h,x,y, BAKEDBACKGROUNDSPRITEBANK); 
 }
 
-void GameWrapper()
-{
-    bool buttonAPress;
-    bool buttonBPress;
-    // if (demoMode || gamestate==STATE_ATTRACT) {
-    //     change_rom_bank(BANK_PROG2);
-    //     update_paddle_offset_prog2();
-    // }
-    buttonAPress = (player1_buttons & INPUT_MASK_A) && (~player1_old_buttons & INPUT_MASK_A);
-    buttonBPress = (player1_buttons & INPUT_MASK_B) && (~player1_old_buttons & INPUT_MASK_B);
+// void GameWrapper()
+// {
+//     bool buttonAPress;
+//     bool buttonBPress;
+//     // if (demoMode || gamestate==STATE_ATTRACT) {
+//     //     change_rom_bank(BANK_PROG2);
+//     //     update_paddle_offset_prog2();
+//     // }
+//     buttonAPress = (player1_buttons & INPUT_MASK_A) && (~player1_old_buttons & INPUT_MASK_A);
+//     buttonBPress = (player1_buttons & INPUT_MASK_B) && (~player1_old_buttons & INPUT_MASK_B);
 
-    if (gameState == STATE_CONTROLLER_SELECT)
-    {
-        change_rom_bank(BANK_PROG1);
-        BreakoutBGRefresh_prog1();
+//     if (gameState == STATE_CONTROLLER_SELECT)
+//     {
+//         change_rom_bank(BANK_PROG1);
+//         BreakoutBGRefresh_prog1();
 
-        change_rom_bank(BANK_PROG2);
-        SelectControllerScreen_prog2(buttonAPress,buttonBPress);
-    }
-    else
-    {
-        //BreakoutGameWrapper();
-    }
-}
+//         change_rom_bank(BANK_PROG2);
+//         SelectControllerScreen_prog2(buttonAPress,buttonBPress);
+//     }
+//     else
+//     {
+//         //BreakoutGameWrapper();
+//     }
+// }
 void GameWrapperStateMachine()
 {
     bool buttonCPress;
@@ -1913,9 +1913,7 @@ void GameWrapperStateMachine()
     EraseRect(4,10,33,9);//clear scores from previous frames
     eraseBlinkMessage(&messageEraseCount);
     change_rom_bank(BANK_PROG1);
-    // erase_balls_prog1();
     erase_paddle_prog1();
-
     //sample inputs first
     buttonAPress = (player1_buttons & INPUT_MASK_A) && (~player1_old_buttons & INPUT_MASK_A);
     buttonBPress = (player1_buttons & INPUT_MASK_B) && (~player1_old_buttons & INPUT_MASK_B);
@@ -1941,16 +1939,22 @@ void GameWrapperStateMachine()
 
         case STATE_ATTRACT:
         case STATE_BREAKOUT_PLAY:
+            change_rom_bank(BANK_PROG1);
+            DrawBricksWrapper_prog1();//blits
+            if (subState != SUBSTATE_NEW_LEVEL) process_all_balls_prog1();//not needed for new level but no harm
+            erase_balls_prog1();//blits
+            if (gameState == STATE_ATTRACT) printBlinkMessage_prog1(0);//message before balls
+            render_balls_prog1();//blits
+            update_player_paddle_prog1();//cpu
+            render_paddle_prog1();//blits
             switch (subState){
                 case SUBSTATE_NEW_LEVEL:
-                change_rom_bank(BANK_PROG1);
-                DrawBricksWrapper_prog1();//handles full-screen refresh and optimized rendering
-                update_player_paddle_prog1();
-                erase_balls_prog1();
-                render_balls_prog1();
-                // erase_paddle_prog1();
-                render_paddle_prog1();
-                if (gameState == STATE_ATTRACT) printBlinkMessage_prog1(0);
+                //DrawBricksWrapper_prog1();//blits
+                //erase_balls_prog1();//blits
+                //if (gameState == STATE_ATTRACT) printBlinkMessage_prog1(0);//message before balls
+                //render_balls_prog1();//blits
+                //update_player_paddle_prog1();//cpu
+                //render_paddle_prog1();//blits
                 if (resetTimer>0){
                     resetTimer--;
                 }
@@ -1962,37 +1966,17 @@ void GameWrapperStateMachine()
                 }
                 break;
 
-                case SUBSTATE_NEW_BALL://no ball in play, delay, spawn new ball
-                change_rom_bank(BANK_PROG1);
-                DrawBricksWrapper_prog1();//blits
-                process_all_balls_prog1();//cpu
-                erase_balls_prog1();
-                render_balls_prog1();
-                update_player_paddle_prog1();//cpu
-                render_paddle_prog1();//blits
-                if (gameState == STATE_ATTRACT) printBlinkMessage_prog1(0);
-                {//ball spawn block
-                    if (resetTimer>0){//timer for ball spawn
-                        resetTimer--;
-                    }
-                    else{
-                        resetTimer=100;
-                        spawn_new_rnd_ball_prog1();
-                        subState=SUBSTATE_PLAY;
-                    }
-                }
-                break;
+                case SUBSTATE_PLAY://ball(s) are in play                
+                //DrawBricksWrapper_prog1();//handles full-screen refresh and optimized rendering
+                //process_all_balls_prog1();
+                //erase_balls_prog1();
+                //if (gameState == STATE_ATTRACT) printBlinkMessage_prog1(0);//message before balls
+                //render_balls_prog1();
+                //update_player_paddle_prog1();
+                //render_paddle_prog1();
 
-                case SUBSTATE_PLAY://ball(s) are in play
-                change_rom_bank(BANK_PROG1);
-                DrawBricksWrapper_prog1();//handles full-screen refresh and optimized rendering
-                process_all_balls_prog1();
-                erase_balls_prog1();
-                render_balls_prog1();
-                update_player_paddle_prog1();
-                render_paddle_prog1();
-                if (gameState== STATE_ATTRACT) printBlinkMessage_prog1(0);
-                {//ball(s) in play block
+                //if (subState==SUBSTATE_PLAY)
+                //{//ball(s) in play block
                     if (bricks_remaining<=0) {
                         resetTimer=100;
                         subState = SUBSTATE_NEW_LEVEL;
@@ -2019,7 +2003,21 @@ void GameWrapperStateMachine()
                         subState = SUBSTATE_NEW_LEVEL;
                         messageEraseCount=2;
                     }
-                }
+                //}
+                break;
+                case SUBSTATE_NEW_BALL://no ball in play, delay, spawn new ball
+
+                //else if (subState==SUBSTATE_NEW_BALL)
+                //{//ball spawn block
+                    if (resetTimer>0){//timer for ball spawn
+                        resetTimer--;
+                    }
+                    else{
+                        resetTimer=100;
+                        spawn_new_rnd_ball_prog1();
+                        subState=SUBSTATE_PLAY;
+                    }
+                //}
                 break;
             }
         break;
