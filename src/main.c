@@ -97,8 +97,10 @@ typedef struct {
 typedef struct {
     int brick_index;
     int frames_left;
-    char row;
-    char col;
+    unsigned char x;
+    unsigned char y;
+    unsigned char w;
+    unsigned char h;
 } EraseTask;
 
 typedef struct {
@@ -1024,8 +1026,8 @@ void BrickHeal_prog1(unsigned char posx, unsigned char posy, unsigned char offse
 
 #pragma code-name (push, "PROG1")
 void DrawBricksErase_prog1(){ //erase bricks in the queue
-    unsigned char row;
-    unsigned char col;
+    //unsigned char row;
+    //unsigned char col;
     //int idx;
     unsigned char posy;
     int i;
@@ -1033,12 +1035,12 @@ void DrawBricksErase_prog1(){ //erase bricks in the queue
     for (i = 0; i < erase_queue_count; i++) 
     {
         //idx = erase_queue[i].brick_index;
-        row = erase_queue[i].row;//idx / currentNumBricksH;
-        col = erase_queue[i].col;//idx % currentNumBricksH;
-        posy = BRICK_TOP + BRICK_HEIGHT * row;//brickRow[y].posy;//brickRowYPos[y];
+        //row = erase_queue[i].row;//idx / currentNumBricksH;
+        //col = erase_queue[i].col;//idx % currentNumBricksH;
+        posy = erase_queue[i].y;//BRICK_TOP + BRICK_HEIGHT * row;//brickRow[y].posy;//brickRowYPos[y];
 
         // Draw the "hole" in the current back-buffer
-        queue_draw_box(BRICK_LEFT + col * currentBrickWidth,posy,currentBrickWidth,BRICK_HEIGHT,0);//paint box
+        queue_draw_box(erase_queue[i].x,posy,erase_queue[i].w,erase_queue[i].h,0);//paint box
         erase_queue[i].frames_left--;
 
         // If it's been erased from both buffers, remove it from the queue
@@ -1048,35 +1050,6 @@ void DrawBricksErase_prog1(){ //erase bricks in the queue
             i--; // Re-check this slot since we swapped
         }
     }
-    /*
-    for (row=0;row<NUMBRICKSV;row++)  
-    {
-        unsigned char posy = BRICK_TOP + BRICKHEIGHT * row;//brickRow[y].posy;//brickRowYPos[y];
-        unsigned char col;
-        unsigned char animFrame;
-        unsigned char eraseFrame;
-        for (col=0;col<NUMBRICKSH;col++)
-        {
-            if (!brickRows[row].visible[col]){
-                animFrame = animatedBricks[row*NUMBRICKSH + col];
-                //eraseFrame = brickRows[row].erase_frames[col];
-                // if (eraseFrame){
-                //     queue_draw_sprite(BRICK_LEFT + col * BRICKWIDTH,posy,BRICKWIDTH,BRICKHEIGHT,BRICK_LEFT + col * BRICKWIDTH,posy,2);//paint from bg bank
-                //     brickRows[row].erase_frames[col]--;
-                // }
-                //else 
-                if (animFrame)
-                {
-                    unsigned char xDrawStart = BRICK_LEFT + col * BRICKWIDTH;
-                    unsigned char gx = ((20-animFrame)>>1)*BRICKWIDTH;//calculate the growing x offset based on the animation frame (0-6)
-                    queue_draw_sprite(BRICK_LEFT + col * BRICKWIDTH,posy,BRICKWIDTH,BRICKHEIGHT,BRICK_LEFT + col * BRICKWIDTH,posy,2);//paint from bg bank
-                    queue_draw_sprite(BRICK_LEFT + col * BRICKWIDTH,posy,BRICKWIDTH,BRICKHEIGHT,gx,(row*BRICKHEIGHT)+80,3);
-                    animatedBricks[row*NUMBRICKSH + col]--;
-                }
-            }
-        }
-    }
-    */
 
 }
 #pragma code-name (pop)
@@ -1175,16 +1148,22 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
         if (erase_queue_count < ERASE_QUEUE_MAX) {
             //erase_queue[erase_queue_count].brick_index = row*currentNumBricksH + col;
             erase_queue[erase_queue_count].frames_left = 2; // Two buffers to clean
-            erase_queue[erase_queue_count].row = row;
-            erase_queue[erase_queue_count].col = col;
+            // erase_queue[erase_queue_count].row = row;
+            // erase_queue[erase_queue_count].col = col;
+            erase_queue[erase_queue_count].x = BRICK_LEFT + (col * currentBrickWidth);
+            erase_queue[erase_queue_count].y = BRICK_TOP + (row * BRICK_HEIGHT);
+            erase_queue[erase_queue_count].w = currentBrickWidth;
+            erase_queue[erase_queue_count].h = BRICK_HEIGHT;
             erase_queue_count++;
         }
         if (anim_queue_count < ANIM_QUEUE_MAX)
         {
             //anim_queue[anim_queue_count].brick_index = row*currentNumBricksH + col;
             anim_queue[anim_queue_count].frames_left = NUM_ANIM_FRAMES*2+2;//double buffers?
-            anim_queue[anim_queue_count].row = row;
-            anim_queue[anim_queue_count].col = col;
+            anim_queue[anim_queue_count].x = BRICK_LEFT + (col * currentBrickWidth);
+            anim_queue[anim_queue_count].y = BRICK_TOP + (row * BRICK_HEIGHT);
+            anim_queue[anim_queue_count].w = currentBrickWidth;
+            anim_queue[anim_queue_count].h = BRICK_HEIGHT;
             anim_queue_count++;
         }
         bricks_remaining--;//counting bricks
@@ -1614,7 +1593,6 @@ void process_anim_queue_prog1() {
     char animFrame;
     unsigned int animFrameMaxPixel;
     for (i = 0; i < anim_queue_count; i++) {
-    //for ( i = anim_queue_count - 1; i >= 0; i--) {
         EraseTask *task = &anim_queue[i];
         
         // 1. Only update the SOURCE pixels in Bank 3 once per logic frame
@@ -1622,7 +1600,7 @@ void process_anim_queue_prog1() {
         //animate_dissolve_prog1(task->col, task->row, task->frames_left);
 
         // 3. Draw the resulting sprite to the screen
-        queue_draw_box(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,0);
+        queue_draw_box(task->x,task->y,task->w,task->h,0);
         animFrame = NUM_ANIM_FRAMES - (task->frames_left/2-2);
         //queue_draw_sprite(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,task->col * currentBrickWidth, task->row * BRICK_HEIGHT,3);//brick sprite has no y offset
         animFrameMaxPixel = (animFrame+1) * currentBrickWidth;
@@ -1633,7 +1611,9 @@ void process_anim_queue_prog1() {
         else
         {
             animOffsetX = (animFrame) * currentBrickWidth;
-            queue_draw_sprite(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT, animOffsetX, (task->row * BRICK_HEIGHT) + animOffsetY,3);//brick sprite has no y offset
+            //queue_draw_sprite(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT, animOffsetX, (task->row * BRICK_HEIGHT) + animOffsetY,3);//brick sprite has no y offset
+            queue_draw_sprite(task->x,task->y,task->w,task->h, animOffsetX, (task->y) + animOffsetY - BRICK_TOP,3);//brick sprite has no y offset
+        
         }
         // 4. Tick down
         task->frames_left--;
