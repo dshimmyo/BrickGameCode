@@ -226,10 +226,9 @@ char paddleX_old=64;
 char paddleX_old_old=64;
 unsigned char button_byte=0;//8-bit byte representing button states, for debugging and potential use in game mechanics
 unsigned int score = 0;//global score variable
-unsigned int previous_score = -1;//global score variable
-unsigned int hiscore = 1000;//global score variable
-unsigned int previous_hiscore = -1;//global score variable
+unsigned int hiscore = 100;//global score variable
 unsigned char scoreRefreshFrames = 2;
+unsigned char hiscoreRefreshFrames = 2;
 int resetTimer = 100;//delay between brick reset and ball reset
 int rndPaddleOffset = 0;
 unsigned char rndPaddleOffsetTimer = 0;
@@ -886,6 +885,8 @@ void NewLevel_prog1()
     // spawn_new_ball_prog1(rnd_range(20,100),80,randomAngle.dx,-randomAngle.dy,2);
     breakoutRefresh=0;
     breakoutBricksRefresh=0;
+    scoreRefreshFrames=2;
+    hiscoreRefreshFrames=2;
 }
 #pragma code-name (pop)
 
@@ -1089,6 +1090,11 @@ void DrawBricksWrapper_prog1(){
 void incrementScore_prog1(char num){
     scoreRefreshFrames=2;
     score += num;
+    if (score > hiscore){
+        hiscore = score;
+        hiscoreRefreshFrames=2;
+    }
+
 }
 void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, int *_ball_dy, int *_ballSpeed) {
     char col;
@@ -2065,6 +2071,10 @@ void queue_erase(char x,char y, char w, char h,char frames){
             erase_queue_count++;
     }
 }
+#define SCOREPOSX 5
+#define HISCOREPOSX 50//(64 - ((7 * 4)/2)) //46
+
+#define SCOREWIDTH 36
 void main () {
     init_music();
     load_spritesheet(ASSET__gfx__paddle_bmp,PADDLESPRITEBANK);
@@ -2085,13 +2095,21 @@ void main () {
 
         //GameWrapper();
         GameWrapperStateMachine();
+        queue_clear_border(2);//color
+
         //queue_draw_box(4,10,33,9,0);//clear scores with bg sprite
+
+        if (scoreRefreshFrames)EraseRect(SCOREPOSX-1,10,SCOREWIDTH,9);//clear scores from previous frames
+        if (hiscoreRefreshFrames)EraseRect(HISCOREPOSX-1,10,SCOREWIDTH,9);//clear scores from previous frames
         
-        if ((previous_score != score) || scoreRefreshFrames--)EraseRect(4,10,33,9);//clear scores from previous frames
-        queue_clear_border(2);
         await_draw_queue();
-        if ((previous_score != score) || scoreRefreshFrames--)print_scores(score);
-        previous_score = score;
+
+        if (scoreRefreshFrames)print_scores(score,SCOREPOSX);
+        scoreRefreshFrames--;
+
+        if (hiscoreRefreshFrames)print_scores(hiscore,HISCOREPOSX);
+        hiscoreRefreshFrames--;
+
         await_vsync(1);
         flip_pages();
         tick_music();

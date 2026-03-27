@@ -4,42 +4,28 @@
 #include <stdint.h>
 #include "gen/assets/font.h"
 
-void uint_to_string(unsigned int num, char* buffer) {
-    char* ptr = buffer;
-    char* start;
-    char* end;
+void fast_uint_to_string(unsigned int num, char* buffer) {
+    // For a 4-digit score
+    buffer[0] = '0';
+    while (num >= 1000) { num -= 1000; buffer[0]++; }
     
-    // Handle the special case for 0
-    if (num == 0) {
-        *ptr++ = '0';
-        *ptr = '\0';
-        return;
-    }
-
-    // Convert number to string in reverse
-    while (num > 0) {
-        *ptr++ = '0' + (num % 10);
-        num /= 10;
-    }
-    *ptr = '\0'; // Null terminate the string
-
-    // Reverse the string to correct order
-    start = buffer;
-    end = ptr - 1;
-    while (start < end) {
-        char temp = *start;
-        *start++ = *end;
-        *end-- = temp;
-    }
+    buffer[1] = '0';
+    while (num >= 100) { num -= 100; buffer[1]++; }
+    
+    buffer[2] = '0';
+    while (num >= 10) { num -= 10; buffer[2]++; }
+    
+    buffer[3] = '0' + (char)num;
+    buffer[4] = '\0';
 }
 
-void print_scores(int num)
+void print_scores(int num, char xpos)
 {
     char buffer = "";
-    text_init();
+    //text_init();
     text_color = TEXT_COLOR_WHITE;
     text_cursor_y = 11;
-    text_cursor_x = 5;
+    text_cursor_x = xpos;//5
     #if SCORING_DIGITS==3
         if (num > 999) text_print_string("999");
         else
@@ -54,10 +40,7 @@ void print_scores(int num)
         if (num > 9999) text_print_string("9999");
         else
         {
-            if (num < 10) text_print_string("000");
-            else if (num < 100) text_print_string("00");
-            else if (num < 1000) text_print_string("0");
-            uint_to_string(num,buffer);
+            fast_uint_to_string(num,buffer);
             text_print_string(buffer);
         }
     #endif
