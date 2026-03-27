@@ -162,7 +162,7 @@ unsigned char brickRowPoints[6]={4,3,2,2,1,1};//number of points gained by hitti
 
 EntityRow brickRows[NUM_BRICK_ROWS];//init in NewLevel()
 
-#define ERASE_QUEUE_MAX 16 //was 8, 16 didn't fix the 120 column glitches
+#define ERASE_QUEUE_MAX 8 //eight is enough
 EraseTask erase_queue[ERASE_QUEUE_MAX];
 unsigned char erase_queue_count = 0;
 
@@ -226,7 +226,10 @@ char paddleX_old=64;
 char paddleX_old_old=64;
 unsigned char button_byte=0;//8-bit byte representing button states, for debugging and potential use in game mechanics
 unsigned int score = 0;//global score variable
-unsigned int hiscore = 100;//global score variable
+unsigned int previous_score = -1;//global score variable
+unsigned int hiscore = 1000;//global score variable
+unsigned int previous_hiscore = -1;//global score variable
+unsigned char scoreRefreshFrames = 2;
 int resetTimer = 100;//delay between brick reset and ball reset
 int rndPaddleOffset = 0;
 unsigned char rndPaddleOffsetTimer = 0;
@@ -1083,6 +1086,10 @@ void DrawBricksWrapper_prog1(){
 #pragma code-name (pop)
 
 #pragma code-name (push, "PROG1")
+void incrementScore_prog1(char num){
+    scoreRefreshFrames=2;
+    score += num;
+}
 void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, int *_ball_dy, int *_ballSpeed) {
     char col;
     char row;
@@ -1219,7 +1226,8 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
         playBass(row);
         //soundTestA();
         //play_single_note();
-        score+= brickRowPoints[row];//brickRows[row].points;//(7-row)>>1;
+        //score+= brickRowPoints[row];//brickRows[row].points;//(7-row)>>1;
+        incrementScore_prog1(brickRowPoints[row]);
         if (row==0) *_ballSpeed = 3;//not double speed but 3/2 speed
     }
     return;
@@ -1912,7 +1920,6 @@ void GameWrapperStateMachine()
     bool buttonBPress;
     bool buttonStartPress;
     
-    EraseRect(4,10,33,9);//clear scores from previous frames
     eraseBlinkMessage(&messageEraseCount);
     change_rom_bank(BANK_PROG1);
     erase_paddle_prog1();
@@ -2075,12 +2082,16 @@ void main () {
 
     while (1) 
     {                                     //  Run forever
+
         //GameWrapper();
         GameWrapperStateMachine();
         //queue_draw_box(4,10,33,9,0);//clear scores with bg sprite
+        
+        if ((previous_score != score) || scoreRefreshFrames--)EraseRect(4,10,33,9);//clear scores from previous frames
         queue_clear_border(2);
         await_draw_queue();
-        print_scores(score);
+        if ((previous_score != score) || scoreRefreshFrames--)print_scores(score);
+        previous_score = score;
         await_vsync(1);
         flip_pages();
         tick_music();
