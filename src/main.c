@@ -30,6 +30,8 @@
 
 #define LOADSPRITEBG false
 
+#define TESTFEATURES true
+
 //brick presets
 //8cols 15 pixels wide 
 //10cols 12 pixels wide 
@@ -160,7 +162,7 @@ unsigned char brickRowPoints[6]={4,3,2,2,1,1};//number of points gained by hitti
 
 EntityRow brickRows[NUM_BRICK_ROWS];//init in NewLevel()
 
-#define ERASE_QUEUE_MAX 8
+#define ERASE_QUEUE_MAX 16 //was 8, 16 didn't fix the 120 column glitches
 EraseTask erase_queue[ERASE_QUEUE_MAX];
 unsigned char erase_queue_count = 0;
 
@@ -1731,6 +1733,12 @@ void erase_balls_prog1(){
     for (i = 0; i < MAX_BALLS; i++) {
         if (balls[i].active || balls[i].was_active_old || balls[i].was_active_old_old) {
             EraseRect(balls[i].x_old_old ,balls[i].y_old_old,BALLSIZE,BALLSIZE);
+            //BrickHeal_prog1(balls[i].x_old_old ,balls[i].y_old_old,0);
+        }
+    }
+    for (i = 0; i < MAX_BALLS; i++) {
+        if (balls[i].active || balls[i].was_active_old || balls[i].was_active_old_old) {
+            //EraseRect(balls[i].x_old_old ,balls[i].y_old_old,BALLSIZE,BALLSIZE);
             BrickHeal_prog1(balls[i].x_old_old ,balls[i].y_old_old,0);
         }
     }
@@ -1921,10 +1929,7 @@ void GameWrapperStateMachine()
     // change_rom_bank(BANK_PROG1);
     button_byte = buttons_to_byte_xyzm_prog1(player1_buttons);//gets paddle input
     BreakoutBGRefresh_prog1();//always need the black background and borders
-    if (gameState==STATE_ATTRACT) {
-        change_rom_bank(BANK_PROG2);
-        update_paddle_offset_prog2();
-    }
+
     switch (gameState) {
         case STATE_CONTROLLER_SELECT:
         change_rom_bank(BANK_PROG2);
@@ -1932,6 +1937,8 @@ void GameWrapperStateMachine()
         break;
 
         case STATE_ATTRACT:
+            change_rom_bank(BANK_PROG2);
+            update_paddle_offset_prog2();
         case STATE_BREAKOUT_PLAY:
             change_rom_bank(BANK_PROG1);
             DrawBricksWrapper_prog1();//blits
@@ -1971,6 +1978,12 @@ void GameWrapperStateMachine()
 
                 //if (subState==SUBSTATE_PLAY)
                 //{//ball(s) in play block
+                    #if TESTFEATURES
+                    if (buttonCPress){
+                        subState = SUBSTATE_NEW_LEVEL;
+                        messageEraseCount=2;
+                    }
+                    #endif
                     if (bricks_remaining<=0) {
                         resetTimer=100;
                         subState = SUBSTATE_NEW_LEVEL;
@@ -1985,7 +1998,10 @@ void GameWrapperStateMachine()
                         }
                         else
                         {
-                            if (gameState==STATE_BREAKOUT_PLAY) lives_left--;//infinite lives in attract mode
+                            //if (gameState==STATE_BREAKOUT_PLAY) 
+                            //{
+                                lives_left--;
+                            //}//infinite lives in attract mode
                             subState = SUBSTATE_NEW_BALL; //player serves ball or it auto-spawns
                             resetTimer=100;
                         }
