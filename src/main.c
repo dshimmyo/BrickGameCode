@@ -1789,11 +1789,11 @@ void BakeBreakoutBackground_prog1(char bank){
         }
     }
     #else
-    for (y=0;y<CEILING;y++)//blank the screen
+    for (y=0;y<=CEILING;y++)//blank the screen
     {
         for (x=0;x<128;x++)
         {
-            vram[y*128+x] = 0b00100000;
+            vram[y*128+x] = 0;//0b00100000;
         }
     }
     #endif
@@ -1836,7 +1836,7 @@ void BakeBreakoutBackground_prog1(char bank){
         char posx = 0;
         char posy = 7;
         char w = BRICK_LEFT;
-        char h = 127;
+        char h = 113;
         for (y=posy;y<posy+h;y++)
         {
             for (x=posx;x<posx+w;x++)
