@@ -1781,8 +1781,6 @@ void BakeBreakoutBackground_prog1(char bank){
     char oldFlags = flagsMirror; // Save the original screen/DMA settings
     char oldBanks = banksMirror; 
     unsigned char x,y;
-    char yOffset = 0;
-
     char livesArray[17*4];
     #if LOADSPRITEBG
     load_spritesheet(ASSET__gfx__n44thumb_bmp,bank);
@@ -1816,6 +1814,7 @@ void BakeBreakoutBackground_prog1(char bank){
     }
     #endif
 
+
     // queue_draw_box(1,7,128,3,0b01111000);//top border
     {
         char posx = 1;
@@ -1824,7 +1823,6 @@ void BakeBreakoutBackground_prog1(char bank){
         char h = 3;
         char c = 0b01111000;
 
-        //for (y=posy-h+1+yOffset;y<posy+1+yOffset;y++)
         for (y=posy;y<posy+h;y++)
         {
             for (x=posx;x<128;x++)
