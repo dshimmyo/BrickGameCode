@@ -2003,13 +2003,13 @@ void GameWrapperStateMachine()
                     } 
                     else if (get_active_ball_count_prog1()<=0) //no balls in play
                     {
-                        if (lives_left == 0) 
-                        {
-                            // This is where you decide: New Life or Game Over?
-                            gameState = STATE_BREAKOUT_GAMEOVER;
-                            resetTimer = 500;
-                        }
-                        else
+                        // if (lives_left == 0) 
+                        // {
+                        //     // This is where you decide: New Life or Game Over?
+                        //     gameState = STATE_BREAKOUT_GAMEOVER;
+                        //     resetTimer = 500;
+                        // }
+                        // else
                         {
                             //if (gameState==STATE_BREAKOUT_PLAY) 
                             //{
@@ -2018,7 +2018,12 @@ void GameWrapperStateMachine()
                             subState = SUBSTATE_NEW_BALL; //player serves ball or it auto-spawns
                             resetTimer=100;
                         }
-
+                        if (lives_left == 0) 
+                        {
+                            // This is where you decide: New Life or Game Over?
+                            gameState = STATE_BREAKOUT_GAMEOVER;
+                            resetTimer = 500;
+                        }
                     }
                     if ((gameState == STATE_ATTRACT) && (buttonStartPress || buttonAPress)){
                         init_game_prog1();
