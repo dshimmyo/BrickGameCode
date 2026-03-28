@@ -23,12 +23,12 @@
 #define BALLCENTEROFFSET ((BALLSIZE>2) ? BALLSIZE>>1 : 0)
 #define BINARYTESTPOSY 10
 
-#define SPRITEBANKBAKEDBACKGROUND 1
-#define SPRITEBANKBRICKS 2//3
-#define SPRITEBANKPRESSSTART 3//4
-#define SPRITEBANKPADDLE 4//5
+#define BAKEDBACKGROUNDSPRITEBANK 1
+#define BRICKSSPRITEBANK 2//3
+#define PRESSSTARTSPRITEBANK 3//4
+#define PADDLESPRITEBANK 4//5
 
-#define LOADSPRITEBG false//test loading a sprite in the bg
+#define LOADSPRITEBG false
 
 #define TESTFEATURES true
 
@@ -44,7 +44,7 @@
 //#define BRICK_WIDTH 2// 12// 2// 4// 8//12//2//8//12
 
 #define BRICK_HEIGHT 4
-#define MAX_BRICK_COLS 60
+#define MAX_BRICK_COLS 120
 //#define NUM_BRICK_COLS 60//10//60//30//15//30//60//15 //10
 #define NUM_BRICK_ROWS 6
 
@@ -60,11 +60,11 @@ unsigned int currentNumBricksH = 1;//10;//15;//30;//60;
 #define BRICK_RIGHT  123//123//4 pixels border
 #define BRICK_ANIMATION true
 
-#define MAX_NOISE 64 //noise samples for dissolve animations
+#define MAX_NOISE 64
 
 #define CONTROLLER_STYLE_PADDLE0 0
 #define CONTROLLER_STYLE_GPAD1 1
-#define MAX_BALLS 4 // let's be realistic, 2 is enough
+#define MAX_BALLS 8 //planning for insane mode
 
 //char gamestate = 0;
 typedef enum {
@@ -706,7 +706,7 @@ void GenNextLevel_prog1(char procLevel)
     currentBrickWidth = bl.brickWidth;
     currentNumBricksH = bl.numColumns;
     // change_rom_bank(BANK_PROG1);
-    BreakoutBricksSetupWrapper_prog1(SPRITEBANKBRICKS);
+    BreakoutBricksSetupWrapper_prog1(BRICKSSPRITEBANK);
 }
 unsigned char everyOtherFrame;
 char paddleXFromBallArray_prog1() {
@@ -993,7 +993,7 @@ void DrawBricks_prog1(){//only gets used to refresh the whole fully-populated fi
                 if (xDrawStart + brickDrawWidth > 127) brickDrawWidth-=1;//last brick index is one pixel short?
 
                 //queue_draw_box(xDrawStart,posy,brickDrawWidth,BRICKHEIGHT,rowColor);
-                queue_draw_sprite(xDrawStart,posy,brickDrawWidth,BRICK_HEIGHT,xDrawStart,(row*BRICK_HEIGHT)/*+60*/,SPRITEBANKBRICKS);
+                queue_draw_sprite(xDrawStart,posy,brickDrawWidth,BRICK_HEIGHT,xDrawStart,(row*BRICK_HEIGHT)/*+60*/,BRICKSSPRITEBANK);
 
                 col=newX;
             }
@@ -1030,7 +1030,7 @@ void BrickHeal_prog1(unsigned char posx, unsigned char posy, unsigned char offse
                     prevCol = col;
                     if (brickRows[row].visible[col])
                     {
-                        queue_draw_sprite(BRICK_LEFT + col * currentBrickWidth,BRICK_TOP + BRICK_HEIGHT * row,currentBrickWidth,BRICK_HEIGHT,BRICK_LEFT + col * currentBrickWidth,row*BRICK_HEIGHT+offset,SPRITEBANKBRICKS);//paint box
+                        queue_draw_sprite(BRICK_LEFT + col * currentBrickWidth,BRICK_TOP + BRICK_HEIGHT * row,currentBrickWidth,BRICK_HEIGHT,BRICK_LEFT + col * currentBrickWidth,row*BRICK_HEIGHT+offset,BRICKSSPRITEBANK);//paint box
                     }
                 }
             } 
@@ -1328,7 +1328,7 @@ void spawn_new_rnd_ball_prog1() {
 }
 void printPressStart_prog1(char x, char y, bool visible){
     if (visible){
-        queue_draw_sprite(x,y,64,5,0,21,SPRITEBANKPRESSSTART);//press start
+        queue_draw_sprite(x,y,64,5,0,21,PRESSSTARTSPRITEBANK);//press start
     } else {
         //queue_draw_box(x,y,64,5,0);//press start heal
         //queue_draw_sprite(x,y,64,5,x,y,BAKEDBACKGROUNDSPRITEBANK);//press start
@@ -1337,7 +1337,7 @@ void printPressStart_prog1(char x, char y, bool visible){
 }
 void printGameOver_prog1(char x, char y, bool visible){
     if (visible){
-        queue_draw_sprite(x,y,64,5,0,40,SPRITEBANKPRESSSTART);//press start
+        queue_draw_sprite(x,y,64,5,0,40,PRESSSTARTSPRITEBANK);//press start
     }else {
         //queue_draw_box(x,y,64,5,0);//press start heal
         //queue_draw_sprite(x,y,64,5,x,y,BAKEDBACKGROUNDSPRITEBANK);//press start
@@ -1558,7 +1558,7 @@ void bake_animation_frames_prog1()
     *dma_flags = flagsMirror;
 
     // 2. BANK IN THE SPRITES
-    banksMirror = bankflip | GRAM_PAGE(SPRITEBANKBRICKS);
+    banksMirror = bankflip | GRAM_PAGE(BRICKSSPRITEBANK);
     *bank_reg = banksMirror;
 
     //copy pixels from top of vram area, every pixel for 128 x 24 pixels
@@ -1637,7 +1637,7 @@ void process_anim_queue_prog1() {
         {
             animOffsetX = (animFrame) * currentBrickWidth;
             //queue_draw_sprite(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT, animOffsetX, (task->row * BRICK_HEIGHT) + animOffsetY,3);//brick sprite has no y offset
-            queue_draw_sprite(task->x,task->y,task->w,task->h, animOffsetX, (task->y) + animOffsetY - BRICK_TOP,SPRITEBANKBRICKS);//brick sprite has no y offset
+            queue_draw_sprite(task->x,task->y,task->w,task->h, animOffsetX, (task->y) + animOffsetY - BRICK_TOP,BRICKSSPRITEBANK);//brick sprite has no y offset
         
         }
         // 4. Tick down
@@ -1666,7 +1666,7 @@ void bevel_all_bricks_prog1() {
     *dma_flags = flagsMirror;
 
     // 2. BANK IN THE SPRITES
-    banksMirror = bankflip | GRAM_PAGE(SPRITEBANKBRICKS);
+    banksMirror = bankflip | GRAM_PAGE(BRICKSSPRITEBANK);
     *bank_reg = banksMirror;
 
     // 3. THE PAINT LOOP (128x24 block)
@@ -1733,13 +1733,13 @@ void render_balls_prog1() {
         if (balls[i].active) {
             // Only draw the ones currently in play
             //draw_sprite(balls[i].x, balls[i].y, BALL_SPRITE_ID);
-            queue_draw_sprite(balls[i].x, balls[i].y,BALLSIZE,BALLSIZE,4,0,SPRITEBANKPADDLE);//hacky use of paddle sprite bank
+            queue_draw_sprite(balls[i].x, balls[i].y,BALLSIZE,BALLSIZE,4,0,PADDLESPRITEBANK);//hacky use of paddle sprite bank
         }
     }
 }
 void render_paddle_prog1() 
 {
-    queue_draw_sprite(paddleX,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0,0,SPRITEBANKPADDLE);
+    queue_draw_sprite(paddleX,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0,0,PADDLESPRITEBANK);
 }
 void erase_paddle_prog1(){
     //queue_draw_box(paddleX_old_old,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0);//erase paddle
@@ -1929,7 +1929,7 @@ void draw_lives_prog1(char lives)
 
 #pragma code-name (pop);
 void EraseRect(char x, char y, char w, char h) {
-    queue_draw_sprite(x, y, w, h,x,y, SPRITEBANKBAKEDBACKGROUND); 
+    queue_draw_sprite(x, y, w, h,x,y, BAKEDBACKGROUNDSPRITEBANK); 
 }
 
 // void GameWrapper()
@@ -2124,17 +2124,17 @@ void queue_erase(char x,char y, char w, char h,char frames){
 #define SCOREWIDTH 36
 void main () {
     init_music();
-    load_spritesheet(ASSET__gfx__paddle_bmp,SPRITEBANKPADDLE);
-    load_spritesheet(ASSET__gfx__PressStart_bmp,SPRITEBANKPRESSSTART);
+    load_spritesheet(ASSET__gfx__paddle_bmp,PADDLESPRITEBANK);
+    load_spritesheet(ASSET__gfx__PressStart_bmp,PRESSSTARTSPRITEBANK);
 
     scoring_init();
     change_rom_bank(BANK_PROG1);
-    BakeBreakoutBackground_prog1(SPRITEBANKBAKEDBACKGROUND);//bank 1
+    BakeBreakoutBackground_prog1(BAKEDBACKGROUNDSPRITEBANK);//bank 1
 
     bake_gradient_mask_prog1();//only needs to be done once
     init_game_prog1();
     init_ball_system_prog1();
-    BreakoutBricksSetupWrapper_prog1(SPRITEBANKBRICKS); //redundant but keeps vram properly setup
+    BreakoutBricksSetupWrapper_prog1(BRICKSSPRITEBANK); //redundant but keeps vram properly setup
     gameState = STATE_CONTROLLER_SELECT;
 
     while (1) 
