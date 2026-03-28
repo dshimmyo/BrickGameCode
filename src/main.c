@@ -1782,6 +1782,7 @@ void BakeBreakoutBackground_prog1(char bank){
     unsigned char x,y;
     char yOffset = 0;
 
+    char livesArray[17*4];
     #if LOADSPRITEBG
     load_spritesheet(ASSET__gfx__n44thumb_bmp,bank);
     #endif
@@ -1875,7 +1876,43 @@ void BakeBreakoutBackground_prog1(char bank){
             }
         }
     }
-
+    //load spritebank to sample lives
+    banksMirror = bankflip | GRAM_PAGE(SPRITEBANKPRESSSTART);
+    *bank_reg = banksMirror;
+    {
+        char w=17;
+        char h=4;
+        char xoffset = 25;
+        char yoffset = 96;
+        for (y=0; y<h; y++){
+            for (x=0; x<w; x++){
+               livesArray[y*w+x]= vram[(y+yoffset)*128 + (x + xoffset)];
+            }
+        }
+    }
+    // 2. BANK IN THE SPRITES
+    banksMirror = bankflip | GRAM_PAGE(bank);
+    *bank_reg = banksMirror;
+    
+    {
+        char vramIndex=0;
+        char posx = 92;
+        char posy = 11;
+        char w=17;
+        char h=4;
+        for (y=0; y<h; y++){
+            for (x=0; x<w; x++){
+                char index=(y * w) + x;
+                vram[((y + posy) * 128) + posx+x] = livesArray[index];
+            }
+        }
+    }
+    {
+        char y=17;
+        for (x=92; x<BRICK_RIGHT; x+=2){
+            vram[y*128 + x] = 0b10111111;
+        }
+    }
     // 4. RESTORE EVERYTHING
     flagsMirror = oldFlags;
     banksMirror = oldBanks;
