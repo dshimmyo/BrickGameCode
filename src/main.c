@@ -150,6 +150,7 @@ angle get_random_spawn_angles_prog1();
 void init_ball_system_prog1();
 unsigned char get_active_ball_count_prog1();
 void EraseRect(char x, char y, char w, char h);
+void draw_lives_prog1(char);
 
 #define NUM_ANGLES 22
 #pragma rodata-name (push, "PROG1")
@@ -1920,14 +1921,13 @@ void BakeBreakoutBackground_prog1(char bank){
     *bank_reg = banksMirror;
 }
 
-#define LIVESRIGHT (BRICK_RIGHT - 4)
-#define LIVESYPOS (CEILING - 2)
-#define LIVESWIDTH (BALLSIZE+2)
-// void draw_lives_prog1()
-// {
-//     char i;
-//     for (i=0;i<)
-// }
+void draw_lives_prog1(char lives)
+{
+    char width = BRICK_RIGHT-92;
+    lives = (lives<0) ? 0 : lives;
+    queue_draw_box(92,16,width,2,0);
+    EraseRect(92,16,lives << 1,2);//paints all lives
+}
 
 #pragma code-name (pop);
 void EraseRect(char x, char y, char w, char h) {
@@ -1986,6 +1986,9 @@ void GameWrapperStateMachine()
         case STATE_CONTROLLER_SELECT:
         change_rom_bank(BANK_PROG2);
         SelectControllerScreen_prog2(buttonAPress,buttonBPress);
+        change_rom_bank(BANK_PROG1);
+        draw_lives_prog1(lives_left);
+
         break;
 
         case STATE_ATTRACT:
@@ -2000,6 +2003,8 @@ void GameWrapperStateMachine()
             render_balls_prog1();//blits
             update_player_paddle_prog1();//cpu
             render_paddle_prog1();//blits
+            draw_lives_prog1(lives_left);
+
             switch (subState){
                 case SUBSTATE_NEW_LEVEL:
                 //DrawBricksWrapper_prog1();//blits
