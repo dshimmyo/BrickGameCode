@@ -1876,7 +1876,7 @@ void BakeBreakoutBackground_prog1(char bank){
         }
     }
     //load spritebank to sample lives
-    banksMirror = bankflip | GRAM_PAGE(SPRITEBANKPRESSSTART);
+    banksMirror = bankflip | GRAM_PAGE(PRESSSTARTSPRITEBANK);
     *bank_reg = banksMirror;
     {
         char w=17;
