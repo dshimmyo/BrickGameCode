@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include "gt/gametank.h"
 #include "gt/gfx/draw_queue.h"
 #include "gen/assets/audio.h"
@@ -104,8 +105,8 @@ typedef struct {
 
 // A small structure to track pending erases
 typedef struct {
-    int brick_index;
-    int frames_left;
+    //int brick_index;//no longer used
+    uint8_t frames_left;
     unsigned char x;
     unsigned char y;
     unsigned char w;
@@ -129,7 +130,7 @@ typedef struct {
     bool was_active_old_old; 
 } Ball;
 
-
+uint16_t magicBrickIndex=0;
 
 
 //prototypes
@@ -151,6 +152,7 @@ void init_ball_system_prog1();
 unsigned char get_active_ball_count_prog1();
 void EraseRect(char x, char y, char w, char h);
 void draw_lives_prog1(char);
+uint16_t get_brick_index_prog1(uint8_t, uint8_t);
 
 #define NUM_ANGLES 22
 #pragma rodata-name (push, "PROG1")
@@ -289,6 +291,11 @@ void soundCeiling(){
 }
 
 #pragma code-name (push, "PROG1")
+uint16_t get_brick_index_prog1(uint8_t x, uint8_t y){
+    uint8_t row = (y - BRICK_TOP)/BRICK_HEIGHT;
+    uint8_t col = (x - BRICK_LEFT)/currentBrickWidth;
+    return row*currentNumBricksH + col;
+}
 unsigned char get_active_ball_count_prog1() {//this makes it work better but it should be removed
     char i;
     active_balls_count=0;
@@ -856,7 +863,6 @@ void NewLevel_prog1()
     unsigned char x;
     unsigned char y;
     int count = 0;
-    //angle randomAngle;
     for (y = 0; y<NUM_BRICK_ROWS; y++){
         for (x=0; x<currentNumBricksH; x++){
             brickRows[y].visible[x] = 1;
@@ -866,30 +872,17 @@ void NewLevel_prog1()
     }
     erase_queue_count=0;
     anim_queue_count=0;
-    // ballSpeed = 1;//slow start
-    // ballSpeedA = 1;//slow start
     bricks_remaining = currentNumBricksH * NUM_BRICK_ROWS;
-    //change_rom_bank(BANK_PROG1);
-    // randomizeBox_prog1(&box_x, &box_y, &dx, &dy, &ballSpeed);
-    // randomizeBox_prog1(&boxA_x, &boxA_y, &dxA, &dyA, &ballSpeedA);
-    // change_rom_bank(BANK_PROG1);
+
     init_ball_system_prog1();
-    // randomAngle = get_random_spawn_angles_prog1();
-    // spawn_new_ball_prog1(rnd_range(20,100),80,randomAngle.dx,-randomAngle.dy,2);
-    // randomAngle = get_random_spawn_angles_prog1();
-    // spawn_new_ball_prog1(rnd_range(20,100),80,randomAngle.dx,-randomAngle.dy,2);
     spawn_new_rnd_ball_prog1();
-    spawn_new_rnd_ball_prog1();
-    
-    // randomAngle = get_random_spawn_angles_prog1();
-    // spawn_new_ball_prog1(rnd_range(20,100),80,randomAngle.dx,-randomAngle.dy,2);
-    // randomAngle = get_random_spawn_angles_prog1();
-    // spawn_new_ball_prog1(rnd_range(20,100),80,randomAngle.dx,-randomAngle.dy,2);
+    //spawn_new_rnd_ball_prog1();
     breakoutRefresh=0;
     breakoutBricksRefresh=0;
     scoreRefreshFrames=2;
     hiscoreRefreshFrames=2;
     livesRefreshFrames=2;
+    magicBrickIndex = rnd_range(0,(currentNumBricksH * NUM_BRICK_ROWS-1));
 }
 #pragma code-name (pop)
 
@@ -1174,6 +1167,7 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
         unsigned char dist_bottom;
         unsigned char min_dist;
         unsigned char side;  // 0=left,1=right,2=top,3=bottom
+        uint8_t hitIndex = get_brick_index_prog1(ballCenterX, ballCenterY);//magic brick check
 
         // Destroy brick
         brickRows[row].visible[col] = 0;
@@ -1236,7 +1230,11 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
             //case 3: //*_ball_y = brick_bottom + 1; 
               //  break; // Bottom
         }
-
+        if (hitIndex == magicBrickIndex) {
+            angle randomAngle;
+            randomAngle = get_random_spawn_angles_prog1();
+            spawn_new_ball_prog1(*_ball_x,*_ball_y,randomAngle.dx,randomAngle.dy, *_ballSpeed);
+        }
         *_ball_dy = -(*_ball_dy);
         //stop_music();
         playBass(row);
@@ -1577,7 +1575,7 @@ void bake_animation_frames_prog1()
     {
         char numFrames = (NUM_ANIM_FRAMES<=120/currentBrickWidth) ? NUM_ANIM_FRAMES : 120/currentBrickWidth;//limit to the 120 frame buffer
         char frame=0;
-        for (frame=0; frame<numFrames; frame++)
+        for (frame=0; frame<numFrames+2; frame++)
         {//for every frame offset by z*currentBrickWidth
             unsigned int frameOffset = frame * currentBrickWidth;
             for (x = 0; x < currentBrickWidth; x++)//only write out frames the size of the bricks
@@ -2114,16 +2112,16 @@ void GameWrapperStateMachine()
     paddleX_old_old = paddleX_old;
     paddleX_old = paddleX;
 }
-void queue_erase(char x,char y, char w, char h,char frames){
-    if (erase_queue_count < ERASE_QUEUE_MAX) {
-            erase_queue[erase_queue_count].frames_left = frames; // Two buffers to clean
-            erase_queue[erase_queue_count].x = x;
-            erase_queue[erase_queue_count].y = y;
-            erase_queue[erase_queue_count].w = w;
-            erase_queue[erase_queue_count].h = h;
-            erase_queue_count++;
-    }
-}
+// void queue_erase(char x,char y, char w, char h,char frames){
+//     if (erase_queue_count < ERASE_QUEUE_MAX) {
+//             erase_queue[erase_queue_count].frames_left = 1; // Two buffers to clean
+//             erase_queue[erase_queue_count].x = x;
+//             erase_queue[erase_queue_count].y = y;
+//             erase_queue[erase_queue_count].w = w;
+//             erase_queue[erase_queue_count].h = h;
+//             erase_queue_count++;
+//     }
+// }
 #define SCOREPOSX 5
 #define HISCOREPOSX 50//(64 - ((7 * 4)/2)) //46
 
