@@ -45,7 +45,7 @@
 //#define BRICK_WIDTH 2// 12// 2// 4// 8//12//2//8//12
 
 #define BRICK_HEIGHT 4
-#define MAX_BRICK_COLS 120
+#define MAX_BRICK_COLS 60
 //#define NUM_BRICK_COLS 60//10//60//30//15//30//60//15 //10
 #define NUM_BRICK_ROWS 6
 
@@ -65,7 +65,7 @@ unsigned int currentNumBricksH = 1;//10;//15;//30;//60;
 
 #define CONTROLLER_STYLE_PADDLE0 0
 #define CONTROLLER_STYLE_GPAD1 1
-#define MAX_BALLS 8 //planning for insane mode
+#define MAX_BALLS 4 //planning for insane mode
 
 //char gamestate = 0;
 typedef enum {
