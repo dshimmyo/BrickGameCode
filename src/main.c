@@ -405,34 +405,39 @@ bool detectPaddleCollision_prog1(char sourceXLow,char sourceXHi,char sourceYLow,
 angle get_random_spawn_angles_prog1()
 {
     char returnIndex;
-    int indexIndex = rnd_range(8,13);
+    int indexIndex = rnd_range(0,7);
     angle returnAngle;
     switch (indexIndex)
     {
         case 0: //A send ball far left
-        returnIndex = 4;//1//0
-        break;
+        // returnIndex = 4;//1//0
+        // break;
         case 1:
         returnIndex = 6;
         break;
         case 2: //BC slight left
+        case 3:
         returnIndex = 8;
         break;
-        case 3: //E almost vertical left
-        returnIndex = 10;
-        break;
-        case 4: //E almost vertical right
-        returnIndex = 11;
-        break;
+        // case 3: //E almost vertical left
+        // returnIndex = 10;
+        // break;
+        // case 4: //E almost vertical right
+        // returnIndex = 11;
+        // break;
+        case 4:
         case 5://FG nudges right 
         returnIndex= 13;
         break;
         case 6://nudges right
-        returnIndex = 15;
-        break; 
-        case 7://H far right
+        case 7:
+         returnIndex = 15;
+         break; 
+        //case 7://H far right
         case 8://extra zone? far right
-        returnIndex = 17;//20;//21
+        // returnIndex = 17;//20;//21
+        default:
+        returnIndex = 13;
         break;
     }
     returnAngle = reflectAnglesNew_prog1[returnIndex];
