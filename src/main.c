@@ -230,6 +230,7 @@ unsigned int score = 0;//global score variable
 unsigned int hiscore = 100;//global score variable
 unsigned char scoreRefreshFrames = 2;
 unsigned char hiscoreRefreshFrames = 2;
+unsigned char livesRefreshFrames = 2;
 int resetTimer = 100;//delay between brick reset and ball reset
 int rndPaddleOffset = 0;
 unsigned char rndPaddleOffsetTimer = 0;
@@ -888,6 +889,7 @@ void NewLevel_prog1()
     breakoutBricksRefresh=0;
     scoreRefreshFrames=2;
     hiscoreRefreshFrames=2;
+    livesRefreshFrames=2;
 }
 #pragma code-name (pop)
 
@@ -1097,7 +1099,12 @@ void incrementScore_prog1(char num){
             hiscoreRefreshFrames=2;
         }
     }
-
+}
+void addLives(char num)
+{
+    livesRefreshFrames=2;//trigger a refresh
+    lives_left = lives_left + num;//num could be negative
+    lives_left = (lives_left<0) ? 0 : lives_left;//safety check
 }
 void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, int *_ball_dy, int *_ballSpeed) {
     char col;
@@ -1923,7 +1930,7 @@ void draw_lives_prog1(char lives)
 {
     char width = BRICK_RIGHT-92;
     lives = (lives<0) ? 0 : lives;
-    queue_draw_box(92,16,width,2,0);
+    queue_draw_box(92,16,width,2,0);//erase line
     EraseRect(92,16,lives << 1,2);//paints all lives
 }
 
@@ -1985,7 +1992,6 @@ void GameWrapperStateMachine()
         change_rom_bank(BANK_PROG2);
         SelectControllerScreen_prog2(buttonAPress,buttonBPress);
         change_rom_bank(BANK_PROG1);
-        draw_lives_prog1(lives_left);
 
         break;
 
@@ -2001,7 +2007,6 @@ void GameWrapperStateMachine()
             render_balls_prog1();//blits
             update_player_paddle_prog1();//cpu
             render_paddle_prog1();//blits
-            draw_lives_prog1(lives_left);
 
             switch (subState){
                 case SUBSTATE_NEW_LEVEL:
@@ -2055,7 +2060,8 @@ void GameWrapperStateMachine()
                         {
                             //if (gameState==STATE_BREAKOUT_PLAY) 
                             //{
-                                lives_left--;
+                                //lives_left--;
+                                addLives(-1);
                             //}//infinite lives in attract mode
                             subState = SUBSTATE_NEW_BALL; //player serves ball or it auto-spawns
                             resetTimer=100;
@@ -2148,7 +2154,8 @@ void main () {
 
         if (scoreRefreshFrames)EraseRect(SCOREPOSX-1,10,SCOREWIDTH,9);//clear scores from previous frames
         if (hiscoreRefreshFrames)EraseRect(HISCOREPOSX-1,10,SCOREWIDTH,9);//clear scores from previous frames
-        
+        if (livesRefreshFrames)draw_lives_prog1(lives_left);
+        livesRefreshFrames--;
         await_draw_queue();
 
         if (scoreRefreshFrames)print_scores(score,SCOREPOSX);
