@@ -45,7 +45,7 @@
 //#define BRICK_WIDTH 2// 12// 2// 4// 8//12//2//8//12
 
 #define BRICK_HEIGHT 4
-#define MAX_BRICK_COLS 60
+#define MAX_BRICK_COLS 120
 //#define NUM_BRICK_COLS 60//10//60//30//15//30//60//15 //10
 #define NUM_BRICK_ROWS 6
 
