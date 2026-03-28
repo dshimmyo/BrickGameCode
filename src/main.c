@@ -698,11 +698,14 @@ char ConstVelocity_prog1(char source, int target, char vel){
     }
     return ClampPaddleX_prog1(result);
 }
+unsigned char everyOtherFrame;
 
-char paddleXFromClosestBall_prog1(){
+char paddleXFromLowestBall_prog1(){
     unsigned char lowest_y = 0;
     signed char target_ball_index = -1;
     unsigned char i;
+    if ((everyOtherFrame++) & 0x00000001) return paddleX;//skip every other frame
+
     // Find the ball closest to the paddle
     for (i = 0; i < MAX_BALLS; i++) {
         if (balls[i].active && balls[i].y > lowest_y) {
@@ -710,7 +713,7 @@ char paddleXFromClosestBall_prog1(){
             target_ball_index = i;
         }
     }
-    return ConstVelocity_prog1(paddleX, balls[target_ball_index].x - (PADDLEWIDTH>>1) + rndPaddleOffset,3);//
+    return ConstVelocity_prog1(paddleX, balls[target_ball_index].x - (PADDLEWIDTH>>1) + rndPaddleOffset,6);//double speed, skip alt frames
 }
 void GenNextLevel_prog1(char procLevel)
 {
@@ -721,7 +724,12 @@ void GenNextLevel_prog1(char procLevel)
     // change_rom_bank(BANK_PROG1);
     BreakoutBricksSetupWrapper_prog1(BRICKSSPRITEBANK);
 }
-unsigned char everyOtherFrame;
+
+#define ENABLEPADDLEHIGHESTBALL false
+#define ENABLEPADDLECLOSESTBALL false
+#define ENABLEPADDLEDOWNESTBALL false
+/*
+
 char paddleXFromBallArray_prog1() {
     int midPaddle = paddleX + (PADDLEWIDTH>>1);
     
@@ -729,6 +737,7 @@ char paddleXFromBallArray_prog1() {
     char highestBallIdx = -1;
     char closestBallIdx = -1;
     char downestDyIdx = -1;
+    char lowestBallIdx = -1;
     
     unsigned char maxPosY = -1;
     unsigned char minPosY = 255;
@@ -736,28 +745,41 @@ char paddleXFromBallArray_prog1() {
     int minClosestScore = 255;
     unsigned char i;
     if ((everyOtherFrame++) & 0x00000001) return paddleX;//skip every other frame
-    //int offset = (int)rndPaddleOffset; // Force the 8-bit sign to fill the 16-bit int
     for (i = 0; i < MAX_BALLS; i++) {
         int xDist;
         if (!balls[i].active) continue;//jump to end of loop body
 
+        //0 find lowest
+        if (maxPosY > balls[i].y) {
+            maxPosY = balls[i].y;
+            lowestBallIdx = i;
+        }
         // 1. Find Highest Ball (Smallest Y) - useful when all are moving up
-        // if (highestBallIdx<0) highestBallIdx = i;
-        // if (downestDyIdx<0) downestDyIdx = i;
+        // if (highestBallIdx<0) {highestBallIdx = i;minPosY = balls[i].y;}
+        // if (downestDyIdx<0) {downestDyIdx = i; maxDy = balls[i].dy;}
         // if (closestBallIdx<0) closestBallIdx = i;
-        else if (balls[i].y < minPosY) {
+        #if ENABLEPADDLEHIGHESTBALL
+        if (balls[i].y < minPosY) {
             minPosY = balls[i].y;
             highestBallIdx = i;
         }
+        #else 
+        minPosY = balls[i].y;
+        highestBallIdx = i;
+        #endif
+        
 
         // 2. Find Most Downward Ball (Largest dy)
+        #if ENABLEPADDLEDOWNESTBALL
         if (balls[i].dy > maxDy) {
             maxDy = balls[i].dy;
             downestDyIdx = i;
         }
+        #endif
 
         // 3. Find "Closest" Ball 
         // Logic: Distance to paddle + Bias for downward movement
+        #if ENABLEPADDLECLOSESTBALL
         xDist = (balls[i].x > midPaddle) ? balls[i].x - midPaddle : midPaddle - balls[i].x;
         if (balls[i].dy > 0) {
             if (xDist < minClosestScore) {
@@ -765,104 +787,44 @@ char paddleXFromBallArray_prog1() {
                 closestBallIdx = i;
             }
         }
+        #else
+            closestBallIdx = i;
+        #endif
+
     }
 
     // Safety check: if no balls are active, just stay put or return 0
-    if (highestBallIdx < 0) return paddleX;
+    //if (highestBallIdx < 0) return paddleX;
 
     // --- Decision Logic (Refined from your original) ---
     
     // If even the "most downward" ball is moving UP, follow the highest ball 
     // (It's the most likely to bounce off a brick and come back down first)
+    #if ENABLEPADDLEDOWNESTBALL
     if (balls[downestDyIdx].dy < 0) {
-        int temp = balls[highestBallIdx].x - (PADDLEWIDTH>>1) + rndPaddleOffset;
-        // if (temp < 0) temp = 0;
-        // if (temp > 120) temp = 120;
-        return ConstVelocity_prog1((char) paddleX, temp, 6);
+        return ConstVelocity_prog1((char) paddleX, balls[highestBallIdx].x - (PADDLEWIDTH>>1) + rndPaddleOffset, 6);
     } 
     // If we have a ball moving downward, prioritize the one closest to our X
-    else if (closestBallIdx != -1) {
-        int temp = balls[closestBallIdx].x - (PADDLEWIDTH>>1) + rndPaddleOffset;
-        // if (temp < 0) temp = 0;
-        // if (temp > 120) temp = 120;
-        return ConstVelocity_prog1((char) paddleX, temp, 6);
+    #endif
+    #if ENABLEPADDLECLOSESTBALL
+    if (closestBallIdx != -1) {
+        return ConstVelocity_prog1((char) paddleX, balls[closestBallIdx].x - (PADDLEWIDTH>>1) + rndPaddleOffset, 6);
     } 
+     #endif
+    #if ENABLEPADDLEDOWNESTBALL
     // Fallback: Just track the one with the most downward momentum
-    else {
-        int temp = balls[downestDyIdx].x - (PADDLEWIDTH>>1) + rndPaddleOffset;
-        // if (temp < 0) temp = 0;
-        // if (temp > 120) temp = 120;
-        return ConstVelocity_prog1((char) paddleX, temp, 6);
+    {
+        return ConstVelocity_prog1((char) paddleX, balls[downestDyIdx].x - (PADDLEWIDTH>>1) + rndPaddleOffset, 6);
     }
-
-    // TEMP DEBUG LOGIC: Just follow the lowest active ball
-    // {
-    //     int targetIdx = -1;
-    //     int bestY = -1;
-    //     for(i=0; i<MAX_BALLS; i++) {
-    //         if(balls[i].active && balls[i].y > bestY) {
-    //             bestY = balls[i].y;
-    //             targetIdx = i;
-    //         }
-    //     }
-
-    //     if (targetIdx != -1) {
-    //         int targetX = balls[targetIdx].x - halfPaddle + offset;
-    //         if (targetX < 0) targetX = 0;
-    //         if (targetX > 110) targetX = 110;
-    //         return ConstVelocity_prog1((char)paddleX, (char)targetX, 3);    
-    //     }
-    // }
-    // return paddleX;
-
+    #endif
+    //true fallback, lowest
+    {
+        return ConstVelocity_prog1((char) paddleX, balls[lowestBallIdx].x - (PADDLEWIDTH>>1) + rndPaddleOffset, 6);
+    }
+    return paddleX;//fallback of all fallbacks
 }
+    */
 
-/*
-char paddleXFromClosestBox_prog1(){
-    char midPaddle = paddleX + (PADDLEWIDTH>>1);
-    char boxA_dist = (boxA_x > midPaddle) ? boxA_x - midPaddle : midPaddle - boxA_x;
-    char box_dist = (box_x > midPaddle) ? box_x - midPaddle : midPaddle - box_x;
-    int dyList[2];
-    char PosXList[2];
-    char PosYList[2];
-    char XDistList[2];
-    char selectedDyIndex=0;
-    char lowestBallIndex=0;
-    char highestBallIndex=0;
-    char closestBallIndex=0;
-    char downestDyIndex=0;
-    char i=0;
-    XDistList[0]=box_dist;
-    XDistList[1]=boxA_dist;
-    dyList[0] = dy;
-    dyList[1] = dyA;
-    PosXList[0] = box_x;
-    PosXList[1] = boxA_x;
-    PosYList[0] = box_y;
-    PosYList[1] = boxA_y;
-    for (i=1; i<2; i++){//find the lowest, highest, closest and most downward
-        lowestBallIndex = (PosYList[i]>=PosYList[i-1]) ? i:i-1;
-        highestBallIndex = (PosYList[i]>=PosYList[i-1]) ? i-1:i;
-        closestBallIndex = (PosYList[i] - XDistList[i]>>1 >=PosYList[i-1] - XDistList[i-1]>>1 && dyList[i]>0) ? i:i-1;
-        downestDyIndex = (dyList[i]>dyList[i-1]) ? i:i-1;
-    }
-    //return ConstVelocity(paddleX, PosXList[lowestBallIndex] - (PADDLEWIDTH>>1),4);//
-    if (dyList[downestDyIndex] < 0 ){//both up, follow the highest, most likely to bounce
-        return ConstVelocity_prog1(paddleX, PosXList[highestBallIndex] - (PADDLEWIDTH>>1) + rndPaddleOffset,3);//
-    } else if (dyList[closestBallIndex]>0){//if the closest is downward
-        return ConstVelocity_prog1(paddleX, PosXList[closestBallIndex] - (PADDLEWIDTH>>1) + rndPaddleOffset,3);//
-    } else { //just pick the one traveling downward
-        return ConstVelocity_prog1(paddleX, PosXList[downestDyIndex] - (PADDLEWIDTH>>1) + rndPaddleOffset,3);//
-    }
-}
-*/
-// void randomizeBox_prog1(char *_box_x, char *_box_y, int *_dx, int *_dy, int *_ballSpeed){
-//     *_box_x = rnd_range(5,114);
-//     *_box_y = rnd_range(64,68);
-//     *_dx = (rnd_range(0,10) > 5) ? 255 : -255;
-//     *_dy = 255;//always down
-//     *_ballSpeed = 1;//default slow
-// }
 void NewLevel_prog1()
 {
     unsigned char x;
@@ -1275,7 +1237,8 @@ void BreakoutBGRefresh_prog1()
 }
 void update_player_paddle_prog1(){
     if (demoMode || gameState==STATE_ATTRACT){
-        paddleX = paddleXFromBallArray_prog1();
+        // paddleX = paddleXFromBallArray_prog1();//remove this shit
+        paddleX = paddleXFromLowestBall_prog1();
     } else {
         if (controller_style == CONTROLLER_STYLE_PADDLE0){
             paddleX = paddleXFromPot8opt_prog1(button_byte);
