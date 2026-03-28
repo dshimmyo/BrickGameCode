@@ -1090,9 +1090,11 @@ void DrawBricksWrapper_prog1(){
 void incrementScore_prog1(char num){
     scoreRefreshFrames=2;
     score += num;
-    if (score > hiscore){
-        hiscore = score;
-        hiscoreRefreshFrames=2;
+    if (gameState==STATE_BREAKOUT_PLAY){
+        if (score > hiscore){
+            hiscore = score;
+            hiscoreRefreshFrames=2;
+        }
     }
 
 }
@@ -2068,7 +2070,7 @@ void GameWrapperStateMachine()
 }
 void queue_erase(char x,char y, char w, char h,char frames){
     if (erase_queue_count < ERASE_QUEUE_MAX) {
-            erase_queue[erase_queue_count].frames_left = 1; // Two buffers to clean
+            erase_queue[erase_queue_count].frames_left = frames; // Two buffers to clean
             erase_queue[erase_queue_count].x = x;
             erase_queue[erase_queue_count].y = y;
             erase_queue[erase_queue_count].w = w;
