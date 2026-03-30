@@ -176,22 +176,22 @@ unsigned char  anim_queue_count = 0;
 
 unsigned char animatedBricks[MAX_BRICK_COLS*NUM_BRICK_ROWS]; //this needs to be re-engineered
 
-#define NUM_BRICK_LAYOUTS 16
+#define NUM_BRICK_LAYOUTS 7//16
 BrickLayout brickLayouts[NUM_BRICK_LAYOUTS]=
 {
     //{cols,width}
-    {1,120},
-    {2,60},
-    {3,40},
-    {4,30},
-    {5,24},
-    {6,20},
-    {8,15},
+    //{1,120},
+    //{2,60},
+    //{3,40},
+    //{4,30},
+    //{5,24},
+    //{6,20},
+    //{8,15},
     {10,12},
-    {12,10},
+    //{12,10},
     {15,8},
     {20,6},
-    {24,5},
+    //{24,5},
     {30,4},
     {40,3},
     {60,2},
@@ -1543,7 +1543,8 @@ void bake_animation_frames_prog1()
     {
         char numFrames = (NUM_ANIM_FRAMES<=120/currentBrickWidth) ? NUM_ANIM_FRAMES : 120/currentBrickWidth;//limit to the 120 frame buffer
         char frame=0;
-        for (frame=0; frame<numFrames+2; frame++)
+        unsigned char maxX = numFrames * currentBrickWidth;
+        for (frame=0; frame<numFrames; frame++)//draws animation horizontally out to numFrames * currentBrickWidth
         {//for every frame offset by z*currentBrickWidth
             unsigned int frameOffset = frame * currentBrickWidth;
             for (x = 0; x < currentBrickWidth; x++)//only write out frames the size of the bricks
@@ -1561,12 +1562,21 @@ void bake_animation_frames_prog1()
                 {
                     // Check against your 'Master Gradient' mask
                     if (noise < threshold) {
-                        vram[targetCoord] = 0; // Erase the pixel
+                        vram[targetCoord] = 0b00100000; // Erase the pixel
                     }
                     else {
                         vram[targetCoord] = pixel;
                     }
                 }
+            }
+        }
+        if (maxX < 120){
+            char x1;
+            for (x1=maxX; x1<128; x1++)
+            {
+                unsigned int origCoord = (y * 128) + x1; //only needs to be the first frame over and over
+                unsigned int targetCoord = animOffset + origCoord;
+                vram[targetCoord] = 0b00100000; // Erase the pixel
             }
         }
     }
@@ -1609,11 +1619,9 @@ void process_anim_queue_prog1() {
         else
         {
             animOffsetX = (animFrame) * currentBrickWidth;
-            //queue_draw_sprite(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT, animOffsetX, (task->row * BRICK_HEIGHT) + animOffsetY,3);//brick sprite has no y offset
             queue_draw_sprite(task->x,task->y,task->w,task->h, animOffsetX, (task->y) + animOffsetY - BRICK_TOP,BRICKSSPRITEBANK);//brick sprite has no y offset
         
         }
-        // 4. Tick down
         task->frames_left--;
 
         // 5. Cleanup: If 0, remove from queue (standard swap-and-pop)
