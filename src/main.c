@@ -2103,7 +2103,8 @@ void main () {
     bake_gradient_mask_prog1();//only needs to be done once
     init_game_prog1();
     init_ball_system_prog1();
-    BreakoutBricksSetupWrapper_prog1(BRICKSSPRITEBANK); //redundant but keeps vram properly setup
+    //BreakoutBricksSetupWrapper_prog1(BRICKSSPRITEBANK); //redundant but keeps vram properly setup
+    GenNextLevel_prog1(0);//sets up the first level in advance
     gameState = STATE_CONTROLLER_SELECT;
 
     while (1) 
