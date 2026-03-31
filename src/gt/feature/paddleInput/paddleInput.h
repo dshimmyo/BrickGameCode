@@ -1,3 +1,7 @@
+// This module provides an alternative to the standard update_inputs() function.
+// If ENABLE_MODULE_PADDLEINPUT is active, use update_paddle_inputs()
+// to capture extended data for paddles and touch interfaces.
+
 #ifndef PADDLEINPUT_H
 #define PADDLEINPUT_H
 
@@ -25,6 +29,7 @@
 #define INPUT_MASK_PADDLE_ALL_KEYS (INPUT_MASK_PADDLE_UP|INPUT_MASK_PADDLE_DOWN|INPUT_MASK_PADDLE_LEFT|INPUT_MASK_PADDLE_RIGHT|INPUT_MASK_PADDLE_A|INPUT_MASK_PADDLE_B|INPUT_MASK_PADDLE_C|INPUT_MASK_PADDLE_START|INPUT_MASK_PADDLE_MODE|INPUT_MASK_PADDLE_X|INPUT_MASK_PADDLE_Y|INPUT_MASK_PADDLE_Z)//add new keys
 
 void update_paddle_inputs();
+unsigned char get_paddle_rotation(int);
 
 #endif //ifdef ENABLE_MODULE_PADDLEINPUT
 #endif //ifdef PADDLEINPUT_H

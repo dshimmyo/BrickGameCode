@@ -627,22 +627,7 @@ void update_paddle_offset_prog2(){
 
 
 #pragma code-name (push, "PROG1")
-// Convert individual button states to a 8-bit byte
-unsigned char buttons_to_byte_xyzm_prog1(int player1_buttons) {
-    char result = 0;
-    
-    // This could be optimized further if you know your masks are powers of 2
-    if (player1_buttons & INPUT_MASK_PADDLE_UP) result |= (1 << 0);
-    if (player1_buttons & INPUT_MASK_PADDLE_DOWN) result |= (1 << 1);
-    if (player1_buttons & INPUT_MASK_PADDLE_LEFT) result |= (1 << 2);
-    if (player1_buttons & INPUT_MASK_PADDLE_RIGHT) result |= (1 << 3);
-    if (player1_buttons & INPUT_MASK_PADDLE_X) result |= (1 << 4);
-    if (player1_buttons & INPUT_MASK_PADDLE_Y) result |= (1 << 5);
-    if (player1_buttons & INPUT_MASK_PADDLE_Z) result |= (1 << 6);
-    if (player1_buttons & INPUT_MASK_PADDLE_MODE) result |= (1 << 7);
 
-    return ~result;//invert result
-}
 char ClampPaddleX_prog1(int paddlex){
     if (paddlex < BRICK_LEFT){
         paddlex = BRICK_LEFT;
@@ -1934,6 +1919,8 @@ void GameWrapperStateMachine()
     bool buttonStartPress;
     
     eraseBlinkMessage(&messageEraseCount);
+    button_byte = get_paddle_rotation(player1_buttons);//gets paddle input byte
+
     change_rom_bank(BANK_PROG1);
     erase_paddle_prog1();
     //sample inputs first
@@ -1947,7 +1934,6 @@ void GameWrapperStateMachine()
     //     if (!demoMode) messageEraseCount+=2;
     // }
     // change_rom_bank(BANK_PROG1);
-    button_byte = buttons_to_byte_xyzm_prog1(player1_buttons);//gets paddle input
     BreakoutBGRefresh_prog1();//always need the black background and borders
 
     switch (gameState) {

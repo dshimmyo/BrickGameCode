@@ -26,4 +26,19 @@ void update_paddle_inputs(){
 }
 #pragma optimize (pop)
 
+unsigned char get_paddle_rotation(int _player_buttons) {
+    unsigned char result = 0;
+    
+    if (_player_buttons & INPUT_MASK_PADDLE_UP) result |= (1 << 0);
+    if (_player_buttons & INPUT_MASK_PADDLE_DOWN) result |= (1 << 1);
+    if (_player_buttons & INPUT_MASK_PADDLE_LEFT) result |= (1 << 2);
+    if (_player_buttons & INPUT_MASK_PADDLE_RIGHT) result |= (1 << 3);
+    if (_player_buttons & INPUT_MASK_PADDLE_X) result |= (1 << 4);
+    if (_player_buttons & INPUT_MASK_PADDLE_Y) result |= (1 << 5);
+    if (_player_buttons & INPUT_MASK_PADDLE_Z) result |= (1 << 6);
+    if (_player_buttons & INPUT_MASK_PADDLE_MODE) result |= (1 << 7);
+
+    return ~result;//invert result
+}
+
 #endif
