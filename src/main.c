@@ -3,7 +3,7 @@
 #include "gt/gfx/draw_queue.h"
 #include "gen/assets/audio.h"
 #include "gt/audio/music.h"
-#include "gt/input.h"
+//#include "gt/input.h"
 #include "gt/feature/random/random.h"
 #include "scoring.h"
 #include "gen/assets/gfx.h"
@@ -632,14 +632,14 @@ unsigned char buttons_to_byte_xyzm_prog1(int player1_buttons) {
     char result = 0;
     
     // This could be optimized further if you know your masks are powers of 2
-    if (player1_buttons & INPUT_MASK_UP) result |= (1 << 0);
-    if (player1_buttons & INPUT_MASK_DOWN) result |= (1 << 1);
-    if (player1_buttons & INPUT_MASK_LEFT) result |= (1 << 2);
-    if (player1_buttons & INPUT_MASK_RIGHT) result |= (1 << 3);
-    if (player1_buttons & INPUT_MASK_X) result |= (1 << 4);
-    if (player1_buttons & INPUT_MASK_Y) result |= (1 << 5);
-    if (player1_buttons & INPUT_MASK_Z) result |= (1 << 6);
-    if (player1_buttons & INPUT_MASK_MODE) result |= (1 << 7);
+    if (player1_buttons & INPUT_MASK_PADDLE_UP) result |= (1 << 0);
+    if (player1_buttons & INPUT_MASK_PADDLE_DOWN) result |= (1 << 1);
+    if (player1_buttons & INPUT_MASK_PADDLE_LEFT) result |= (1 << 2);
+    if (player1_buttons & INPUT_MASK_PADDLE_RIGHT) result |= (1 << 3);
+    if (player1_buttons & INPUT_MASK_PADDLE_X) result |= (1 << 4);
+    if (player1_buttons & INPUT_MASK_PADDLE_Y) result |= (1 << 5);
+    if (player1_buttons & INPUT_MASK_PADDLE_Z) result |= (1 << 6);
+    if (player1_buttons & INPUT_MASK_PADDLE_MODE) result |= (1 << 7);
 
     return ~result;//invert result
 }
@@ -671,8 +671,8 @@ char paddleXFromPot8opt_prog1(unsigned char potVal)
 char paddleXFromDPad_prog1()
 {
     int result = paddleX;
-    if ((player1_buttons & INPUT_MASK_RIGHT)) result += 3;
-    else if ((player1_buttons & INPUT_MASK_LEFT)) result -= 3;
+    if ((player1_buttons & INPUT_MASK_PADDLE_RIGHT)) result += 3;
+    else if ((player1_buttons & INPUT_MASK_PADDLE_LEFT)) result -= 3;
     return ClampPaddleX_prog1(result);
 }
 char ConstVelocity_prog1(char source, int target, char vel){
@@ -847,18 +847,18 @@ void NewLevel_prog1()
 void inputButtonsDraw_prog2()
 {
     //input testing
-    if (player1_buttons & INPUT_MASK_UP){queue_draw_box(1,7,8,2,182);}
-    if (player1_buttons & INPUT_MASK_DOWN){queue_draw_box(11,7,8,2,182);}
-    if (player1_buttons & INPUT_MASK_LEFT){queue_draw_box(21,7,8,2,182);}
-    if (player1_buttons & INPUT_MASK_RIGHT){queue_draw_box(31,7,8,2,182);}
-    if (player1_buttons & INPUT_MASK_A){queue_draw_box(41,7,8,2,182);}
-    if (player1_buttons & INPUT_MASK_B){queue_draw_box(51,7,8,2,182);}
-    if (player1_buttons & INPUT_MASK_C){queue_draw_box(61,7,8,2,182);}
-    if (player1_buttons & INPUT_MASK_START){queue_draw_box(71,7,8,2,182);}
-    if (player1_buttons & INPUT_MASK_X){queue_draw_box(81,7,8,2,199);}//x
-    if (player1_buttons & INPUT_MASK_Y){queue_draw_box(91,7,8,2,199);}//y
-    if (player1_buttons & INPUT_MASK_Z){queue_draw_box(101,7,8,2,199);}//z
-    if (player1_buttons & INPUT_MASK_MODE){queue_draw_box(111,7,8,2,199);}//mode
+    if (player1_buttons & INPUT_MASK_PADDLE_UP){queue_draw_box(1,7,8,2,182);}
+    if (player1_buttons & INPUT_MASK_PADDLE_DOWN){queue_draw_box(11,7,8,2,182);}
+    if (player1_buttons & INPUT_MASK_PADDLE_LEFT){queue_draw_box(21,7,8,2,182);}
+    if (player1_buttons & INPUT_MASK_PADDLE_RIGHT){queue_draw_box(31,7,8,2,182);}
+    if (player1_buttons & INPUT_MASK_PADDLE_A){queue_draw_box(41,7,8,2,182);}
+    if (player1_buttons & INPUT_MASK_PADDLE_B){queue_draw_box(51,7,8,2,182);}
+    if (player1_buttons & INPUT_MASK_PADDLE_C){queue_draw_box(61,7,8,2,182);}
+    if (player1_buttons & INPUT_MASK_PADDLE_START){queue_draw_box(71,7,8,2,182);}
+    if (player1_buttons & INPUT_MASK_PADDLE_X){queue_draw_box(81,7,8,2,199);}//x
+    if (player1_buttons & INPUT_MASK_PADDLE_Y){queue_draw_box(91,7,8,2,199);}//y
+    if (player1_buttons & INPUT_MASK_PADDLE_Z){queue_draw_box(101,7,8,2,199);}//z
+    if (player1_buttons & INPUT_MASK_PADDLE_MODE){queue_draw_box(111,7,8,2,199);}//mode
 
 }
 void inputBinaryDraw_prog2()
@@ -1937,10 +1937,10 @@ void GameWrapperStateMachine()
     change_rom_bank(BANK_PROG1);
     erase_paddle_prog1();
     //sample inputs first
-    buttonAPress = (player1_buttons & INPUT_MASK_A) && (~player1_old_buttons & INPUT_MASK_A);
-    buttonBPress = (player1_buttons & INPUT_MASK_B) && (~player1_old_buttons & INPUT_MASK_B);
-    buttonCPress = (player1_buttons & INPUT_MASK_C) && (~player1_old_buttons & INPUT_MASK_C);
-    buttonStartPress = player1_buttons & INPUT_MASK_START && ~player1_old_buttons & INPUT_MASK_START;
+    buttonAPress = (player1_buttons & INPUT_MASK_PADDLE_A) && (~player1_old_buttons & INPUT_MASK_PADDLE_A);
+    buttonBPress = (player1_buttons & INPUT_MASK_PADDLE_B) && (~player1_old_buttons & INPUT_MASK_PADDLE_B);
+    buttonCPress = (player1_buttons & INPUT_MASK_PADDLE_C) && (~player1_old_buttons & INPUT_MASK_PADDLE_C);
+    buttonStartPress = player1_buttons & INPUT_MASK_PADDLE_START && ~player1_old_buttons & INPUT_MASK_PADDLE_START;
     // if (buttonStartPress)//toggle demo mode automated/player modes
     // {
     //     demoMode = !demoMode;
@@ -2131,7 +2131,8 @@ void main () {
         await_vsync(1);
         flip_pages();
         tick_music();
-        update_inputs();
+        //update_inputs();
+        update_paddle_inputs();//new inputs for paddle feature
     }
     
 }
