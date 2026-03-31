@@ -33,17 +33,6 @@
 
 #define TESTFEATURES true
 
-//brick presets
-//8cols 15 pixels wide 
-//10cols 12 pixels wide 
-//12cols 10 pixels wide
-//15cols 8 pixels wide
-//20cols 6 pixels wide
-//24cols 5 pixels wide
-//30cols 4 pixels wide
-//60cols 2 pixels wide
-//#define BRICK_WIDTH 2// 12// 2// 4// 8//12//2//8//12
-
 #define BRICK_HEIGHT 4
 #define MAX_BRICK_COLS 120
 //#define NUM_BRICK_COLS 60//10//60//30//15//30//60//15 //10
@@ -176,17 +165,17 @@ unsigned char  anim_queue_count = 0;
 
 unsigned char animatedBricks[MAX_BRICK_COLS*NUM_BRICK_ROWS]; //this needs to be re-engineered
 
-#define NUM_BRICK_LAYOUTS 7//16
+#define NUM_BRICK_LAYOUTS 9//16
 BrickLayout brickLayouts[NUM_BRICK_LAYOUTS]=
 {
     //{cols,width}
     //{1,120},
     //{2,60},
     //{3,40},
-    //{4,30},
+    {4,30},
     //{5,24},
     //{6,20},
-    //{8,15},
+    {8,15},
     {10,12},
     //{12,10},
     {15,8},
