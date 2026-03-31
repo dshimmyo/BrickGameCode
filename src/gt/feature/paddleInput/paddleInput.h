@@ -1,16 +1,14 @@
-#ifndef PADDLE_H
-#define PADDLE_H
+#ifndef PADDLEINPUT_H
+#define PADDLEINPUT_H
 
+#include "../../input.h"
 #include "../../../gen/modules_enabled.h"
 
-#ifndef ENABLE_MODULE_PADDLE
-#error "Module PADDLE included but not enabled!"
+#ifndef ENABLE_MODULE_PADDLEINPUT
+#error "Module PADDLEINPUT included but not enabled!"
 #endif
 
-#ifdef ENABLE_MODULE_PADDLE
-
-// extern int player1_buttons, player1_old_buttons, player1_new_buttons;
-// extern int player2_buttons, player2_old_buttons, player2_new_buttons;
+#ifdef ENABLE_MODULE_PADDLEINPUT
 
 #define INPUT_MASK_PADDLE_UP		2048    //prioritizes high, was 2056
 #define INPUT_MASK_PADDLE_DOWN		1024    //prioritizes high, was 1028 
@@ -28,5 +26,5 @@
 
 void update_paddle_inputs();
 
-#endif //ifdef ENABLE_MODULE_PADDLE
-#endif //ifdef PADDLE_H
+#endif //ifdef ENABLE_MODULE_PADDLEINPUT
+#endif //ifdef PADDLEINPUT_H

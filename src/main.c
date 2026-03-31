@@ -3,11 +3,11 @@
 #include "gt/gfx/draw_queue.h"
 #include "gen/assets/audio.h"
 #include "gt/audio/music.h"
-//#include "gt/input.h"
+// #include "gt/input.h"
+#include "gt/feature/paddleInput/paddleInput.h" 
 #include "gt/feature/random/random.h"
 #include "scoring.h"
 #include "gen/assets/gfx.h"
-#include "gt/feature/paddle/paddle.h" 
 #include "gt/banking.h" //Banking API
 #include "gen/bank_nums.h" //Generated macros for named bank numbers
 #include "gt/feature/text/text.h"

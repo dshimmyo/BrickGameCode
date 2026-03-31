@@ -7,6 +7,6 @@
         "RANDOM",
         "TEXT",
         "DRAWQUEUE",
-        "PADDLE"
+        "PADDLEINPUT"
     ]
 }

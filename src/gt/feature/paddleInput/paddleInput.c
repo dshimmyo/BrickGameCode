@@ -1,12 +1,9 @@
 #include "../../input.h"
-#include "paddle.h"
+#include "paddleInput.h"
 #include "../../../gen/modules_enabled.h"
 #include "../../gametank.h"
 
-#ifdef ENABLE_MODULE_PADDLE
-
-// int player1_buttons = 0, player1_old_buttons = 0, player1_new_buttons = 0;
-// int player2_buttons = 0, player2_old_buttons = 0, player2_new_buttons = 0;
+#ifdef ENABLE_MODULE_PADDLEINPUT
 
 #pragma optimize (push, off)
 void update_paddle_inputs(){
