@@ -14,6 +14,11 @@
 #include "gen/assets/font.h"
 #include "gen/assets/sdk_default.h"
 
+
+/////*********** */
+#define TESTFEATURES true
+/////*********** */
+
 #define BOXCOLOR WHITE//92
 #define BOXCOLORA WHITE
 #define PADDLECOLOR WHITE
@@ -30,8 +35,6 @@
 #define PADDLESPRITEBANK 4//5
 
 #define LOADSPRITEBG false
-
-#define TESTFEATURES true
 
 #define BRICK_HEIGHT 4
 #define MAX_BRICK_COLS 120
@@ -73,6 +76,9 @@ typedef enum {
     SUBSTATE_PLAY
 } GameplaySubState;
 GameplaySubState subState;
+
+unsigned char paddleRotationMin=64;//64
+unsigned char paddleRotationMax=192;//192
 
 char controller_style = 0;
 unsigned char lives_left = 3;
@@ -187,8 +193,7 @@ BrickLayout brickLayouts[NUM_BRICK_LAYOUTS]=
     {120,1}
 };
 
-bool demoMode = false;
-bool debugMode = false;
+
 
 // //boxes, make more modular
 // char box_x = 64, box_y = 64;
@@ -644,12 +649,13 @@ int setRangeOpt_prog1(char input, char inMin, char inMax)
 
     output = ((127<<8)/(inMax-inMin)*(input-inMin)>>8);
     return output;
-    
 }
+
+
 char paddleXFromPot8opt_prog1(unsigned char potVal)
 {
     //need to make a cheaper setrange function
-    unsigned char newPotVal = setRangeOpt_prog1(potVal,0b01000000,0b11000000);//changed for 8-bit
+    unsigned char newPotVal = setRangeOpt_prog1(potVal,paddleRotationMin,paddleRotationMax);//changed for 8-bit
 
     return ClampPaddleX_prog1(newPotVal);//(((newPotVal<<1)/3 + paddleX/3));//no smoothing
 }
@@ -1210,7 +1216,7 @@ void BreakoutBGRefresh_prog1()
     }
 }
 void update_player_paddle_prog1(){
-    if (demoMode || gameState==STATE_ATTRACT){
+    if ( gameState==STATE_ATTRACT){
         // paddleX = paddleXFromBallArray_prog1();//remove this shit
         paddleX = paddleXFromLowestBall_prog1();
     } else {
