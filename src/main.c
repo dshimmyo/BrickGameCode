@@ -149,6 +149,7 @@ void EraseRect(char x, char y, char w, char h);
 void draw_lives_prog1(char);
 uint16_t get_brick_index_prog1(uint8_t, uint8_t);
 void printBlinkMessage_prog1(char index);
+void print_loading_message_prog1();
 
 #define NUM_ANGLES 22
 #pragma rodata-name (push, "PROG1")
@@ -1677,6 +1678,7 @@ void bevel_all_bricks_prog1() {
 
 void BreakoutBricksSetupWrapper_prog1(char bank)
 {
+    print_loading_message_prog1();
     load_spritesheet(ASSET__gfx__BreakoutBrickWide_bmp,bank);
     bevel_all_bricks_prog1();
     bake_animation_frames_prog1();
@@ -1899,7 +1901,19 @@ void draw_lives_prog1(char lives)
     queue_draw_box(92,16,width,2,0);//erase line
     EraseRect(92,16,lives << 1,2);//paints all lives
 }
-
+void print_loading_message_prog1(){
+    //print out loading message
+    queue_clear_border(2);//color
+    queue_draw_sprite(32,64,64,5,0,54,PRESSSTARTSPRITEBANK);//press start  
+    await_draw_queue();
+    await_vsync(1);
+    flip_pages();
+    //printBlinkMessage_prog1(3);
+    queue_draw_sprite(32,64,64,5,0,54,PRESSSTARTSPRITEBANK);//press start  
+    await_draw_queue();
+    await_vsync(1);
+    flip_pages();
+}
 #pragma code-name (pop);
 void EraseRect(char x, char y, char w, char h) {
     queue_draw_sprite(x, y, w, h,x,y, BAKEDBACKGROUNDSPRITEBANK); 
@@ -1961,10 +1975,10 @@ void GameWrapperStateMachine()
         change_rom_bank(BANK_PROG1);
 
         break;
-
+        
         case STATE_ATTRACT:
             change_rom_bank(BANK_PROG2);
-            update_paddle_offset_prog2();
+            update_paddle_offset_prog2();//for paddle automation only
         case STATE_BREAKOUT_PLAY:
             change_rom_bank(BANK_PROG1);
             DrawBricksWrapper_prog1();//blits
@@ -1977,12 +1991,6 @@ void GameWrapperStateMachine()
 
             switch (subState){
                 case SUBSTATE_NEW_LEVEL:
-                //DrawBricksWrapper_prog1();//blits
-                //erase_balls_prog1();//blits
-                //if (gameState == STATE_ATTRACT) printBlinkMessage_prog1(0);//message before balls
-                //render_balls_prog1();//blits
-                //update_player_paddle_prog1();//cpu
-                //render_paddle_prog1();//blits
                 if (resetTimer>0){
                     resetTimer--;
                 }
@@ -1995,16 +2003,6 @@ void GameWrapperStateMachine()
                 break;
 
                 case SUBSTATE_PLAY://ball(s) are in play                
-                //DrawBricksWrapper_prog1();//handles full-screen refresh and optimized rendering
-                //process_all_balls_prog1();
-                //erase_balls_prog1();
-                //if (gameState == STATE_ATTRACT) printBlinkMessage_prog1(0);//message before balls
-                //render_balls_prog1();
-                //update_player_paddle_prog1();
-                //render_paddle_prog1();
-
-                //if (subState==SUBSTATE_PLAY)
-                //{//ball(s) in play block
                     #if TESTFEATURES
                     if (buttonCPress){
                         subState = SUBSTATE_NEW_LEVEL;
@@ -2081,20 +2079,11 @@ void GameWrapperStateMachine()
     paddleX_old_old = paddleX_old;
     paddleX_old = paddleX;
 }
-// void queue_erase(char x,char y, char w, char h,char frames){
-//     if (erase_queue_count < ERASE_QUEUE_MAX) {
-//             erase_queue[erase_queue_count].frames_left = 1; // Two buffers to clean
-//             erase_queue[erase_queue_count].x = x;
-//             erase_queue[erase_queue_count].y = y;
-//             erase_queue[erase_queue_count].w = w;
-//             erase_queue[erase_queue_count].h = h;
-//             erase_queue_count++;
-//     }
-// }
+
 #define SCOREPOSX 5
 #define HISCOREPOSX 50//(64 - ((7 * 4)/2)) //46
-
 #define SCOREWIDTH 36
+
 void main () {
     init_music();
     load_spritesheet(ASSET__gfx__paddle_bmp,PADDLESPRITEBANK);
@@ -2108,17 +2097,7 @@ void main () {
     init_game_prog1();
     init_ball_system_prog1();
 
-    //print out loading message
-    queue_clear_border(2);//color
-    queue_draw_sprite(32,64,64,5,0,54,PRESSSTARTSPRITEBANK);//press start  
-    await_draw_queue();
-    await_vsync(1);
-    flip_pages();
-    //printBlinkMessage_prog1(3);
-    queue_draw_sprite(32,64,64,5,0,54,PRESSSTARTSPRITEBANK);//press start  
-    await_draw_queue();
-    await_vsync(1);
-    flip_pages();
+    print_loading_message_prog1();
 
     //BreakoutBricksSetupWrapper_prog1(BRICKSSPRITEBANK); //redundant but keeps vram properly setup
     GenNextLevel_prog1(0);//sets up the first level in advance
