@@ -148,6 +148,7 @@ unsigned char get_active_ball_count_prog1();
 void EraseRect(char x, char y, char w, char h);
 void draw_lives_prog1(char);
 uint16_t get_brick_index_prog1(uint8_t, uint8_t);
+void printBlinkMessage_prog1(char index);
 
 #define NUM_ANGLES 22
 #pragma rodata-name (push, "PROG1")
@@ -1283,8 +1284,6 @@ void printPressStart_prog1(char x, char y, bool visible){
     if (visible){
         queue_draw_sprite(x,y,64,5,0,21,PRESSSTARTSPRITEBANK);//press start
     } else {
-        //queue_draw_box(x,y,64,5,0);//press start heal
-        //queue_draw_sprite(x,y,64,5,x,y,BAKEDBACKGROUNDSPRITEBANK);//press start
         EraseRect(x,y,64,5);
     }
 }
@@ -1292,19 +1291,34 @@ void printGameOver_prog1(char x, char y, bool visible){
     if (visible){
         queue_draw_sprite(x,y,64,5,0,40,PRESSSTARTSPRITEBANK);//press start
     }else {
-        //queue_draw_box(x,y,64,5,0);//press start heal
-        //queue_draw_sprite(x,y,64,5,x,y,BAKEDBACKGROUNDSPRITEBANK);//press start
         EraseRect(x,y,64,5);
-
+    }
+}
+void printGetReady_prog1(char x, char y, bool visible){
+    if (visible){
+        queue_draw_sprite(x,y,64,5,0,47,PRESSSTARTSPRITEBANK);//press start
+    }else {
+        EraseRect(x,y,64,5);
+    }
+}
+void printLoading_prog1(char x, char y, bool visible){
+    if (visible){
+        queue_draw_sprite(x,y,64,5,0,54,PRESSSTARTSPRITEBANK);//press start
+    }else {
+        EraseRect(x,y,64,5);
     }
 }
 void printBlinkMessage_prog1(char index){
     //0 press start
     //1 game over
+    //2 get ready //no blink
+    //3 loading //no blink
     if (blinkTimer++>0)
     {
-        //queue_draw_sprite(38,64,52,6,0,14,4);//press start
         if (index==0) printPressStart_prog1(32,64,true);
+        else if (index==1) printGameOver_prog1(32,64,true);
+        else if (index==2) printGetReady_prog1(32,64,true);
+        else if (index==3) printLoading_prog1(32,64,true);
         else printGameOver_prog1(32,64,true);
         blinkMessageVisible=2;
         blinkTimer = (blinkTimer>45) ? blinkTimer=-80 : blinkTimer;
@@ -1313,8 +1327,6 @@ void printBlinkMessage_prog1(char index){
     {
         if (blinkMessageVisible) {
             messageEraseCount=2;
-            //printPressStart_prog1(32,64,false);//prints a blank box
-            //blinkMessageVisible--;
             blinkMessageVisible = 0;
         }
     }
@@ -2095,6 +2107,19 @@ void main () {
     bake_gradient_mask_prog1();//only needs to be done once
     init_game_prog1();
     init_ball_system_prog1();
+
+    //print out loading message
+    queue_clear_border(2);//color
+    queue_draw_sprite(32,64,64,5,0,54,PRESSSTARTSPRITEBANK);//press start  
+    await_draw_queue();
+    await_vsync(1);
+    flip_pages();
+    //printBlinkMessage_prog1(3);
+    queue_draw_sprite(32,64,64,5,0,54,PRESSSTARTSPRITEBANK);//press start  
+    await_draw_queue();
+    await_vsync(1);
+    flip_pages();
+
     //BreakoutBricksSetupWrapper_prog1(BRICKSSPRITEBANK); //redundant but keeps vram properly setup
     GenNextLevel_prog1(0);//sets up the first level in advance
     gameState = STATE_CONTROLLER_SELECT;
