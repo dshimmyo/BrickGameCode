@@ -848,6 +848,7 @@ void NewLevel_prog1()
     hiscoreRefreshFrames=2;
     livesRefreshFrames=2;
     magicBrickIndex = rnd_range(0,(currentNumBricksH * NUM_BRICK_ROWS-1));
+    lives_left++;
 }
 #pragma code-name (pop)
 
