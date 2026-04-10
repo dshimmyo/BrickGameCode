@@ -1445,6 +1445,8 @@ void bake_animation_frames_prog1()
         for (frame=0; frame<numFrames; frame++)//draws animation horizontally out to numFrames * currentBrickWidth
         {//for every frame offset by z*currentBrickWidth
             unsigned int frameOffset = frame * currentBrickWidth;
+            unsigned int threshold = (frame * 255/numFrames);
+
             for (x = 0; x < currentBrickWidth; x++)//only write out frames the size of the bricks
             {
                 unsigned int origCoord = (y * 128) + x + frameOffset; //only needs to be the first frame over and over
@@ -1452,7 +1454,6 @@ void bake_animation_frames_prog1()
                 unsigned int pixel = vram[origCoord];
                 //unsigned char noise = dissolve_mask[x+((y&0b00000011)*currentBrickWidth)] ;//no offset
                 unsigned char noise = dissolve_mask[(x+(y*currentBrickWidth))&63] ;//no offset
-                unsigned int threshold = (frame * 255/numFrames);
                 // if (numFrames - frame <= 2) {
                 //     vram[targetCoord] = 0; // Erase the pixel
                 // } 
