@@ -229,7 +229,9 @@ unsigned int hiscore = 100;//global score variable
 unsigned char scoreRefreshFrames = 2;
 unsigned char hiscoreRefreshFrames = 2;
 unsigned char livesRefreshFrames = 2;
-int resetTimer = 100;//delay between brick reset and ball reset
+int newLevelTimer = 100;//delay between brick reset and ball reset
+int gameOverTimer = 100;//delay between brick reset and ball reset
+int spawnTimer = 100;
 int rndPaddleOffset = 0;
 unsigned char rndPaddleOffsetTimer = 0;
 
@@ -838,7 +840,7 @@ void NewLevel_prog1()
     bricks_remaining = currentNumBricksH * NUM_BRICK_ROWS;
 
     init_ball_system_prog1();
-    spawn_new_rnd_ball_prog1();
+    //spawn_new_rnd_ball_prog1();
     //spawn_new_rnd_ball_prog1();
     breakoutRefresh=0;
     breakoutBricksRefresh=0;
@@ -898,7 +900,7 @@ void init_game_prog1()//used to refresh the screen when all the bricks are gone
 {
     cycleLevel=0;
     lives_left = 3;
-    resetTimer = 100;
+    newLevelTimer = 100;
     score = 0;
     hiscore = (hiscore<100) ? 100 : hiscore;//default 100
     subState = SUBSTATE_NEW_LEVEL;
@@ -1356,118 +1358,6 @@ void eraseBlinkMessage(char *counter)
     }
 }
 
-/*void BreakoutGameWrapper(){
-    bool buttonCPress;
-    bool buttonAPress;
-    bool buttonStartPress;
-    //sample inputs first
-    buttonAPress = (player1_buttons & INPUT_MASK_A) && (~player1_old_buttons & INPUT_MASK_A);
-    buttonCPress = (player1_buttons & INPUT_MASK_C) && !(player1_old_buttons & INPUT_MASK_C);
-    buttonStartPress = player1_buttons & INPUT_MASK_START && ~player1_old_buttons & INPUT_MASK_START;
-    if (buttonStartPress)//toggle demo mode automated/player modes
-    {
-        demoMode = !demoMode;
-        if (!demoMode) messageEraseCount+=2;
-    }
-    change_rom_bank(BANK_PROG1);
-    button_byte = buttons_to_byte_xyzm_prog1(player1_buttons);//gets paddle input
-
-    BreakoutBGRefresh_prog1();
-
-    if (gameState==STATE_BREAKOUT_READY)
-    {
-        readyTimer--;
-        if (readyTimer <= 0)
-        {
-            spawn_new_rnd_ball_prog1();
-            gameState=STATE_BREAKOUT_PLAY;
-            readyTimer=100;
-        }
-    }
-    //cover up previous paddle position
-    erase_paddle_prog1();
-
-    if ((bricks_remaining<=0) || gameState==STATE_BREAKOUT_MENU) {
-        if (resetTimer--==100){
-            //gameState=-1;//stopsGameplay
-        }
-        if (!resetTimer) {
-            GenNextLevel_prog1(cycleLevel++ % NUM_BRICK_LAYOUTS);
-
-            resetTimer=100;
-            NewLevel_prog1();
-            gameState=STATE_BREAKOUT_PLAY;
-        }
-    }
-    else if (buttonCPress)//total hack for testing
-    {
-        gameState=-1;
-        GenNextLevel_prog1(cycleLevel++ % NUM_BRICK_LAYOUTS);
-        resetTimer=100;
-        NewLevel_prog1();
-        gameState=STATE_BREAKOUT_PLAY;
-    }
-
-
-    if (buttonAPress) //toggles debug mode
-    {
-        debugMode = !debugMode;
-    }
-    if (debugMode){//old legacy code for testing
-        change_rom_bank(BANK_PROG2);
-        inputButtonsDraw_prog2();//debug display
-        inputBinaryDraw_prog2();//debug line
-        change_rom_bank(BANK_PROG1);//switch back to prog1
-    }
-    DrawBricksWrapper_prog1();//handles full-screen refresh and optimized rendering
-
-    if (gameState==STATE_BREAKOUT_PLAY || gameState == STATE_BREAKOUT_MENU){//menu should rename to attract
-        process_all_balls_prog1();
-    }
-
-    update_player_paddle_prog1();
-    render_paddle_prog1();
-    erase_balls_prog1();
-
-    if (gameState==STATE_BREAKOUT_PLAY){
-        render_balls_prog1();
-        if (demoMode){//hack "press start"
-            printBlinkMessage_prog1(0);
-        }
-    } 
-    else if (gameState == STATE_ATTRACT){
-        printBlinkMessage_prog1(0);
-        render_balls_prog1();
-    }
-    else if (gameState == STATE_BREAKOUT_GAMEOVER){
-        printBlinkMessage_prog1(1);
-    }
-
-    paddleX_old_old = paddleX_old;
-    paddleX_old = paddleX;
-
-    if ((gameState == STATE_BREAKOUT_PLAY))//while game is still in play check gameover or ready
-    {
-        if (get_active_ball_count_prog1()<=0) //no balls in play
-        {
-            if (lives_left == 0) 
-            {
-                // This is where you decide: New Life or Game Over?
-                gameState = STATE_BREAKOUT_GAMEOVER;
-            }
-            else
-            {
-                lives_left--;
-                gameState = STATE_BREAKOUT_READY; //player serves ball or it auto-spawns
-                readyTimer=100;
-            }
-
-        }
-    }
-
-
-}*/
-
 #pragma code-name (push, "PROG2")
 void SelectControllerScreen_prog2(bool buttonAPress, bool buttonBPress)
 {
@@ -1913,7 +1803,7 @@ void draw_lives_prog1(char lives)
     char width = BRICK_RIGHT-92;
     lives = (lives<0) ? 0 : lives;
     queue_draw_box(92,16,width,2,0);//erase line
-    EraseRect(92,16,lives << 1,2);//paints all lives
+    if (lives > 0) EraseRect(92,16,lives << 1,2);//paints all lives
 }
 void loading_screen_prog1(){
     //print out loading message
@@ -1987,7 +1877,6 @@ void GameWrapperStateMachine()
         change_rom_bank(BANK_PROG2);
         SelectControllerScreen_prog2(buttonAPress,buttonBPress);
         change_rom_bank(BANK_PROG1);
-
         break;
         
         case STATE_ATTRACT:
@@ -2005,17 +1894,17 @@ void GameWrapperStateMachine()
 
             switch (subState){
                 case SUBSTATE_NEW_LEVEL:
-                if (resetTimer>0){
-                    resetTimer--;
+                if (newLevelTimer>0){
+                    newLevelTimer--;
                 }
                 else{
                     GenNextLevel_prog1(cycleLevel++ % NUM_BRICK_LAYOUTS);
-                    resetTimer=100;
+                    newLevelTimer=100;
                     NewLevel_prog1();
                     subState=SUBSTATE_PLAY;
+                    spawnTimer=100;
                 }
                 break;
-
                 case SUBSTATE_PLAY://ball(s) are in play                
                     #if TESTFEATURES
                     if (buttonCPress){
@@ -2024,21 +1913,29 @@ void GameWrapperStateMachine()
                     }
                     #endif
                     if (bricks_remaining<=0) {
-                        resetTimer=100;
+                        newLevelTimer=100;
                         subState = SUBSTATE_NEW_LEVEL;
                     } 
                     else if (get_active_ball_count_prog1()<=0) //no balls in play
                     {
+                        if (lives_left == 0) 
+                        {
+                            gameState = STATE_BREAKOUT_GAMEOVER;
+                            gameOverTimer = 500;
+                        }
+                        else if ( spawnTimer > 0){
+                            if (spawnTimer < 3){
+                                printGetReady_prog1(32,64,false);
+                            } else {
+                                printGetReady_prog1(32,64,true);
+                            }
+                            spawnTimer--;
+                        }
+                        else
                         {
                             addLives(-1);
                             subState = SUBSTATE_NEW_BALL; //player serves ball or it auto-spawns
-                            resetTimer=100;
-                        }
-                        if (lives_left == 0) 
-                        {
-                            // This is where you decide: New Life or Game Over?
-                            gameState = STATE_BREAKOUT_GAMEOVER;
-                            resetTimer = 500;
+                            spawnTimer = 100;
                         }
                     }
                     if ((gameState == STATE_ATTRACT) && (buttonStartPress || buttonAPress)){
@@ -2050,14 +1947,15 @@ void GameWrapperStateMachine()
                 //}
                 break;
                 case SUBSTATE_NEW_BALL://no ball in play, delay, spawn new ball
-
-                //else if (subState==SUBSTATE_NEW_BALL)
-                //{//ball spawn block
-                    if (resetTimer>0){//timer for ball spawn
-                        resetTimer--;
-                    }
+                    if (lives_left>0 && spawnTimer>0){//timer for ball spawn
+                            if (spawnTimer < 3){
+                                printGetReady_prog1(32,64,false);
+                            } else {
+                                printGetReady_prog1(32,64,true);
+                            }
+                            spawnTimer--;                    }
                     else{
-                        resetTimer=100;
+                        spawnTimer=100;
                         spawn_new_rnd_ball_prog1();
                         subState=SUBSTATE_PLAY;
                     }
@@ -2067,8 +1965,8 @@ void GameWrapperStateMachine()
         break;
 
         case STATE_BREAKOUT_GAMEOVER:
-        resetTimer--;
-        if (resetTimer<=0){
+        gameOverTimer--;
+        if (gameOverTimer<=0){
             init_game_prog1();
             gameState = STATE_ATTRACT;
             messageEraseCount=2;
