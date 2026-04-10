@@ -149,7 +149,7 @@ void EraseRect(char x, char y, char w, char h);
 void draw_lives_prog1(char);
 uint16_t get_brick_index_prog1(uint8_t, uint8_t);
 void printBlinkMessage_prog1(char index);
-void print_loading_message_prog1();
+void loading_screen_prog1();
 
 #define NUM_ANGLES 22
 #pragma rodata-name (push, "PROG1")
@@ -661,11 +661,25 @@ char paddleXFromPot8opt_prog1(unsigned char potVal)
 
     return ClampPaddleX_prog1(newPotVal);//(((newPotVal<<1)/3 + paddleX/3));//no smoothing
 }
+signed char dpadDx = 0;
 char paddleXFromDPad_prog1()
 {
-    int result = paddleX;
-    if ((player1_buttons & INPUT_MASK_PADDLE_RIGHT)) result += 3;
-    else if ((player1_buttons & INPUT_MASK_PADDLE_LEFT)) result -= 3;
+    signed char result = paddleX;
+    if (!((player1_buttons & INPUT_MASK_PADDLE_RIGHT) || (player1_buttons & INPUT_MASK_PADDLE_LEFT)))
+    {
+        dpadDx=0;//if no press, start back at 0
+        return result;
+    }
+    if ((player1_buttons & INPUT_MASK_PADDLE_RIGHT)){
+        dpadDx = (dpadDx<=0) ? 0 : dpadDx;
+        dpadDx = (dpadDx<3) ? (dpadDx+1) : dpadDx;
+        result += dpadDx;
+    }
+    else if ((player1_buttons & INPUT_MASK_PADDLE_LEFT)) {
+        dpadDx = (dpadDx>=0) ? 0 : dpadDx;
+        dpadDx = (dpadDx>(-3)) ? (dpadDx-1) : dpadDx;
+        result += dpadDx;
+    }
     return ClampPaddleX_prog1(result);
 }
 char ConstVelocity_prog1(char source, int target, char vel){
@@ -1678,7 +1692,7 @@ void bevel_all_bricks_prog1() {
 
 void BreakoutBricksSetupWrapper_prog1(char bank)
 {
-    print_loading_message_prog1();
+    loading_screen_prog1();
     load_spritesheet(ASSET__gfx__BreakoutBrickWide_bmp,bank);
     bevel_all_bricks_prog1();
     bake_animation_frames_prog1();
@@ -1901,14 +1915,14 @@ void draw_lives_prog1(char lives)
     queue_draw_box(92,16,width,2,0);//erase line
     EraseRect(92,16,lives << 1,2);//paints all lives
 }
-void print_loading_message_prog1(){
+void loading_screen_prog1(){
     //print out loading message
     queue_clear_border(2);//color
     queue_draw_sprite(32,64,64,5,0,54,PRESSSTARTSPRITEBANK);//press start  
     await_draw_queue();
     await_vsync(1);
     flip_pages();
-    //printBlinkMessage_prog1(3);
+    queue_clear_border(2);//color
     queue_draw_sprite(32,64,64,5,0,54,PRESSSTARTSPRITEBANK);//press start  
     await_draw_queue();
     await_vsync(1);
@@ -2015,19 +2029,8 @@ void GameWrapperStateMachine()
                     } 
                     else if (get_active_ball_count_prog1()<=0) //no balls in play
                     {
-                        // if (lives_left == 0) 
-                        // {
-                        //     // This is where you decide: New Life or Game Over?
-                        //     gameState = STATE_BREAKOUT_GAMEOVER;
-                        //     resetTimer = 500;
-                        // }
-                        // else
                         {
-                            //if (gameState==STATE_BREAKOUT_PLAY) 
-                            //{
-                                //lives_left--;
-                                addLives(-1);
-                            //}//infinite lives in attract mode
+                            addLives(-1);
                             subState = SUBSTATE_NEW_BALL; //player serves ball or it auto-spawns
                             resetTimer=100;
                         }
@@ -2092,12 +2095,12 @@ void main () {
     scoring_init();
     change_rom_bank(BANK_PROG1);
     BakeBreakoutBackground_prog1(BAKEDBACKGROUNDSPRITEBANK);//bank 1
+    
+    loading_screen_prog1();
 
     bake_gradient_mask_prog1();//only needs to be done once
     init_game_prog1();
     init_ball_system_prog1();
-
-    print_loading_message_prog1();
 
     //BreakoutBricksSetupWrapper_prog1(BRICKSSPRITEBANK); //redundant but keeps vram properly setup
     GenNextLevel_prog1(0);//sets up the first level in advance
