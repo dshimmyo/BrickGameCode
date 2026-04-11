@@ -1967,7 +1967,7 @@ void GameWrapperStateMachine()
             DrawBricksWrapper_prog1();//blits
             if (subState != SUBSTATE_NEW_LEVEL) process_all_balls_prog1();//not needed for new level but no harm
             erase_balls_prog1();//blits
-            if (gameState == STATE_ATTRACT) printBlinkMessage_prog1(0);//message before balls
+            if (gameState == STATE_ATTRACT && (subState!=SUBSTATE_NEW_LEVEL)) printBlinkMessage_prog1(0);//message before balls
             render_balls_prog1();//blits
             update_player_paddle_prog1();//cpu
             render_paddle_prog1();//blits
@@ -2004,10 +2004,12 @@ void GameWrapperStateMachine()
                             gameOverTimer = 500;
                         }
                         else if ( spawnTimer > 0){
-                            if (spawnTimer < 3){
-                                printGetReady_prog1(32,64,false);
-                            } else {
-                                printGetReady_prog1(32,64,true);
+                            if (gameState != STATE_ATTRACT) {//attract mode never says get ready
+                                if (spawnTimer < 3){
+                                    printGetReady_prog1(32,64,false);
+                                } else {
+                                    printGetReady_prog1(32,64,true);
+                                }
                             }
                             spawnTimer--;
                         }
@@ -2015,7 +2017,7 @@ void GameWrapperStateMachine()
                         {
                             addLives(-1);
                             subState = SUBSTATE_NEW_BALL; //player serves ball or it auto-spawns
-                            spawnTimer = 100;
+                            if (gameState != STATE_ATTRACT) spawnTimer = 100;
                         }
                     }
                     if ((gameState == STATE_ATTRACT) && (buttonStartPress || buttonAPress)){
