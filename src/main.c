@@ -134,6 +134,7 @@ void check_brick_collision_prog1(char *,char *, int *, int *, int *);
 int speedMult_prog1(int source, int speed);
 void BrickHeal_prog1(unsigned char, unsigned char, unsigned char);
 void process_anim_queue_prog1();
+void process_anim_queue_v2_prog1();
 void BreakoutBricksSetupWrapper_prog1(char);
 void render_paddle_prog1();
 void spawn_new_ball_prog1(int , int , int , int , unsigned char speed);
@@ -166,12 +167,12 @@ EntityRow brickRows[NUM_BRICK_ROWS];//init in NewLevel()
 EraseTask erase_queue[ERASE_QUEUE_MAX];
 unsigned char erase_queue_count = 0;
 
-#define NUM_ANIM_FRAMES 4 //8 a little sluggish
+#define NUM_ANIM_FRAMES 6 //8 a little sluggish
 #define ANIM_QUEUE_MAX 4
 EraseTask anim_queue[ANIM_QUEUE_MAX];//[NUM_ANIM_FRAMES*2*MAX_BALLS];//10 frames of animation over maybe double frames for up to two balls animframes * 2X * maxballs
 unsigned char  anim_queue_count = 0;
 
-unsigned char animatedBricks[MAX_BRICK_COLS*NUM_BRICK_ROWS]; //this needs to be re-engineered
+//unsigned char animatedBricks[MAX_BRICK_COLS*NUM_BRICK_ROWS]; //this needs to be re-engineered
 
 #define NUM_BRICK_LAYOUTS 9//16
 BrickLayout brickLayouts[NUM_BRICK_LAYOUTS]=
@@ -1042,7 +1043,7 @@ void DrawBricksWrapper_prog1(){
     {
         DrawBricksErase_prog1();
         #if BRICK_ANIMATION
-            process_anim_queue_prog1();
+            process_anim_queue_v2_prog1();
         #endif
     }
 }
@@ -1414,7 +1415,7 @@ void bake_gradient_mask_prog1() {//15 is theoretical largest possible brick widt
         dissolve_mask[i] = rnd_range(0,255);
     }
 }
-
+/*
 void bake_animation_frames_prog1() 
 {
     char oldFlags = flagsMirror; // Save the original screen/DMA settings
@@ -1453,7 +1454,7 @@ void bake_animation_frames_prog1()
                 unsigned int targetCoord = animOffset + origCoord;
                 unsigned int pixel = vram[origCoord];
                 //unsigned char noise = dissolve_mask[x+((y&0b00000011)*currentBrickWidth)] ;//no offset
-                unsigned char noise = dissolve_mask[(x+(y*currentBrickWidth))&63] ;//no offset
+                unsigned char noise = dissolve_mask[(x+(y*currentBrickWidth))&(MAX_NOISE-1)] ;//no offset
                 // if (numFrames - frame <= 2) {
                 //     vram[targetCoord] = 0; // Erase the pixel
                 // } 
@@ -1486,41 +1487,119 @@ void bake_animation_frames_prog1()
     *dma_flags = flagsMirror;
     *bank_reg = banksMirror;
 
+}*/
+void bake_animation_frames_v2_prog1() 
+{
+    char oldFlags = flagsMirror; // Save the original screen/DMA settings
+    char oldBanks = banksMirror; 
+    unsigned int animOffset = 24*128;//start of animation frames in bank 3
+    unsigned char x,y;
+    //unsigned char pixel;
+
+    // 1. SET THE HARDWARE MODE
+    // Clear Bit 0 (DMA_ENABLE) and Clear Bit 1 (DMA_CPU_TO_VRAM)
+    flagsMirror &= ~(DMA_ENABLE | DMA_CPU_TO_VRAM); 
+    *dma_flags = flagsMirror;
+
+    // 2. BANK IN THE SPRITES
+    banksMirror = bankflip | GRAM_PAGE(BRICKSSPRITEBANK);
+    *bank_reg = banksMirror;
+
+    //v2
+    //don't need to copy pixels, but instead place black (or bg) pixels over transparency
+    //they no longer need to be arranged horizontally per row because we will only be eating away at the pixels in vram
+
+    //change the animation orientation threshold, frames get drawn vertically 4-pixel rows
+    for (y=0; y<104; y++)//fill up erosion vault
+    {
+        unsigned char numFrames = NUM_ANIM_FRAMES;//26;//(NUM_ANIM_FRAMES<=104/4) ? NUM_ANIM_FRAMES : 104/4;//limit to the 104 available rows
+        unsigned char frame=y/4;
+        unsigned int threshold = ((frame+1) * (255/numFrames));//(frame * 255/numFrames);
+        unsigned char maxWidth = 30;//128 if bold
+        for (x = 0; x < maxWidth; x++)//write out max width needed
+        {//each frame of anim is 30w and 4h
+            //unsigned int origCoord = (y * maxWidth) + x; //only needs to be the first frame over and over
+            unsigned int targetCoord = animOffset + x + (y*128); //offset begins at 24 row
+            unsigned char noise = dissolve_mask[(x+(y*maxWidth))&(MAX_NOISE-1)] ;//no offset
+            {
+                // Check against your 'Master Gradient' mask
+                if (noise < threshold) {
+                    vram[targetCoord] = 0b00100000;//0b11111111;//0b00100000; // Erase the pixel
+                }
+                else {
+                    vram[targetCoord] = 0;//pixel; //transparent pixel
+                }
+            }
+        }
+    }
+
+    // 4. RESTORE EVERYTHING
+    flagsMirror = oldFlags;
+    banksMirror = oldBanks;
+    *dma_flags = flagsMirror;
+    *bank_reg = banksMirror;
+
 }
 #pragma code-name (pop);
 
 #pragma code-name (push, "PROG1")
 
-void process_anim_queue_prog1() {
+// void process_anim_queue_prog1() {
+//     int i;
+//     unsigned int animOffsetY = 24;
+//     unsigned int animOffsetX;
+//     char animFrame;
+//     unsigned int animFrameMaxPixel;
+//     for (i = 0; i < anim_queue_count; i++) {
+//         EraseTask *task = &anim_queue[i];
+        
+//         // 1. Only update the SOURCE pixels in Bank 3 once per logic frame
+//         // This 'eats' the brick further in the master spritesheet
+//         //animate_dissolve_prog1(task->col, task->row, task->frames_left);
+
+//         // 3. Draw the resulting sprite to the screen
+//         //queue_draw_box(task->x,task->y,task->w,task->h,0);
+//         EraseRect(task->x,task->y,task->w,task->h);
+
+//         animFrame = NUM_ANIM_FRAMES - (task->frames_left/2-2);
+//         //queue_draw_sprite(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,task->col * currentBrickWidth, task->row * BRICK_HEIGHT,3);//brick sprite has no y offset
+//         animFrameMaxPixel = (animFrame+1) * currentBrickWidth;
+//         if (animFrameMaxPixel>>7) //animFrame = 128 / currentBrickWidth;//hopefully eliminate overflow noise
+//         {
+//             //sprite overflow draw nothing
+//         }
+//         else
+//         {
+//             animOffsetX = (animFrame) * currentBrickWidth;
+//             queue_draw_sprite(task->x,task->y,task->w,task->h, animOffsetX, (task->y) + animOffsetY - BRICK_TOP,BRICKSSPRITEBANK);//brick sprite has no y offset
+        
+//         }
+//         task->frames_left--;
+
+//         // 5. Cleanup: If 0, remove from queue (standard swap-and-pop)
+//         if (task->frames_left == 0) {
+//             anim_queue[i] = anim_queue[anim_queue_count - 1];
+//             anim_queue_count--;
+//             i--; // Re-check this index since we swapped
+//         }
+//     }
+// }
+void process_anim_queue_v2_prog1() {
     int i;
     unsigned int animOffsetY = 24;
-    unsigned int animOffsetX;
-    char animFrame;
-    unsigned int animFrameMaxPixel;
+    unsigned int frameOffset=0;
+    unsigned int animFrame;
     for (i = 0; i < anim_queue_count; i++) {
         EraseTask *task = &anim_queue[i];
         
-        // 1. Only update the SOURCE pixels in Bank 3 once per logic frame
-        // This 'eats' the brick further in the master spritesheet
-        //animate_dissolve_prog1(task->col, task->row, task->frames_left);
-
         // 3. Draw the resulting sprite to the screen
-        //queue_draw_box(task->x,task->y,task->w,task->h,0);
-        EraseRect(task->x,task->y,task->w,task->h);
-
-        animFrame = NUM_ANIM_FRAMES - (task->frames_left/2-2);
-        //queue_draw_sprite(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,task->col * currentBrickWidth, task->row * BRICK_HEIGHT,3);//brick sprite has no y offset
-        animFrameMaxPixel = (animFrame+1) * currentBrickWidth;
-        if (animFrameMaxPixel>>7) //animFrame = 128 / currentBrickWidth;//hopefully eliminate overflow noise
-        {
-            //sprite overflow draw nothing
-        }
-        else
-        {
-            animOffsetX = (animFrame) * currentBrickWidth;
-            queue_draw_sprite(task->x,task->y,task->w,task->h, animOffsetX, (task->y) + animOffsetY - BRICK_TOP,BRICKSSPRITEBANK);//brick sprite has no y offset
+        //redraw the brick
+        queue_draw_sprite(task->x,task->y,task->w,task->h,task->x - BRICK_LEFT, task->y - BRICK_TOP, BRICKSSPRITEBANK);
         
-        }
+        animFrame = NUM_ANIM_FRAMES - (task->frames_left/2-2);
+        frameOffset = (animFrame * 4);
+        //eat away at the brick
+        queue_draw_sprite(task->x,task->y,task->w,task->h, 0, animOffsetY + frameOffset,BRICKSSPRITEBANK);//brick sprite has no y offset
         task->frames_left--;
 
         // 5. Cleanup: If 0, remove from queue (standard swap-and-pop)
@@ -1531,7 +1610,6 @@ void process_anim_queue_prog1() {
         }
     }
 }
-
 #pragma code-name (pop);
 
 #pragma code-name (push, "PROG1")
@@ -1587,7 +1665,7 @@ void BreakoutBricksSetupWrapper_prog1(char bank)
     loading_screen_prog1();
     load_spritesheet(ASSET__gfx__BreakoutBrickWide_bmp,bank);
     bevel_all_bricks_prog1();
-    bake_animation_frames_prog1();
+    bake_animation_frames_v2_prog1();
 }
 #pragma code-name (pop);
 
