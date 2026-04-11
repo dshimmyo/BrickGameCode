@@ -646,13 +646,13 @@ char ClampPaddleX_prog1(int paddlex){
     }
     return paddlex;
 }
-int setRangeOpt_prog1(char input, char inMin, char inMax)
+int setRangeOpt_prog1(unsigned char input, unsigned char inMin, unsigned char inMax)
 {
     int output = 0;
     if (input<inMin)return 0;
-    else if (input>inMax)return 127;
+    else if (input>inMax)return (127-(PADDLEWIDTH));
 
-    output = ((127<<8)/(inMax-inMin)*(input-inMin)>>8);
+    output = (((127-(PADDLEWIDTH))<<8)/(inMax-inMin)*(input-inMin)>>8);
     return output;
 }
 
