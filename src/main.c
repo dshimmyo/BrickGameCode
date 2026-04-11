@@ -77,8 +77,8 @@ typedef enum {
 } GameplaySubState;
 GameplaySubState subState;
 
-unsigned char paddleRotationMin=64;//64
-unsigned char paddleRotationMax=192;//192
+unsigned char paddleRotationMin=32;//64
+unsigned char paddleRotationMax=223;//192
 
 char controller_style = 0;
 unsigned char lives_left = 3;
