@@ -1384,7 +1384,7 @@ void SelectControllerScreen_prog2(bool buttonAPress, bool buttonBPress)
     text_cursor_x = 30;
     text_cursor_y = 40 + top;
 
-    text_print_string("for Gamepad");
+    text_print_string("FOR GAMEPAD");
     if (buttonBPress) 
     {
         controller_style = CONTROLLER_STYLE_GPAD1;
