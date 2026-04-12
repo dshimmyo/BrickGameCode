@@ -1367,19 +1367,20 @@ void SelectControllerScreen_prog2(bool buttonAPress, bool buttonBPress)
     await_draw_queue();
 
     text_init();
+    
     text_color = TEXT_COLOR_WHITE;
     text_cursor_x = 10;
     text_cursor_y = top;
-    text_print_string("Press A");
+    text_print_string("PRESS A");
     text_cursor_x = 30;
     text_cursor_y = 10 + top;
 
-    text_print_string("for Paddle");
+    text_print_string("FOR PADDLE");
 
     text_cursor_x = 10;
     text_cursor_y = 30 + top;
 
-    text_print_string("Press B");
+    text_print_string("PRESS B");
     text_cursor_x = 30;
     text_cursor_y = 40 + top;
 
