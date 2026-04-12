@@ -1835,13 +1835,13 @@ void BakeBreakoutBackground_prog1(char bank){
             }
         }
     }
-    //load spritebank to sample lives
+    //load spritebank to sample "lives"
     banksMirror = bankflip | GRAM_PAGE(PRESSSTARTSPRITEBANK);
     *bank_reg = banksMirror;
     {
-        char w=17;
-        char h=4;
-        char xoffset = 25;
+        char w=13;//13;////17;
+        char h=3;//5;//4;
+        char xoffset = 44;//25;
         char yoffset = 96;
         for (y=0; y<h; y++){
             for (x=0; x<w; x++){
@@ -1856,9 +1856,9 @@ void BakeBreakoutBackground_prog1(char bank){
     {
         char vramIndex=0;
         char posx = 92;
-        char posy = 11;
-        char w=17;
-        char h=4;
+        char posy = 12;//11
+        char w=13;
+        char h=3;
         for (y=0; y<h; y++){
             for (x=0; x<w; x++){
                 char index=(y * w) + x;
@@ -2064,8 +2064,8 @@ void GameWrapperStateMachine()
     paddleX_old = paddleX;
 }
 
-#define SCOREPOSX 5
-#define HISCOREPOSX 50//(64 - ((7 * 4)/2)) //46
+#define SCOREPOSX 6//5
+#define HISCOREPOSX 52//50//(64 - ((7 * 4)/2)) //46
 #define SCOREWIDTH 36
 
 void main () {

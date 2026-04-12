@@ -34,7 +34,7 @@ void fast_uint_to_string_v2(unsigned int num, char* buffer) {
 void print_scores(int num, char xpos) {
     char buffer[5]; // Allocate actual memory for "0000\0"
     text_color = TEXT_COLOR_WHITE;
-    text_cursor_y = 11;
+    text_cursor_y = 12;
     text_cursor_x = xpos;
 
     // Cap the score based on your digit count
