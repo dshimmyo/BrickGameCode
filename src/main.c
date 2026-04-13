@@ -542,7 +542,7 @@ void update_ball_logic_prog1(Ball *b)
             b->dy = (b->dy < 0) ? -b->dy : b->dy;
             soundCeiling();
         } 
-        else if(b->y >= 120 - BALLSIZE) {
+        else if(b->y >= 127) {//120 - BALLSIZE
             b->active = false;//despawn, stops rendering
             soundTest();
         }
@@ -1225,7 +1225,7 @@ void BreakoutBGRefresh_prog1()
     else//clean up edges
     {
         //queue_draw_box(2,120-(BALLSIZE+2),124,BALLSIZE+2,0);//floor bar - fixes out-of-bounds ball ghosts
-        EraseRect(2,120-(BALLSIZE+2),124,BALLSIZE+2);
+        //EraseRect(2,120-(BALLSIZE+2),124,BALLSIZE+2);
         //queue_draw_box(2,(CEILING-2),124,2,0b01111000);//ceiling bar - fixes ball ghosts
         EraseRect(2,(CEILING-2),124,2);
         //queue_draw_box(0,7,BRICK_LEFT,127,0b01111000);//left bar - fix ball ghosts
