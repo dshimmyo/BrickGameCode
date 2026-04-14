@@ -18,6 +18,7 @@
 /////*********** */
 #define TESTFEATURES true
 /////*********** */
+#define CHK_EMU *((volatile uint8_t*) 0x2007) //emulator magic ID
 
 #define BOXCOLOR WHITE//92
 #define BOXCOLORA WHITE
@@ -76,9 +77,10 @@ typedef enum {
     SUBSTATE_PLAY
 } GameplaySubState;
 GameplaySubState subState;
-
-unsigned char paddleRotationMin=32;//64
-unsigned char paddleRotationMax=223;//192
+#define MOUSEMIN 0
+#define MOUSEMAX 255
+unsigned char paddleRotationMin=64;//64
+unsigned char paddleRotationMax=192;//192
 
 char controller_style = 0;
 unsigned char lives_left = 3;
@@ -2069,6 +2071,11 @@ void GameWrapperStateMachine()
 #define SCOREWIDTH 36
 
 void main () {
+    if (CHK_EMU == 0x55) {
+        // Emulator-specific code here
+        paddleRotationMin = MOUSEMIN;
+        paddleRotationMax = MOUSEMAX;
+    }
     init_music();
     load_spritesheet(ASSET__gfx__paddle_bmp,PADDLESPRITEBANK);
     load_spritesheet(ASSET__gfx__PressStart_bmp,PRESSSTARTSPRITEBANK);
