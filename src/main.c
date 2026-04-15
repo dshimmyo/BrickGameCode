@@ -19,6 +19,7 @@
 #define TESTFEATURES true
 /////*********** */
 #define CHK_EMU *((volatile uint8_t*) 0x2007) //emulator magic ID
+#define RUMBLE_PORT *((volatile unsigned char*) 0x2008) //magic rumble port
 
 #define BOXCOLOR WHITE//92
 #define BOXCOLORA WHITE
@@ -79,6 +80,7 @@ typedef enum {
 GameplaySubState subState;
 #define MOUSEMIN 0
 #define MOUSEMAX 255
+bool isEmulator = false;
 unsigned char paddleRotationMin=64;//64
 unsigned char paddleRotationMax=192;//192
 
@@ -243,7 +245,11 @@ char blinkMessageVisible=0;
 unsigned int readyTimer=0;
 unsigned char cycleLevel=0;
 
-
+void trigger_rumble(unsigned char strength) {
+    // Writing here does nothing on real hardware (it's open bus)
+    // But the Emulator is 'watching' this specific address.
+    RUMBLE_PORT = strength; 
+}
 void playBass(char row){
 
     switch (row){
@@ -269,6 +275,7 @@ void playBass(char row){
         play_sound_effect(ASSET__audio__row5_sfx_ID,127);
         break;
     }
+    if (isEmulator){trigger_rumble(128);}
 }
 
 void soundTest(){
@@ -400,6 +407,7 @@ bool detectPaddleCollision_prog1(char sourceXLow,char sourceXHi,char sourceYLow,
     *_dx = nearestAngle.dx;
     *_dy = nearestAngle.dy;
     play_sound_effect(ASSET__audio__paddle_sfx_ID,(char)0);
+    if (isEmulator){trigger_rumble(255);}
 
     return true;
 }
@@ -1393,6 +1401,7 @@ void SelectControllerScreen_prog2(bool buttonAPress, bool buttonBPress)
         gameState = STATE_ATTRACT;
         breakoutRefresh=0;//triggers a bg refresh
         breakoutBricksRefresh=0;//triggers bricks refresh
+        if (isEmulator){trigger_rumble(255);}
     }
     else if (buttonAPress) 
     {
@@ -1841,9 +1850,9 @@ void BakeBreakoutBackground_prog1(char bank){
     banksMirror = bankflip | GRAM_PAGE(PRESSSTARTSPRITEBANK);
     *bank_reg = banksMirror;
     {
-        char w=13;//13;////17;
+        char w=17;//13;////17;
         char h=3;//5;//4;
-        char xoffset = 44;//25;
+        char xoffset = 44;//25; //44 LIFE 3px 64 LIVES 3px
         char yoffset = 96;
         for (y=0; y<h; y++){
             for (x=0; x<w; x++){
@@ -1859,7 +1868,7 @@ void BakeBreakoutBackground_prog1(char bank){
         char vramIndex=0;
         char posx = 92;
         char posy = 12;//11
-        char w=13;
+        char w=17;
         char h=3;
         for (y=0; y<h; y++){
             for (x=0; x<w; x++){
@@ -2075,6 +2084,7 @@ void main () {
         // Emulator-specific code here
         paddleRotationMin = MOUSEMIN;
         paddleRotationMax = MOUSEMAX;
+        isEmulator = true;
     }
     init_music();
     load_spritesheet(ASSET__gfx__paddle_bmp,PADDLESPRITEBANK);
