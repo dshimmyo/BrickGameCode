@@ -178,7 +178,7 @@ unsigned char  anim_queue_count = 0;
 
 //unsigned char animatedBricks[MAX_BRICK_COLS*NUM_BRICK_ROWS]; //this needs to be re-engineered
 
-#define NUM_BRICK_LAYOUTS 9//16
+#define NUM_BRICK_LAYOUTS 11//16
 BrickLayout brickLayouts[NUM_BRICK_LAYOUTS]=
 {
     //{cols,width}
@@ -190,10 +190,10 @@ BrickLayout brickLayouts[NUM_BRICK_LAYOUTS]=
     //{6,20},
     {8,15},
     {10,12},
-    //{12,10},
+    {12,10},
     {15,8},
     {20,6},
-    //{24,5},
+    {24,5},
     {30,4},
     {40,3},
     {60,2},
