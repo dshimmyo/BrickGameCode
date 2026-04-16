@@ -24,7 +24,7 @@
 #define BOXCOLOR WHITE//92
 #define BOXCOLORA WHITE
 #define PADDLECOLOR WHITE
-#define PADDLEWIDTH 16
+#define STARTPADDLEWIDTH 16
 #define PADDLEHEIGHT 4
 #define PADDLEY 108
 #define BALLSIZE 2
@@ -46,6 +46,7 @@
 //dynamic brick layout
 unsigned char currentBrickWidth = 120;//12;//8;//4;//2;
 unsigned int currentNumBricksH = 1;//10;//15;//30;//60;
+unsigned char currentPaddleWidth = STARTPADDLEWIDTH;
 
 #define CEILING 21
 
@@ -340,6 +341,7 @@ unsigned char GetNearestReflectAngleIndex_prog1( int _dx)
 bool detectPaddleCollision_prog1(char sourceXLow,char sourceXHi,char sourceYLow,char sourceYHi,
     int *_dx, int *_dy, int *_ballSpeed)
 {
+    unsigned char zoneWidth = currentPaddleWidth >> 3; 
     const char angleAdjust = 32;//64
     const char minAngle = 96;//64
     const char maxAngle = 512 - minAngle;
@@ -348,25 +350,21 @@ bool detectPaddleCollision_prog1(char sourceXLow,char sourceXHi,char sourceYLow,
     angle nearestAngle;
     int tempDx = *_dx;//keep changes local until done
     int tempDy = *_dy;//keep changes local until done
+    if (zoneWidth == 0) zoneWidth = 1; // 4px paddle safety
 
     if (tempDy < 0) return false;//don't waste time on already bounced balls
-    if (sourceXLow > paddleX) paddleHitRegion = (sourceXLow - paddleX)/(PADDLEWIDTH / 8);
+    if (sourceXLow > paddleX) paddleHitRegion = (sourceXLow - paddleX)/zoneWidth;
     else paddleHitRegion = 0;
     
     if (sourceYHi < PADDLEY) return false;
-    else if (sourceYLow > PADDLEY+PADDLEHEIGHT/*targetYLow + PADDLEHEIGHT*/) return false;
+    else if (sourceYLow > PADDLEY+PADDLEHEIGHT) return false;
     else if (sourceXHi < paddleX) return false;
-    else if (sourceXLow > paddleX+PADDLEWIDTH) return false;
+    else if (sourceXLow > paddleX + currentPaddleWidth) return false;
 
     //if it gets to here the ball is colliding with the paddle, now determine reflection angle based on hit region
 
     //if the ball is in slow mode, turn it up
     *_ballSpeed = (*_ballSpeed<2) ? 2 : *_ballSpeed;
-    //ballSpeedA = (ballSpeedA<2) ? 2 : ballSpeedA;
-
-    //standard reflection
-    // tempDy = (tempDy<0) ? tempDy : - ((unsigned int) tempDy);
-    // tempDx = tempDx;
 
     //attempt to make sophisticated reflections:
     //nearestIndex = GetNearestReflectAngleIndex(tempDx);
@@ -637,7 +635,7 @@ void boxAMotion_prog1()
 void update_paddle_offset_prog2(){
     if (rndPaddleOffsetTimer++ > 128)
     {
-        rndPaddleOffset = rnd_range(0,PADDLEWIDTH>>1);
+        rndPaddleOffset = rnd_range(0,currentPaddleWidth>>1);
         if (rnd_range(0,127)<64) rndPaddleOffset *= -1; 
         rndPaddleOffsetTimer=0;
     }
@@ -651,8 +649,8 @@ void update_paddle_offset_prog2(){
 char ClampPaddleX_prog1(int paddlex){
     if (paddlex < BRICK_LEFT){
         paddlex = BRICK_LEFT;
-    } else if (paddlex>BRICK_RIGHT-PADDLEWIDTH){
-        paddlex = BRICK_RIGHT - PADDLEWIDTH;
+    } else if (paddlex>BRICK_RIGHT-currentPaddleWidth){
+        paddlex = BRICK_RIGHT - currentPaddleWidth;
     }
     return paddlex;
 }
@@ -660,9 +658,9 @@ int setRangeOpt_prog1(unsigned char input, unsigned char inMin, unsigned char in
 {
     int output = 0;
     if (input<inMin)return 0;
-    else if (input>inMax)return (127-(PADDLEWIDTH));
+    else if (input>inMax)return (127-(currentPaddleWidth));
 
-    output = (((127-(PADDLEWIDTH))<<8)/(inMax-inMin)*(input-inMin)>>8);
+    output = (((127-(currentPaddleWidth))<<8)/(inMax-inMin)*(input-inMin)>>8);
     return output;
 }
 
@@ -722,7 +720,7 @@ char paddleXFromLowestBall_prog1(){
             target_ball_index = i;
         }
     }
-    return ConstVelocity_prog1(paddleX, balls[target_ball_index].x - (PADDLEWIDTH>>1) + rndPaddleOffset,6);//double speed, skip alt frames
+    return ConstVelocity_prog1(paddleX, balls[target_ball_index].x - (currentPaddleWidth>>1) + rndPaddleOffset,6);//double speed, skip alt frames
 }
 void GenNextLevel_prog1(char procLevel)
 {
@@ -1710,11 +1708,13 @@ void render_balls_prog1() {
 }
 void render_paddle_prog1() 
 {
-    queue_draw_sprite(paddleX,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0,0,PADDLESPRITEBANK);
+    queue_draw_sprite(paddleX,PADDLEY,currentPaddleWidth,PADDLEHEIGHT,0,0,PADDLESPRITEBANK);
+    //queue_draw_box(paddleX,PADDLEY,currentPaddleWidth,PADDLEHEIGHT,0b11100111);
+    
 }
 void erase_paddle_prog1(){
     //queue_draw_box(paddleX_old_old,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0);//erase paddle
-    EraseRect(paddleX_old_old,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT);
+    EraseRect(paddleX_old_old,PADDLEY,currentPaddleWidth,PADDLEHEIGHT);
 }
 void erase_balls_prog1(){
     unsigned char i;
