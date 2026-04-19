@@ -94,7 +94,7 @@ char messageEraseCount = 0;//set to 2 or 3 to erase messages for 2 or 3 frames
 
 //typedefs
 typedef struct {
-    int dx;
+    int dx;//int allows for more speed increase
     int dy;
 } angle;
 
@@ -156,12 +156,17 @@ void draw_lives_prog1(char);
 uint16_t get_brick_index_prog1(uint8_t, uint8_t);
 void printBlinkMessage_prog1(char index);
 void loading_screen_prog1();
+void reset_reflect_angles_prog1();
+void increase_ball_speed_prog1(unsigned char level);
+
+
 
 #define NUM_ANGLES 22
 #pragma rodata-name (push, "PROG1")
 const angle reflectAnglesNew_prog1[NUM_ANGLES]=
 {{-251<<1,-30<<1},{-247<<1,-61<<1},{-235<<1,-86<<1},{-224<<1,-112<<1},{-202<<1,-146<<1},{-181<<1,-181<<1},{-146<<1,-202<<1},{-112<<1,-224<<1},{-86<<1,-235<<1},{-61<<1,-247<<1},{-30<<1,-251<<1},
 {30<<1,-251<<1},{61<<1,-247<<1},{86<<1,-235<<1},{112<<1,-224<<1},{146<<1,-202<<1},{181<<1,-181<<1},{202<<1,-146<<1},{224<<1,-112<<1},{235<<1,-86<<1},{247<<1,-61<<1},{251<<1,-30<<1}};
+angle currentReflectAngles_prog1[NUM_ANGLES];//bake speed increase
 #pragma rodata-name (pop)
 
 unsigned char brickRowPoints[6]={4,3,2,2,1,1};//number of points gained by hitting a brick in each row, top to bottom
@@ -325,9 +330,9 @@ unsigned char GetNearestReflectAngleIndex_prog1( int _dx)
     unsigned char newDiff;
     char bestIndex=0;
     for (index=0; index<NUM_ANGLES; index++){
-        if (reflectAnglesNew_prog1[index].dx == _dx) return index;
-        if (_dx > reflectAnglesNew_prog1[index].dx) newDiff = _dx - reflectAnglesNew_prog1[index].dx;
-        else newDiff = reflectAnglesNew_prog1[index].dx - _dx;
+        if (currentReflectAngles_prog1[index].dx == _dx) return index;
+        if (_dx > currentReflectAngles_prog1[index].dx) newDiff = _dx - currentReflectAngles_prog1[index].dx;
+        else newDiff = currentReflectAngles_prog1[index].dx - _dx;
         if (newDiff < diff){
             diff = newDiff;
             bestIndex = index;
@@ -401,7 +406,7 @@ bool detectPaddleCollision_prog1(char sourceXLow,char sourceXHi,char sourceYLow,
         break;
 
     }
-    nearestAngle = reflectAnglesNew_prog1[nearestIndex];
+    nearestAngle = currentReflectAngles_prog1[nearestIndex];
     *_dx = nearestAngle.dx;
     *_dy = nearestAngle.dy;
     play_sound_effect(ASSET__audio__paddle_sfx_ID,(char)0);
@@ -447,7 +452,7 @@ angle get_random_spawn_angles_prog1()
         returnIndex = 13;
         break;
     }
-    returnAngle = reflectAnglesNew_prog1[returnIndex];
+    returnAngle = currentReflectAngles_prog1[returnIndex];
     return returnAngle;
 }
 #pragma code-name (pop)
@@ -730,6 +735,7 @@ void GenNextLevel_prog1(char procLevel)
     currentNumBricksH = bl.numColumns;
     // change_rom_bank(BANK_PROG1);
     BreakoutBricksSetupWrapper_prog1(BRICKSSPRITEBANK);
+    increase_ball_speed_prog1(procLevel);
 }
 
 #define ENABLEPADDLEHIGHESTBALL false
@@ -832,6 +838,18 @@ char paddleXFromBallArray_prog1() {
 }
     */
 
+void increase_ball_speed_prog1(unsigned char level)
+{
+    unsigned char i=0;
+    reset_reflect_angles_prog1();//start with clean slate
+    for (i=0; i<sizeof(reflectAnglesNew_prog1); i++){
+        angle temp;
+        temp.dx = currentReflectAngles_prog1[i].dx * (100 + level)/100;//add 1% for testing, practically invisible
+        temp.dy  = currentReflectAngles_prog1[i].dy * (100 + level)/100;
+        currentReflectAngles_prog1[i] = temp;
+    }
+}
+    
 void NewLevel_prog1()
 {
     unsigned char x;
@@ -841,7 +859,6 @@ void NewLevel_prog1()
         for (x=0; x<currentNumBricksH; x++){
             brickRows[y].visible[x] = 1;
             brickRows[y].erase_frames[x] = 0;
-            //animatedBricks[count++]=0;//set all bricks to unanimated
         }
     }
     erase_queue_count=0;
@@ -849,8 +866,6 @@ void NewLevel_prog1()
     bricks_remaining = currentNumBricksH * NUM_BRICK_ROWS;
 
     init_ball_system_prog1();
-    //spawn_new_rnd_ball_prog1();
-    //spawn_new_rnd_ball_prog1();
     breakoutRefresh=0;
     breakoutBricksRefresh=0;
     scoreRefreshFrames=2;
@@ -914,6 +929,7 @@ void init_game_prog1()//used to refresh the screen when all the bricks are gone
     score = 0;
     hiscore = (hiscore<100) ? 100 : hiscore;//default 100
     subState = SUBSTATE_NEW_LEVEL;
+    reset_reflect_angles_prog1();
 }
 void DrawBricks_prog1(){//only gets used to refresh the whole fully-populated field
     unsigned char row;
@@ -1910,6 +1926,13 @@ void loading_screen_prog1(){
     await_vsync(1);
     flip_pages();
 }
+void reset_reflect_angles_prog1(){
+    int i=0;
+    for (i=0; i<sizeof(reflectAnglesNew_prog1); i++){
+        currentReflectAngles_prog1[i] = reflectAnglesNew_prog1[i];
+    }
+}
+
 #pragma code-name (pop);
 void EraseRect(char x, char y, char w, char h) {
     queue_draw_sprite(x, y, w, h,x,y, BAKEDBACKGROUNDSPRITEBANK); 
@@ -1990,7 +2013,7 @@ void GameWrapperStateMachine()
                     newLevelTimer--;
                 }
                 else{
-                    GenNextLevel_prog1(cycleLevel++ % NUM_BRICK_LAYOUTS);
+                    GenNextLevel_prog1(cycleLevel++);//unbound intentionally
                     newLevelTimer=100;
                     NewLevel_prog1();
                     subState=SUBSTATE_PLAY;
@@ -2093,7 +2116,6 @@ void main () {
     scoring_init();
     change_rom_bank(BANK_PROG1);
     BakeBreakoutBackground_prog1(BAKEDBACKGROUNDSPRITEBANK);//bank 1
-    
     loading_screen_prog1();
 
     bake_gradient_mask_prog1();//only needs to be done once
