@@ -2082,8 +2082,8 @@ void GameWrapperStateMachine()
 void main () {
     if (CHK_EMU == 0x55) {
         // Emulator-specific code here
-        paddleRotationMin = MOUSEMIN;
-        paddleRotationMax = MOUSEMAX;
+        //paddleRotationMin = MOUSEMIN;
+        //paddleRotationMax = MOUSEMAX;
         isEmulator = true;
     }
     init_music();
