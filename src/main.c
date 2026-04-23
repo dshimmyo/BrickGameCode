@@ -842,10 +842,10 @@ void increase_ball_speed_prog1(unsigned char level)
 {
     unsigned char i=0;
     reset_reflect_angles_prog1();//start with clean slate
-    for (i=0; i<sizeof(reflectAnglesNew_prog1); i++){
+    for (i=0; i<NUM_ANGLES; i++){
         angle temp;
-        temp.dx = currentReflectAngles_prog1[i].dx * (100 + level)/100;//add 1% for testing, practically invisible
-        temp.dy  = currentReflectAngles_prog1[i].dy * (100 + level)/100;
+        temp.dx = currentReflectAngles_prog1[i].dx * (50 + level)/50;//add 1% for testing, practically invisible
+        temp.dy  = currentReflectAngles_prog1[i].dy * (50 + level)/50;
         currentReflectAngles_prog1[i] = temp;
     }
 }
@@ -1927,8 +1927,9 @@ void loading_screen_prog1(){
     flip_pages();
 }
 void reset_reflect_angles_prog1(){
-    int i=0;
-    for (i=0; i<sizeof(reflectAnglesNew_prog1); i++){
+    int i = 0;
+    
+    for (i = 0; i < NUM_ANGLES; i++){
         currentReflectAngles_prog1[i] = reflectAnglesNew_prog1[i];
     }
 }
