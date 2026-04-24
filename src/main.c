@@ -24,7 +24,7 @@
 #define BOXCOLOR WHITE//92
 #define BOXCOLORA WHITE
 #define PADDLECOLOR WHITE
-#define STARTPADDLEWIDTH 16
+#define STARTPADDLEWIDTH 24//16
 #define PADDLEHEIGHT 4
 #define PADDLEY 108
 #define BALLSIZE 2
@@ -47,6 +47,8 @@
 unsigned char currentBrickWidth = 120;//12;//8;//4;//2;
 unsigned int currentNumBricksH = 1;//10;//15;//30;//60;
 unsigned char currentPaddleWidth = STARTPADDLEWIDTH;
+unsigned char minPaddleWidth = 4;
+unsigned char paddleShrinkAmount = 4;
 
 #define CEILING 21
 
@@ -305,6 +307,14 @@ void soundCeiling(){
 }
 
 #pragma code-name (push, "PROG1")
+
+void shrink_paddle_prog1() {
+    if (currentPaddleWidth > minPaddleWidth) {
+        currentPaddleWidth = (currentPaddleWidth>minPaddleWidth) ? (currentPaddleWidth - paddleShrinkAmount) : currentPaddleWidth;
+        if (isEmulator) trigger_rumble(100); // A mid-strength "notification" buzz
+    }
+}
+
 uint16_t get_brick_index_prog1(uint8_t x, uint8_t y){
     uint8_t row = (y - BRICK_TOP)/BRICK_HEIGHT;
     uint8_t col = (x - BRICK_LEFT)/currentBrickWidth;
@@ -358,13 +368,15 @@ bool detectPaddleCollision_prog1(char sourceXLow,char sourceXHi,char sourceYLow,
     if (zoneWidth == 0) zoneWidth = 1; // 4px paddle safety
 
     if (tempDy < 0) return false;//don't waste time on already bounced balls
+    if (sourceXLow > paddleX + currentPaddleWidth) return false;
+
     if (sourceXLow > paddleX) paddleHitRegion = (sourceXLow - paddleX)/zoneWidth;
     else paddleHitRegion = 0;
+    if (paddleHitRegion > 7) paddleHitRegion = 7;//there are only 8 zones
     
     if (sourceYHi < PADDLEY) return false;
     else if (sourceYLow > PADDLEY+PADDLEHEIGHT) return false;
     else if (sourceXHi < paddleX) return false;
-    else if (sourceXLow > paddleX + currentPaddleWidth) return false;
 
     //if it gets to here the ball is colliding with the paddle, now determine reflection angle based on hit region
 
@@ -401,7 +413,7 @@ bool detectPaddleCollision_prog1(char sourceXLow,char sourceXHi,char sourceYLow,
         nearestIndex = 15;
         break; 
         case 7://H far right
-        case 8://extra zone? far right
+        //case 8://extra zone? far right
         nearestIndex = 17;//20;//21
         break;
 
@@ -736,6 +748,10 @@ void GenNextLevel_prog1(char procLevel)
     // change_rom_bank(BANK_PROG1);
     BreakoutBricksSetupWrapper_prog1(BRICKSSPRITEBANK);
     increase_ball_speed_prog1(procLevel);
+    // Every 2 waves: paddle shrinks
+    if ((procLevel > 0) && ((procLevel) % 2 == 0)) {//even numbered levels > 0 shrink paddle
+        shrink_paddle_prog1();
+    }
 }
 
 #define ENABLEPADDLEHIGHESTBALL false
@@ -1724,8 +1740,8 @@ void render_balls_prog1() {
 }
 void render_paddle_prog1() 
 {
-    queue_draw_sprite(paddleX,PADDLEY,currentPaddleWidth,PADDLEHEIGHT,0,0,PADDLESPRITEBANK);
-    //queue_draw_box(paddleX,PADDLEY,currentPaddleWidth,PADDLEHEIGHT,0b11100111);
+    //queue_draw_sprite(paddleX,PADDLEY,currentPaddleWidth,PADDLEHEIGHT,0,0,PADDLESPRITEBANK);
+    queue_draw_box(paddleX,PADDLEY,currentPaddleWidth,PADDLEHEIGHT,0b11100111);
     
 }
 void erase_paddle_prog1(){
