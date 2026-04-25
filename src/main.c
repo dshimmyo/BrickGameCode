@@ -652,10 +652,10 @@ void update_paddle_offset_prog2(){
 #pragma code-name (push, "PROG1")
 
 char ClampPaddleX_prog1(int paddlex){
-    if (paddlex < BRICK_LEFT){
-        paddlex = BRICK_LEFT;
-    } else if (paddlex>BRICK_RIGHT-currentPaddleWidth){
-        paddlex = BRICK_RIGHT - currentPaddleWidth;
+    if (paddlex < 0){
+        paddlex = 0;
+    } else if (paddlex>128-(currentPaddleWidth>>1)){
+        paddlex = 128 - (currentPaddleWidth>>1);
     }
     return paddlex;
 }
