@@ -313,7 +313,6 @@ void shrink_paddle_prog1() {
         currentPaddleWidth = (currentPaddleWidth>minPaddleWidth) ? (currentPaddleWidth - paddleShrinkAmount) : currentPaddleWidth;
         if (isEmulator) trigger_rumble(100); // A mid-strength "notification" buzz
     }
-    generate_new_paddle_prog1();
 }
 
 uint16_t get_brick_index_prog1(uint8_t x, uint8_t y){
@@ -753,6 +752,7 @@ void GenNextLevel_prog1(char procLevel)
     if ((procLevel > 0) && ((procLevel) % 2 == 0)) {//even numbered levels > 0 shrink paddle
         shrink_paddle_prog1();
     }
+    generate_new_paddle_prog1();
 }
 
 #define ENABLEPADDLEHIGHESTBALL false
@@ -944,6 +944,7 @@ void init_game_prog1()//used to refresh the screen when all the bricks are gone
     lives_left = 3;
     newLevelTimer = 100;
     score = 0;
+    currentPaddleWidth = STARTPADDLEWIDTH;
     hiscore = (hiscore<100) ? 100 : hiscore;//default 100
     subState = SUBSTATE_NEW_LEVEL;
     reset_reflect_angles_prog1();
@@ -2151,10 +2152,10 @@ void GameWrapperStateMachine()
 
         case STATE_BREAKOUT_GAMEOVER:
         gameOverTimer--;
-        if (gameOverTimer<=0){
-            init_game_prog1();
+        if (gameOverTimer==0){
             gameState = STATE_ATTRACT;
             messageEraseCount=2;
+            init_game_prog1();
         }
         else
         {
@@ -2192,7 +2193,6 @@ void main () {
 
     //BreakoutBricksSetupWrapper_prog1(BRICKSSPRITEBANK); //redundant but keeps vram properly setup
     GenNextLevel_prog1(0);//sets up the first level in advance
-    generate_new_paddle_prog1();//need first paddle to be generated
     gameState = STATE_CONTROLLER_SELECT;
 
     while (1) 
