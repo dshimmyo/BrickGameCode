@@ -663,9 +663,9 @@ int setRangeOpt_prog1(unsigned char input, unsigned char inMin, unsigned char in
 {
     int output = 0;
     if (input<inMin)return 0;
-    else if (input>inMax)return (127-(currentPaddleWidth));
+    else if (input>inMax)return (127);
 
-    output = (((127-(currentPaddleWidth))<<8)/(inMax-inMin)*(input-inMin)>>8);
+    output = (((127)<<8)/(inMax-inMin)*(input-inMin)>>8);
     return output;
 }
 
