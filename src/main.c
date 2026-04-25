@@ -160,7 +160,7 @@ void printBlinkMessage_prog1(char index);
 void loading_screen_prog1();
 void reset_reflect_angles_prog1();
 void increase_ball_speed_prog1(unsigned char level);
-
+void generate_new_paddle_prog1();
 
 
 #define NUM_ANGLES 22
@@ -313,6 +313,7 @@ void shrink_paddle_prog1() {
         currentPaddleWidth = (currentPaddleWidth>minPaddleWidth) ? (currentPaddleWidth - paddleShrinkAmount) : currentPaddleWidth;
         if (isEmulator) trigger_rumble(100); // A mid-strength "notification" buzz
     }
+    generate_new_paddle_prog1();
 }
 
 uint16_t get_brick_index_prog1(uint8_t x, uint8_t y){
@@ -1738,11 +1739,61 @@ void render_balls_prog1() {
         }
     }
 }
+void generate_new_paddle_prog1(){
+//original paddle sprite box
+//0,0 to 15,3
+//paint new paddle at 0,4
+    char oldFlags = flagsMirror; // Save the original screen/DMA settings
+    char oldBanks = banksMirror; 
+    unsigned char x,y;
+
+    // 1. SET THE HARDWARE MODE
+    // Clear Bit 0 (DMA_ENABLE) and Clear Bit 1 (DMA_CPU_TO_VRAM)
+    flagsMirror &= ~(DMA_ENABLE | DMA_CPU_TO_VRAM); 
+    *dma_flags = flagsMirror;
+
+    // 2. BANK IN THE SPRITES
+    banksMirror = bankflip | GRAM_PAGE(PADDLESPRITEBANK);
+    *bank_reg = banksMirror;
+
+    for (y=0; y<4; y++){//copy 4 rows
+        //copy left two columns from 0,0
+        unsigned int sourceCoord = 0 + (y*128);
+        unsigned int targetCoord = 0 + ((y+4)*128);//target paddle starts at row 4
+        vram[targetCoord] = vram[sourceCoord];
+        sourceCoord = 1 + (y*128);
+        targetCoord = 1 + ((y+4)*128);//target paddle starts at row 4
+        vram[targetCoord] = vram[sourceCoord];
+
+        //copy last two columns from 14,0 
+        {
+        unsigned int sourceXOffset = 14;
+        unsigned int targetXOffset = currentPaddleWidth - 2;
+        sourceCoord = sourceXOffset + (y*128);
+        targetCoord = targetXOffset + ((y+4)*128);//target paddle starts at row 4
+        vram[targetCoord] = vram[sourceCoord];
+        sourceCoord = sourceXOffset + 1 + (y*128);
+        targetCoord = targetXOffset + 1 + ((y+4)*128);//target paddle starts at row 4
+        vram[targetCoord] = vram[sourceCoord];
+        }
+
+        for (x = 2; x<currentPaddleWidth-2;x++){
+            unsigned int targetCoord = x + ((y+4)*128);//target paddle starts at row 4
+            vram[targetCoord] = 0b00000111;
+        }
+
+    }
+    // 4. RESTORE EVERYTHING
+    flagsMirror = oldFlags;
+    banksMirror = oldBanks;
+    *dma_flags = flagsMirror;
+    *bank_reg = banksMirror;
+}
+
 void render_paddle_prog1() 
 {
-    //queue_draw_sprite(paddleX,PADDLEY,currentPaddleWidth,PADDLEHEIGHT,0,0,PADDLESPRITEBANK);
-    queue_draw_box(paddleX,PADDLEY,currentPaddleWidth,PADDLEHEIGHT,0b11100111);
-    
+    queue_draw_sprite(paddleX,PADDLEY,currentPaddleWidth,PADDLEHEIGHT,0,4,PADDLESPRITEBANK);
+    //queue_draw_box(paddleX,PADDLEY,currentPaddleWidth,PADDLEHEIGHT,0b11100111);   
 }
 void erase_paddle_prog1(){
     //queue_draw_box(paddleX_old_old,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0);//erase paddle
@@ -2127,7 +2178,7 @@ void main () {
         isEmulator = true;
     }
     init_music();
-    load_spritesheet(ASSET__gfx__paddle_bmp,PADDLESPRITEBANK);
+    load_spritesheet(ASSET__gfx__paddletank_paddle_bmp,PADDLESPRITEBANK);
     load_spritesheet(ASSET__gfx__PressStart_bmp,PRESSSTARTSPRITEBANK);
 
     scoring_init();
@@ -2141,6 +2192,7 @@ void main () {
 
     //BreakoutBricksSetupWrapper_prog1(BRICKSSPRITEBANK); //redundant but keeps vram properly setup
     GenNextLevel_prog1(0);//sets up the first level in advance
+    generate_new_paddle_prog1();//need first paddle to be generated
     gameState = STATE_CONTROLLER_SELECT;
 
     while (1) 
