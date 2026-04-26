@@ -21,6 +21,15 @@
 #define CHK_EMU *((volatile uint8_t*) 0x2007) //emulator magic ID
 #define RUMBLE_PORT *((volatile unsigned char*) 0x2008) //magic rumble port
 
+#define CHECK_PADDLE_STATE() \
+    if (CHK_EMU & 0x02) { \
+        paddleRotationMin = PADDLEMIN; \
+        paddleRotationMax = PADDLEMAX; \
+    } else { \
+        paddleRotationMin = MOUSEMIN; \
+        paddleRotationMax = MOUSEMAX; \
+    }
+
 #define BOXCOLOR WHITE//92
 #define BOXCOLORA WHITE
 #define PADDLECOLOR WHITE
@@ -2214,25 +2223,20 @@ void GameWrapperStateMachine()
     paddleX_old_old = paddleX_old;
     paddleX_old = paddleX;
 }
-uint8_t emuStatus;
+
 
 #define SCOREPOSX 6//5
 #define HISCOREPOSX 52//50//(64 - ((7 * 4)/2)) //46
 #define SCOREWIDTH 36
+
+//emulator checks
+uint8_t emuStatus;
+uint8_t lazyDevFrameCounter=0;
+
 void main () {
     emuStatus = CHK_EMU;
     if ((emuStatus & 0b11111101) == 0x55) {
         isEmulator = true;
-        // Check if the 2nd bit (0x02) is flipped
-        if (emuStatus & 0x02) { 
-            // Real hardware paddle connected
-            paddleRotationMin = PADDLEMIN; // Use your hardware clamp values
-            paddleRotationMax = PADDLEMAX;
-        } else {
-            // Vanilla emulator (Mouse/Touch) - Unclamped
-            paddleRotationMin = MOUSEMIN;
-            paddleRotationMax = MOUSEMAX;
-        }
     }
     init_music();
     load_spritesheet(ASSET__gfx__paddletank_paddle_bmp,PADDLESPRITEBANK);
@@ -2254,7 +2258,10 @@ void main () {
     
     while (1) 
     {                                     //  Run forever
-
+        lazyDevFrameCounter++;
+        if (isEmulator && (lazyDevFrameCounter & 0x3F)){
+            CHECK_PADDLE_STATE();
+        }
         //GameWrapper();
         GameWrapperStateMachine();
         queue_clear_border(2);//color
