@@ -692,7 +692,7 @@ void update_paddle_offset_prog2(){
 
 #pragma code-name (pop)
 
-static unsigned char lastInput = 0;
+static int accumulator = 0;
 
 #pragma code-name (push, "PROG1")
 
@@ -704,28 +704,27 @@ char ClampPaddleX_prog1(int paddlex){
     }
     return paddlex;
 }
+
 int setRangeOpt_prog1(unsigned char input, unsigned char inMin, unsigned char inMax)
 {
     int output = 0;
-    unsigned char diff;
-    if (input >= lastInput) diff = input - lastInput;
-    else diff = lastInput - input;
+    int target = (int)input << 8; // 1. Convert 8-bit input to 16-bit for "Internal" math
+    unsigned char smoothedInput;
+    // sub-pixel nudge
+    // We move the accumulator toward the target by a fraction
+    // This averages out the 1-bit jitter over a couple of frames
+    accumulator += (target - accumulator) >> 1;
 
-    // Only update if change is > 1 (filters out single-bit toggle noise)
-    if (diff > 1) {
-        lastInput = input;
-    } else {
-        input = lastInput;
-    }
+    // extract the smoothed 8-bit value for the range math
+    smoothedInput = (unsigned char)(accumulator >> 8);
 
-    if (input < inMin) return 0;
-    else if (input > inMax) return 127;
+    if (smoothedInput < inMin) return 0;
+    else if (smoothedInput > inMax) return 127;
 
-    output = (((127)<<8)/(inMax-inMin)*(input-inMin)>>8);
+    output = (((127) << 8) / (inMax - inMin) * (smoothedInput - inMin) >> 8);
 
     return output;
 }
-
 
 char paddleXFromPot8opt_prog1(unsigned char potVal)
 {
