@@ -83,6 +83,8 @@ typedef enum {
 GameplaySubState subState;
 #define MOUSEMIN 0
 #define MOUSEMAX 255
+#define PADDLEMIN 64
+#define PADDLEMAX 192
 bool isEmulator = false;
 unsigned char paddleRotationMin=64;//64
 unsigned char paddleRotationMax=192;//192
@@ -160,7 +162,7 @@ void printBlinkMessage_prog1(char index);
 void loading_screen_prog1();
 void reset_reflect_angles_prog1();
 void increase_ball_speed_prog1(unsigned char level);
-void generate_new_paddle_prog1();
+void generate_paddle_sprite_prog1();
 
 
 #define NUM_ANGLES 22
@@ -389,34 +391,64 @@ bool detectPaddleCollision_prog1(char sourceXLow,char sourceXHi,char sourceYLow,
     //22 angles
     //0  1  2  3  4  5  6  7  8  9  10
     //21 20 19 18 17 16 15 14 13 12 11
-    switch (paddleHitRegion)
-    {
-        case 0: //A send ball far left
-        nearestIndex = 4;//1//0
-        break;
-        case 1:
-        nearestIndex = 6;
-        break;
-        case 2: //BC slight left
-        nearestIndex = 8;
-        break;
-        case 3: //E almost vertical left
-        nearestIndex = 10;
-        break;
-        case 4: //E almost vertical right
-        nearestIndex = 11;
-        break;
-        case 5://FG nudges right 
-        nearestIndex= 13;
-        break;
-        case 6://nudges right
-        nearestIndex = 15;
-        break; 
-        case 7://H far right
-        //case 8://extra zone? far right
-        nearestIndex = 17;//20;//21
-        break;
+    if (currentPaddleWidth == 4){
+        switch (paddleHitRegion)
+        {
+            case 0: 
+            case 1:
+            nearestIndex = 4;//1//0//A send ball far left
+            //nearestIndex = 6;
+            break;
 
+            case 2: 
+            case 3: 
+            nearestIndex = 8;//BC slight left
+            //nearestIndex = 10;//E almost vertical left
+            break;
+
+            case 4: 
+            case 5:
+            //nearestIndex = 11;//E almost vertical right
+            nearestIndex= 13;//FG nudges right 
+            break;
+
+            case 6:
+            case 7:
+            //nearestIndex = 15;//nudges right
+            nearestIndex = 17;//20;//21//far right
+            break;
+        }
+    }
+    else
+    {
+        switch (paddleHitRegion)
+        {
+            case 0: //A send ball far left
+            nearestIndex = 4;//1//0
+            break;
+            case 1:
+            nearestIndex = 6;
+            break;
+            case 2: //BC slight left
+            nearestIndex = 8;
+            break;
+            case 3: //E almost vertical left
+            nearestIndex = 10;
+            break;
+            case 4: //E almost vertical right
+            nearestIndex = 11;
+            break;
+            case 5://FG nudges right 
+            nearestIndex= 13;
+            break;
+            case 6://nudges right
+            nearestIndex = 15;
+            break; 
+            case 7://H far right
+            //case 8://extra zone? far right
+            nearestIndex = 17;//20;//21
+            break;
+        }
     }
     nearestAngle = currentReflectAngles_prog1[nearestIndex];
     *_dx = nearestAngle.dx;
@@ -752,7 +784,7 @@ void GenNextLevel_prog1(char procLevel)
     if ((procLevel > 0) && ((procLevel) % 2 == 0)) {//even numbered levels > 0 shrink paddle
         shrink_paddle_prog1();
     }
-    generate_new_paddle_prog1();
+    generate_paddle_sprite_prog1();
 }
 
 #define ENABLEPADDLEHIGHESTBALL false
@@ -1740,7 +1772,7 @@ void render_balls_prog1() {
         }
     }
 }
-void generate_new_paddle_prog1(){
+void generate_paddle_sprite_prog1(){
 //original paddle sprite box
 //0,0 to 15,3
 //paint new paddle at 0,4
@@ -1781,6 +1813,10 @@ void generate_new_paddle_prog1(){
         for (x = 2; x<currentPaddleWidth-2;x++){
             unsigned int targetCoord = x + ((y+4)*128);//target paddle starts at row 4
             vram[targetCoord] = 0b00000111;
+        }
+        for (x = currentPaddleWidth; x<128;x++){//clean the rest of the line
+            unsigned int targetCoord = x + ((y+4)*128);//target paddle starts at row 4
+            vram[targetCoord] = 0b00000000;
         }
 
     }
@@ -2166,17 +2202,25 @@ void GameWrapperStateMachine()
     paddleX_old_old = paddleX_old;
     paddleX_old = paddleX;
 }
+uint8_t emuStatus;
 
 #define SCOREPOSX 6//5
 #define HISCOREPOSX 52//50//(64 - ((7 * 4)/2)) //46
 #define SCOREWIDTH 36
-
 void main () {
-    if (CHK_EMU == 0x55) {
-        // Emulator-specific code here
-        paddleRotationMin = MOUSEMIN;
-        paddleRotationMax = MOUSEMAX;
+    emuStatus = CHK_EMU;
+    if ((emuStatus & 0b11111101) == 0x55) {
         isEmulator = true;
+        // Check if the 2nd bit (0x02) is flipped
+        if (emuStatus & 0x02) { 
+            // Real hardware paddle connected
+            paddleRotationMin = PADDLEMIN; // Use your hardware clamp values
+            paddleRotationMax = PADDLEMAX;
+        } else {
+            // Vanilla emulator (Mouse/Touch) - Unclamped
+            paddleRotationMin = MOUSEMIN;
+            paddleRotationMax = MOUSEMAX;
+        }
     }
     init_music();
     load_spritesheet(ASSET__gfx__paddletank_paddle_bmp,PADDLESPRITEBANK);
@@ -2195,6 +2239,7 @@ void main () {
     GenNextLevel_prog1(0);//sets up the first level in advance
     gameState = STATE_CONTROLLER_SELECT;
 
+    
     while (1) 
     {                                     //  Run forever
 
