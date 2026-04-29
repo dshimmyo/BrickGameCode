@@ -2202,7 +2202,7 @@ void GameWrapperStateMachine()
                         gameState = STATE_BREAKOUT_PLAY;
                         subState = SUBSTATE_NEW_LEVEL;
                         messageEraseCount=2;
-                        //playNoteSequence(1,2);
+                        playNoteSequence(1,2);
                     }
                 //}
                 break;
