@@ -1309,7 +1309,43 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
     return;
 }
 #pragma code-name (pop)
-
+void playNoteSequence(unsigned char style, unsigned char noteLength){
+    unsigned char x;
+    signed char i;
+    
+    if (style==0){
+        for (i=0;i<=5;i++)
+        {
+            if (i>=0)playBass(i);
+            for(x=0;x<noteLength;x++){
+                tick_music();
+                await_vsync(1);
+            }
+        }
+    }
+    else if (style==1)
+    {
+        for (i=5;i>=0;i--)
+        {
+            if (i>=0)playBass(i);
+            for(x=0;x<noteLength;x++){
+                tick_music();
+                await_vsync(1);
+            }
+        }
+    }
+    else
+    {
+        for (i=0;i<=5;i++)
+        {
+            if (i>=0)playBass(rnd_range(0,5));
+            for(x=0;x<noteLength;x++){
+                tick_music();
+                await_vsync(1);
+            }
+        }
+    }
+}
 #pragma code-name (push, "PROG1")
 void BreakoutBGRefresh_prog1()
 {
@@ -1332,7 +1368,6 @@ void BreakoutBGRefresh_prog1()
 }
 void update_player_paddle_prog1(){
     if ( gameState==STATE_ATTRACT){
-        // paddleX = paddleXFromBallArray_prog1();//remove this shit
         paddleX = paddleXFromLowestBall_prog1();
     } else {
         if (controller_style == CONTROLLER_STYLE_PADDLE0){
@@ -1401,6 +1436,7 @@ void printPressStart_prog1(char x, char y, bool visible){
         EraseRect(x,y,64,5);
     }
 }
+
 void printGameOver_prog1(char x, char y, bool visible){
     if (visible){
         queue_draw_sprite(x,y,64,5,0,40,PRESSSTARTSPRITEBANK);//press start
@@ -1487,6 +1523,8 @@ void SelectControllerScreen_prog2(bool buttonAPress, bool buttonBPress)
         breakoutRefresh=0;//triggers a bg refresh
         breakoutBricksRefresh=0;//triggers bricks refresh
         if (isEmulator){trigger_rumble(255);}
+        //playNoteSequence(2,2);
+
     }
     else if (buttonAPress) 
     {
@@ -1494,6 +1532,7 @@ void SelectControllerScreen_prog2(bool buttonAPress, bool buttonBPress)
         gameState = STATE_ATTRACT;
         breakoutRefresh=0;//triggers a bg refresh
         breakoutBricksRefresh=0;//triggers bricks refresh
+        //playNoteSequence(2,2);
     }
 }
 #pragma code-name (pop);
@@ -2064,30 +2103,6 @@ void EraseRect(char x, char y, char w, char h) {
     queue_draw_sprite(x, y, w, h,x,y, BAKEDBACKGROUNDSPRITEBANK); 
 }
 
-// void GameWrapper()
-// {
-//     bool buttonAPress;
-//     bool buttonBPress;
-//     // if (demoMode || gamestate==STATE_ATTRACT) {
-//     //     change_rom_bank(BANK_PROG2);
-//     //     update_paddle_offset_prog2();
-//     // }
-//     buttonAPress = (player1_buttons & INPUT_MASK_A) && (~player1_old_buttons & INPUT_MASK_A);
-//     buttonBPress = (player1_buttons & INPUT_MASK_B) && (~player1_old_buttons & INPUT_MASK_B);
-
-//     if (gameState == STATE_CONTROLLER_SELECT)
-//     {
-//         change_rom_bank(BANK_PROG1);
-//         BreakoutBGRefresh_prog1();
-
-//         change_rom_bank(BANK_PROG2);
-//         SelectControllerScreen_prog2(buttonAPress,buttonBPress);
-//     }
-//     else
-//     {
-//         //BreakoutGameWrapper();
-//     }
-// }
 void GameWrapperStateMachine()
 {
     bool buttonCPress;
@@ -2163,6 +2178,7 @@ void GameWrapperStateMachine()
                         {
                             gameState = STATE_BREAKOUT_GAMEOVER;
                             gameOverTimer = 500;
+                            //playNoteSequence(0,8);
                         }
                         else if ( spawnTimer > 0){
                             if (gameState != STATE_ATTRACT) {//attract mode never says get ready
@@ -2186,6 +2202,7 @@ void GameWrapperStateMachine()
                         gameState = STATE_BREAKOUT_PLAY;
                         subState = SUBSTATE_NEW_LEVEL;
                         messageEraseCount=2;
+                        //playNoteSequence(1,2);
                     }
                 //}
                 break;
