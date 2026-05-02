@@ -2224,7 +2224,7 @@ void GameWrapperStateMachine()
                             }
                             spawnTimer--;                    }
                     else{
-                        // spawnTimer = 100;//reset for next serve
+                        spawnTimer = 100;//reset for next serve, is necessary
                         isSkipAhead = false;//just in case
                         spawn_new_rnd_ball_prog1();
                         subState=SUBSTATE_PLAY;
