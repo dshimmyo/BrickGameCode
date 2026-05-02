@@ -14,7 +14,6 @@
 #include "gen/assets/font.h"
 #include "gen/assets/sdk_default.h"
 
-
 /////*********** */
 #define TESTFEATURES true
 /////*********** */
@@ -1355,13 +1354,8 @@ void BreakoutBGRefresh_prog1()
     }
     else//clean up edges
     {
-        //queue_draw_box(2,120-(BALLSIZE+2),124,BALLSIZE+2,0);//floor bar - fixes out-of-bounds ball ghosts
-        //EraseRect(2,120-(BALLSIZE+2),124,BALLSIZE+2);
-        //queue_draw_box(2,(CEILING-2),124,2,0b01111000);//ceiling bar - fixes ball ghosts
         EraseRect(2,(CEILING-2),124,2);
-        //queue_draw_box(0,7,BRICK_LEFT,127,0b01111000);//left bar - fix ball ghosts
         EraseRect(0,7,BRICK_LEFT,127);
-        //queue_draw_box(BRICK_RIGHT+1,7,3,113,0b01111000);//rt bar - fix ball ghosts
         EraseRect(BRICK_RIGHT+1,7,3,113);
 
     }
@@ -1395,6 +1389,7 @@ void spawn_new_ball_prog1(int x, int y, int dx, int dy, unsigned char speed) {
             balls[i].active = true;
             balls[i].was_active_old = false;
             balls[i].was_active_old_old = false;
+            soundWall();
             return; 
         }
     }
@@ -1411,6 +1406,7 @@ void spawn_new_rnd_ball_prog1() {
     _dx = (rnd_range(0,10) > 5) ? 255 : -255;
     _dy = 255;//always down
     _speed = 1;//default slow
+    
     for (i = 0; i < MAX_BALLS; i++) {
         if (!(balls[i].active)){//} || balls[i].was_active_old || balls[i].was_active_old_old)) {
             balls[i].x = _x;
@@ -1425,6 +1421,7 @@ void spawn_new_rnd_ball_prog1() {
             balls[i].active = true;
             balls[i].was_active_old = false;
             balls[i].was_active_old_old = false;
+            soundWall();
             return; 
         }
     }
@@ -2103,6 +2100,7 @@ void EraseRect(char x, char y, char w, char h) {
     queue_draw_sprite(x, y, w, h,x,y, BAKEDBACKGROUNDSPRITEBANK); 
 }
 
+bool isSkipAhead = false;
 void GameWrapperStateMachine()
 {
     bool buttonCPress;
@@ -2139,6 +2137,12 @@ void GameWrapperStateMachine()
             change_rom_bank(BANK_PROG2);
             update_paddle_offset_prog2();//for paddle automation only
         case STATE_BREAKOUT_PLAY:
+            if ((gameState != STATE_ATTRACT) && (buttonAPress || buttonStartPress)){
+                if (spawnTimer>3 && (get_active_ball_count_prog1()<=0) && !isSkipAhead){
+                    spawnTimer = 2;//shortens current timers
+                    isSkipAhead = true;//fixes ball serve timer
+                }                
+            }
             change_rom_bank(BANK_PROG1);
             DrawBricksWrapper_prog1();//blits
             if (subState != SUBSTATE_NEW_LEVEL) process_all_balls_prog1();//not needed for new level but no harm
@@ -2158,7 +2162,9 @@ void GameWrapperStateMachine()
                     newLevelTimer=100;
                     NewLevel_prog1();
                     subState=SUBSTATE_PLAY;
-                    spawnTimer=100;
+                    if (isSkipAhead) spawnTimer = 2;
+                    else spawnTimer = 100;
+                    isSkipAhead = false;
                 }
                 break;
                 case SUBSTATE_PLAY://ball(s) are in play                
@@ -2178,7 +2184,6 @@ void GameWrapperStateMachine()
                         {
                             gameState = STATE_BREAKOUT_GAMEOVER;
                             gameOverTimer = 500;
-                            //playNoteSequence(0,8);
                         }
                         else if ( spawnTimer > 0){
                             if (gameState != STATE_ATTRACT) {//attract mode never says get ready
@@ -2194,7 +2199,11 @@ void GameWrapperStateMachine()
                         {
                             addLives(-1);
                             subState = SUBSTATE_NEW_BALL; //player serves ball or it auto-spawns
-                            if (gameState != STATE_ATTRACT) spawnTimer = 100;
+                            if (gameState != STATE_ATTRACT) {
+                                if (isSkipAhead) spawnTimer = 2;
+                                else spawnTimer = 100;
+                                isSkipAhead = false;
+                            }
                         }
                     }
                     if ((gameState == STATE_ATTRACT) && (buttonStartPress || buttonAPress)){
@@ -2215,7 +2224,8 @@ void GameWrapperStateMachine()
                             }
                             spawnTimer--;                    }
                     else{
-                        spawnTimer=100;
+                        // spawnTimer = 100;//reset for next serve
+                        isSkipAhead = false;//just in case
                         spawn_new_rnd_ball_prog1();
                         subState=SUBSTATE_PLAY;
                     }
