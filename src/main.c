@@ -13,6 +13,7 @@
 #include "gt/feature/text/text.h"
 #include "gen/assets/font.h"
 #include "gen/assets/sdk_default.h"
+extern int approx_five_twelfths(int num);
 
 /////*********** */
 #define TESTFEATURES true
@@ -511,15 +512,10 @@ angle get_random_spawn_angles_prog1()
 
 
 #pragma code-name (push, "PROG1")
-// int approx_div_3_prog1(int num) {
-//     return (num >> 5) * 11; // This is an approximation using a fixed-point representation
+
+// int approx_five_twelfths(int num){
+//     return (num * 13) >> 5;
 // }
-// int approx_div_3_prog1(int num) {
-//     return (num >> 6) * 21; // This is an approximation using a fixed-point representation
-// }
-int approx_five_twelfths(int num){
-    return (num >> 5) * 13;
-}
 int speedMult_prog1(int source,int mult){//multiplier can be fine-tuned here and hidden from code
     //return (source>>1) * mult; //half increments
     //return (source/3) * mult; //third increments, more work for cpu
@@ -1677,46 +1673,6 @@ void bake_animation_frames_v2_prog1()
 
 #pragma code-name (push, "PROG1")
 
-// void process_anim_queue_prog1() {
-//     int i;
-//     unsigned int animOffsetY = 24;
-//     unsigned int animOffsetX;
-//     char animFrame;
-//     unsigned int animFrameMaxPixel;
-//     for (i = 0; i < anim_queue_count; i++) {
-//         EraseTask *task = &anim_queue[i];
-        
-//         // 1. Only update the SOURCE pixels in Bank 3 once per logic frame
-//         // This 'eats' the brick further in the master spritesheet
-//         //animate_dissolve_prog1(task->col, task->row, task->frames_left);
-
-//         // 3. Draw the resulting sprite to the screen
-//         //queue_draw_box(task->x,task->y,task->w,task->h,0);
-//         EraseRect(task->x,task->y,task->w,task->h);
-
-//         animFrame = NUM_ANIM_FRAMES - (task->frames_left/2-2);
-//         //queue_draw_sprite(BRICK_LEFT + task->col * currentBrickWidth,BRICK_TOP + task->row * BRICK_HEIGHT,currentBrickWidth,BRICK_HEIGHT,task->col * currentBrickWidth, task->row * BRICK_HEIGHT,3);//brick sprite has no y offset
-//         animFrameMaxPixel = (animFrame+1) * currentBrickWidth;
-//         if (animFrameMaxPixel>>7) //animFrame = 128 / currentBrickWidth;//hopefully eliminate overflow noise
-//         {
-//             //sprite overflow draw nothing
-//         }
-//         else
-//         {
-//             animOffsetX = (animFrame) * currentBrickWidth;
-//             queue_draw_sprite(task->x,task->y,task->w,task->h, animOffsetX, (task->y) + animOffsetY - BRICK_TOP,BRICKSSPRITEBANK);//brick sprite has no y offset
-        
-//         }
-//         task->frames_left--;
-
-//         // 5. Cleanup: If 0, remove from queue (standard swap-and-pop)
-//         if (task->frames_left == 0) {
-//             anim_queue[i] = anim_queue[anim_queue_count - 1];
-//             anim_queue_count--;
-//             i--; // Re-check this index since we swapped
-//         }
-//     }
-// }
 void process_anim_queue_v2_prog1() {
     int i;
     unsigned int animOffsetY = 24;
