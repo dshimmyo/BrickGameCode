@@ -13,6 +13,7 @@
 #include "gt/feature/text/text.h"
 #include "gen/assets/font.h"
 #include "gen/assets/sdk_default.h"
+extern int speed_mult_asm(int source, int mult);
 extern int approx_five_twelfths(int num);
 
 /////*********** */
@@ -149,7 +150,7 @@ uint16_t magicBrickIndex=0;
 //prototypes
 void check_brick_collision_prog1(char *,char *, int *, int *, int *);
 //void randomizeBox_prog1(char *_box_x, char *_box_y, int *_dx, int *_dy, int *_ballSpeed);
-int speedMult_prog1(int source, int speed);
+//int speedMult_prog1(int source, int speed);
 void BrickHeal_prog1(unsigned char, unsigned char, unsigned char);
 void process_anim_queue_prog1();
 void process_anim_queue_v2_prog1();
@@ -516,11 +517,9 @@ angle get_random_spawn_angles_prog1()
 // int approx_five_twelfths(int num){
 //     return (num * 13) >> 5;
 // }
-int speedMult_prog1(int source,int mult){//multiplier can be fine-tuned here and hidden from code
-    //return (source>>1) * mult; //half increments
-    //return (source/3) * mult; //third increments, more work for cpu
-    return approx_five_twelfths(source) * mult;
-}
+// int speedMult_prog1(int source,int mult){//multiplier can be fine-tuned here and hidden from code
+//     return approx_five_twelfths(source) * mult;
+// }
 /*
 void boxMotion_prog1()
 {
@@ -568,8 +567,8 @@ void boxMotion_prog1()
 void update_ball_logic_prog1(Ball *b) 
 {
     // Use your existing 5/12ths scalar logic (speedMult)
-    int scaledDx = speedMult_prog1(b->dx, b->speed);
-    int scaledDy = speedMult_prog1(b->dy, b->speed);
+    int scaledDx = speed_mult_asm(b->dx, b->speed);
+    int scaledDy = speed_mult_asm(b->dy, b->speed);
     
     // Accumulate movement with the stored remainder
     int dxTot = scaledDx + b->dxRem;
