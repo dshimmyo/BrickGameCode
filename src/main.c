@@ -189,7 +189,7 @@ EntityRow brickRows[NUM_BRICK_ROWS];//init in NewLevel()
 EraseTask erase_queue[ERASE_QUEUE_MAX];
 unsigned char erase_queue_count = 0;
 
-#define NUM_ANIM_FRAMES 7 // 4 look unimpressive //6 pushing it //8 a little sluggish
+#define NUM_ANIM_FRAMES 8 // 4 look unimpressive //6 pushing it //8 a little sluggish
 #define ANIM_QUEUE_MAX 6 // was 2 but back to 4 after math optimizations//4 - is nice but trying 2 combined with 6 frames as a compromise
 EraseTask anim_queue[ANIM_QUEUE_MAX]; //10 frames of animation over maybe double frames for up to two balls animframes * 2X * maxballs
 unsigned char  anim_queue_count = 0;
@@ -1110,10 +1110,11 @@ void DrawBricksWrapper_prog1(){
     }
     else
     {
-        DrawBricksErase_prog1();
         #if BRICK_ANIMATION
             process_anim_queue_v2_prog1();
         #endif
+        DrawBricksErase_prog1();//erase bricks that didn't make it into the anim queue
+
     }
 }
 #pragma code-name (pop)
@@ -1210,27 +1211,24 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
         brickRows[row].visible[col] = 0;
         brickRows[row].erase_frames[col] = 2;
         //animatedBricks[row*currentNumBricksH + col] = 20;//start animation for this brick //animate at half speed
-        if (erase_queue_count < ERASE_QUEUE_MAX) {
-            //erase_queue[erase_queue_count].brick_index = row*currentNumBricksH + col;
-            erase_queue[erase_queue_count].frames_left = 2; // Two buffers to clean
-            // erase_queue[erase_queue_count].row = row;
-            // erase_queue[erase_queue_count].col = col;
-            erase_queue[erase_queue_count].x = BRICK_LEFT + (col * currentBrickWidth);
-            erase_queue[erase_queue_count].y = BRICK_TOP + (row * BRICK_HEIGHT);
-            erase_queue[erase_queue_count].w = currentBrickWidth;
-            erase_queue[erase_queue_count].h = BRICK_HEIGHT;
-            erase_queue_count++;
-        }
-        if (anim_queue_count < ANIM_QUEUE_MAX)
+        
+        if (BRICK_ANIMATION && (anim_queue_count < ANIM_QUEUE_MAX))
         {
-            //anim_queue[anim_queue_count].brick_index = row*currentNumBricksH + col;
             anim_queue[anim_queue_count].frames_left = NUM_ANIM_FRAMES*2+2;//double buffers?
             anim_queue[anim_queue_count].x = BRICK_LEFT + (col * currentBrickWidth);
             anim_queue[anim_queue_count].y = BRICK_TOP + (row * BRICK_HEIGHT);
             anim_queue[anim_queue_count].w = currentBrickWidth;
             anim_queue[anim_queue_count].h = BRICK_HEIGHT;
             anim_queue_count++;
+        } else if (erase_queue_count < ERASE_QUEUE_MAX) {
+            erase_queue[erase_queue_count].frames_left = 2; // Two buffers to clean
+            erase_queue[erase_queue_count].x = BRICK_LEFT + (col * currentBrickWidth);
+            erase_queue[erase_queue_count].y = BRICK_TOP + (row * BRICK_HEIGHT);
+            erase_queue[erase_queue_count].w = currentBrickWidth;
+            erase_queue[erase_queue_count].h = BRICK_HEIGHT;
+            erase_queue_count++;
         }
+
         bricks_remaining--;//counting bricks
 
         // Calculate brick boundaries
@@ -1590,25 +1588,37 @@ void process_anim_queue_v2_prog1() {
     unsigned char animFrame;
     unsigned char row;
     unsigned char stagger;
+    unsigned char tx, ty, tw, th, tfl;
+    unsigned char rel_x, rel_y;
+    EraseTask *task;
     for (i = 0; i < anim_queue_count; i++) {
-        EraseTask *task = &anim_queue[i];
-        row = (task->y - BRICK_TOP) >> 2;
-        stagger = (row << 2) & 7;
-        // 3. Draw the resulting sprite to the screen
-        //redraw the brick
-        queue_draw_sprite(task->x,task->y,task->w,task->h,task->x - BRICK_LEFT, task->y - BRICK_TOP, BRICKSSPRITEBANK);
+        task = &anim_queue[i];
+        // Cache values to local registers/Zero Page
+        tx = task->x;
+        ty = task->y;
+        tw = task->w;
+        th = task->h;
+        tfl = task->frames_left;
         
-        animFrame = NUM_ANIM_FRAMES - (task->frames_left/2-2);
+        rel_x = tx - BRICK_LEFT;
+        rel_y = ty - BRICK_TOP;
+
+        row = rel_y >> 2;
+        stagger = stagger = rel_y & 4;//(row << 2) & 7;
+        // 3. Draw the resulting sprite to the screen
+        //redraw the brick //not needed, this was a mistake
+        //queue_draw_sprite(tx,ty,tw,th,rel_x, rel_y, BRICKSSPRITEBANK);
+        
+        animFrame = NUM_ANIM_FRAMES - (tfl/2-2);
         frameOffset = (animFrame * 4);//vertical offset by 4 pixels per frame
         
         //eat away at the brick
-        queue_draw_sprite(task->x,task->y,task->w,task->h, ((task->x - BRICK_LEFT) + stagger) & (127 - task->w), animOffsetY + frameOffset,BRICKSSPRITEBANK);//brick sprite has no y offset
-        task->frames_left--;
+        queue_draw_sprite(tx,ty,tw,th, (rel_x + stagger) & (127 - tw), animOffsetY + frameOffset,BRICKSSPRITEBANK);//brick sprite has no y offset
+        task->frames_left = --tfl;
 
         // 5. Cleanup: If 0, remove from queue (standard swap-and-pop)
-        if (task->frames_left == 0) {
-            anim_queue[i] = anim_queue[anim_queue_count - 1];
-            anim_queue_count--;
+        if (tfl == 0) {
+            anim_queue[i] = anim_queue[--anim_queue_count];
             i--; // Re-check this index since we swapped
         }
     }
