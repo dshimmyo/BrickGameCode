@@ -149,7 +149,6 @@ uint16_t magicBrickIndex=0;
 //prototypes
 void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, int *_ball_dy, int *_ballSpeed);
 void BrickHeal_prog1(unsigned char, unsigned char, unsigned char);
-// void process_anim_queue_prog1();
 void process_anim_queue_v2_prog1();
 void BreakoutBricksSetupWrapper_prog1(char);
 void render_paddle_prog1();
@@ -188,7 +187,7 @@ EntityRow brickRows[NUM_BRICK_ROWS];//init in NewLevel()
 EraseTask erase_queue[ERASE_QUEUE_MAX];
 unsigned char erase_queue_count = 0;
 
-#define NUM_ANIM_FRAMES 16//8 // 4 look unimpressive //6 pushing it //8 a little sluggish
+#define NUM_ANIM_FRAMES 24//8 // 4 look unimpressive //6 pushing it //8 a little sluggish
 #define ANIM_QUEUE_MAX 6 // was 2 but back to 4 after math optimizations//4 - is nice but trying 2 combined with 6 frames as a compromise
 #define ANIM_FRAME_MULTIPLIER 1//2
 
@@ -1081,13 +1080,9 @@ void DrawBricksErase_prog1(){ //erase bricks in the queue
 
     for (i = 0; i < erase_queue_count; i++) 
     {
-        //idx = erase_queue[i].brick_index;
-        //row = erase_queue[i].row;//idx / currentNumBricksH;
-        //col = erase_queue[i].col;//idx % currentNumBricksH;
         posy = erase_queue[i].y;//BRICK_TOP + BRICK_HEIGHT * row;//brickRow[y].posy;//brickRowYPos[y];
 
         // Draw the "hole" in the current back-buffer
-        //queue_draw_box(erase_queue[i].x,posy,erase_queue[i].w,erase_queue[i].h,0);//paint box
         EraseRect(erase_queue[i].x,posy,erase_queue[i].w,erase_queue[i].h);
         erase_queue[i].frames_left--;
 
@@ -1549,8 +1544,8 @@ void bake_animation_frames_v2_prog1()
     for (y=0; y<104; y++)//fill up erosion vault
     {
         unsigned char numFrames = NUM_ANIM_FRAMES;//26;//(NUM_ANIM_FRAMES<=104/4) ? NUM_ANIM_FRAMES : 104/4;//limit to the 104 available rows
-        unsigned char frame=y/4;
-        unsigned int threshold = ((frame+1) * (255/numFrames));//(frame * 255/numFrames);
+        unsigned char frame=y>>2;
+        unsigned int threshold = ((frame+2) * (256/numFrames));//(frame * 255/numFrames);//+2 makes sure it starts eaten and ends blank
         unsigned char maxWidth = 128;//128 if bold
         for (x = 0; x < maxWidth; x++)//write out max width needed
         {//each frame of anim is 30w and 4h
@@ -1560,8 +1555,7 @@ void bake_animation_frames_v2_prog1()
             unsigned char sampleY = y & 3;
             unsigned char noise = dissolve_mask[sampleX + (sampleY<<4)];//dissolve_mask[(x+(y*maxWidth))&(MAX_NOISE-1)] ;//no offset
             {
-                // Check against your 'Master Gradient' mask
-                if (noise < threshold) {
+                if (noise <= threshold) {
                     vram[targetCoord] = 0b00100000;//0b11111111;//0b00100000; // Erase the pixel
                 }
                 else {
@@ -1621,6 +1615,16 @@ void process_anim_queue_v2_prog1() {
         if (tfl == 0) {
             anim_queue[i] = anim_queue[--anim_queue_count];
             i--; // Re-check this index since we swapped
+
+            // if (erase_queue_count < ERASE_QUEUE_MAX) {//insurance
+            //     erase_queue[erase_queue_count].frames_left = 2; // Two buffers to clean
+            //     erase_queue[erase_queue_count].x = tx;
+            //     erase_queue[erase_queue_count].y = ty;
+            //     erase_queue[erase_queue_count].w = tw;
+            //     erase_queue[erase_queue_count].h = th;
+            //     erase_queue_count++;
+            // }
+
         }
     }
 }
@@ -1679,7 +1683,6 @@ void BreakoutBricksSetupWrapper_prog1(char bank)
     loading_screen_prog1();
     load_spritesheet(ASSET__gfx__BreakoutBrickWide_bmp,bank);
     bevel_all_bricks_prog1();
-    //bake_animation_frames_v2_prog1();
 }
 #pragma code-name (pop);
 
