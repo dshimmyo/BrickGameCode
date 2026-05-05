@@ -50,7 +50,6 @@ extern int approx_five_twelfths(int num);
 
 #define BRICK_HEIGHT 4
 #define MAX_BRICK_COLS 120
-//#define NUM_BRICK_COLS 60//10//60//30//15//30//60//15 //10
 #define NUM_BRICK_ROWS 6
 
 //dynamic brick layout
@@ -189,8 +188,10 @@ EntityRow brickRows[NUM_BRICK_ROWS];//init in NewLevel()
 EraseTask erase_queue[ERASE_QUEUE_MAX];
 unsigned char erase_queue_count = 0;
 
-#define NUM_ANIM_FRAMES 8 // 4 look unimpressive //6 pushing it //8 a little sluggish
+#define NUM_ANIM_FRAMES 16//8 // 4 look unimpressive //6 pushing it //8 a little sluggish
 #define ANIM_QUEUE_MAX 6 // was 2 but back to 4 after math optimizations//4 - is nice but trying 2 combined with 6 frames as a compromise
+#define ANIM_FRAME_MULTIPLIER 1//2
+
 EraseTask anim_queue[ANIM_QUEUE_MAX]; //10 frames of animation over maybe double frames for up to two balls animframes * 2X * maxballs
 unsigned char  anim_queue_count = 0;
 
@@ -1214,7 +1215,7 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
         
         if (BRICK_ANIMATION && (anim_queue_count < ANIM_QUEUE_MAX))
         {
-            anim_queue[anim_queue_count].frames_left = NUM_ANIM_FRAMES*2+2;//double buffers?
+            anim_queue[anim_queue_count].frames_left = NUM_ANIM_FRAMES*ANIM_FRAME_MULTIPLIER+2;//double buffers?
             anim_queue[anim_queue_count].x = BRICK_LEFT + (col * currentBrickWidth);
             anim_queue[anim_queue_count].y = BRICK_TOP + (row * BRICK_HEIGHT);
             anim_queue[anim_queue_count].w = currentBrickWidth;
@@ -1609,7 +1610,7 @@ void process_anim_queue_v2_prog1() {
         //redraw the brick //not needed, this was a mistake
         //queue_draw_sprite(tx,ty,tw,th,rel_x, rel_y, BRICKSSPRITEBANK);
         
-        animFrame = NUM_ANIM_FRAMES - (tfl/2-2);
+        animFrame = NUM_ANIM_FRAMES - (tfl/ANIM_FRAME_MULTIPLIER-2);
         frameOffset = (animFrame * 4);//vertical offset by 4 pixels per frame
         
         //eat away at the brick
