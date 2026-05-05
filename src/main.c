@@ -888,8 +888,8 @@ void increase_ball_speed_prog1(unsigned char level)
     reset_reflect_angles_prog1();//start with clean slate
     for (i=0; i<NUM_ANGLES; i++){
         angle temp;
-        temp.dx = currentReflectAngles_prog1[i].dx * (50 + level)/50;//add 1% for testing, practically invisible
-        temp.dy  = currentReflectAngles_prog1[i].dy * (50 + level)/50;
+        temp.dx = (currentReflectAngles_prog1[i].dx * (50 + level)) / 50;//2% increase
+        temp.dy = (currentReflectAngles_prog1[i].dy * (50 + level)) / 50;
         currentReflectAngles_prog1[i] = temp;
     }
 }
