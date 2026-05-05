@@ -1712,6 +1712,7 @@ void generate_paddle_sprite_prog1(){
     char oldFlags = flagsMirror; // Save the original screen/DMA settings
     char oldBanks = banksMirror; 
     unsigned char x,y;
+    unsigned char huesat = 0b10101000;//0 yellow 1 orange 2 pink 3 purple 4 blue 5 blue 7 grn
 
     // 1. SET THE HARDWARE MODE
     // Clear Bit 0 (DMA_ENABLE) and Clear Bit 1 (DMA_CPU_TO_VRAM)
@@ -1726,10 +1727,10 @@ void generate_paddle_sprite_prog1(){
         //copy left two columns from 0,0
         unsigned int sourceCoord = 0 + (y*128);
         unsigned int targetCoord = 0 + ((y+4)*128);//target paddle starts at row 4
-        vram[targetCoord] = vram[sourceCoord];
+        vram[targetCoord] = (vram[sourceCoord] & 0b00000111) + huesat;
         sourceCoord = 1 + (y*128);
         targetCoord = 1 + ((y+4)*128);//target paddle starts at row 4
-        vram[targetCoord] = vram[sourceCoord];
+        vram[targetCoord] = (vram[sourceCoord] & 0b00000111) + huesat;
 
         //copy last two columns from 14,0 
         {
@@ -1737,15 +1738,15 @@ void generate_paddle_sprite_prog1(){
         unsigned int targetXOffset = currentPaddleWidth - 2;
         sourceCoord = sourceXOffset + (y*128);
         targetCoord = targetXOffset + ((y+4)*128);//target paddle starts at row 4
-        vram[targetCoord] = vram[sourceCoord];
+        vram[targetCoord] = (vram[sourceCoord] & 0b00000111) + huesat;
         sourceCoord = sourceXOffset + 1 + (y*128);
         targetCoord = targetXOffset + 1 + ((y+4)*128);//target paddle starts at row 4
-        vram[targetCoord] = vram[sourceCoord];
+        vram[targetCoord] = (vram[sourceCoord] & 0b00000111) + huesat;
         }
 
-        for (x = 2; x<currentPaddleWidth-2;x++){
+        for (x = 2; x<currentPaddleWidth-2;x++){//white in the middle
             unsigned int targetCoord = x + ((y+4)*128);//target paddle starts at row 4
-            vram[targetCoord] = 0b00000111;
+            vram[targetCoord] = 0b00000111 + huesat;
         }
         for (x = currentPaddleWidth; x<128;x++){//clean the rest of the line
             unsigned int targetCoord = x + ((y+4)*128);//target paddle starts at row 4
