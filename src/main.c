@@ -1552,7 +1552,7 @@ void bake_animation_frames_v2_prog1()
         unsigned char numFrames = NUM_ANIM_FRAMES;//26;//(NUM_ANIM_FRAMES<=104/4) ? NUM_ANIM_FRAMES : 104/4;//limit to the 104 available rows
         unsigned char frame=y/4;
         unsigned int threshold = ((frame+1) * (255/numFrames));//(frame * 255/numFrames);
-        unsigned char maxWidth = 30;//128 if bold
+        unsigned char maxWidth = 128;//128 if bold
         for (x = 0; x < maxWidth; x++)//write out max width needed
         {//each frame of anim is 30w and 4h
             //unsigned int origCoord = (y * maxWidth) + x; //only needs to be the first frame over and over
@@ -1598,7 +1598,7 @@ void process_anim_queue_v2_prog1() {
         animFrame = NUM_ANIM_FRAMES - (task->frames_left-2);
         frameOffset = (animFrame * 4);
         //eat away at the brick
-        queue_draw_sprite(task->x,task->y,task->w,task->h, 0, animOffsetY + frameOffset,BRICKSSPRITEBANK);//brick sprite has no y offset
+        queue_draw_sprite(task->x,task->y,task->w,task->h, (task->x - BRICK_LEFT), animOffsetY + frameOffset,BRICKSSPRITEBANK);//brick sprite has no y offset
         task->frames_left--;
 
         // 5. Cleanup: If 0, remove from queue (standard swap-and-pop)
