@@ -150,7 +150,7 @@ uint16_t magicBrickIndex=0;
 //prototypes
 void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, int *_ball_dy, int *_ballSpeed);
 void BrickHeal_prog1(unsigned char, unsigned char, unsigned char);
-void process_anim_queue_prog1();
+// void process_anim_queue_prog1();
 void process_anim_queue_v2_prog1();
 void BreakoutBricksSetupWrapper_prog1(char);
 void render_paddle_prog1();
@@ -1584,21 +1584,25 @@ void bake_animation_frames_v2_prog1()
 #pragma code-name (push, "PROG1")
 
 void process_anim_queue_v2_prog1() {
-    int i;
-    unsigned int animOffsetY = 24;
-    unsigned int frameOffset=0;
-    unsigned int animFrame;
+    unsigned char i;
+    unsigned char animOffsetY = 24;
+    unsigned char frameOffset=0;
+    unsigned char animFrame;
+    unsigned char row;
+    unsigned char stagger;
     for (i = 0; i < anim_queue_count; i++) {
         EraseTask *task = &anim_queue[i];
-        
+        row = (task->y - BRICK_TOP) >> 2;
+        stagger = (row << 2) & 7;
         // 3. Draw the resulting sprite to the screen
         //redraw the brick
         queue_draw_sprite(task->x,task->y,task->w,task->h,task->x - BRICK_LEFT, task->y - BRICK_TOP, BRICKSSPRITEBANK);
         
         animFrame = NUM_ANIM_FRAMES - (task->frames_left-2);
-        frameOffset = (animFrame * 4);
+        frameOffset = (animFrame * 4);//vertical offset by 4 pixels per frame
+        
         //eat away at the brick
-        queue_draw_sprite(task->x,task->y,task->w,task->h, (task->x - BRICK_LEFT), animOffsetY + frameOffset,BRICKSSPRITEBANK);//brick sprite has no y offset
+        queue_draw_sprite(task->x,task->y,task->w,task->h, ((task->x - BRICK_LEFT) + stagger) & (127 - task->w), animOffsetY + frameOffset,BRICKSSPRITEBANK);//brick sprite has no y offset
         task->frames_left--;
 
         // 5. Cleanup: If 0, remove from queue (standard swap-and-pop)
