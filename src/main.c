@@ -1577,7 +1577,7 @@ void bake_animation_frames_v2_prog1()
 #pragma code-name (push, "PROG1")
 
 void process_anim_queue_v2_prog1() {
-    unsigned char i;
+    unsigned char i = anim_queue_count;
     unsigned char animOffsetY = 24;
     unsigned char frameOffset=0;
     unsigned char animFrame;
@@ -1586,7 +1586,9 @@ void process_anim_queue_v2_prog1() {
     unsigned char tx, ty, tw, th, tfl;
     unsigned char rel_x, rel_y;
     EraseTask *task;
-    for (i = 0; i < anim_queue_count; i++) {
+    
+    //for (i = 0; i < anim_queue_count; i++) {
+    while (i--) {// Iterating backwards is slightly faster on 6502
         task = &anim_queue[i];
         // Cache values to local registers/Zero Page
         tx = task->x;
@@ -1614,17 +1616,7 @@ void process_anim_queue_v2_prog1() {
         // 5. Cleanup: If 0, remove from queue (standard swap-and-pop)
         if (tfl == 0) {
             anim_queue[i] = anim_queue[--anim_queue_count];
-            i--; // Re-check this index since we swapped
-
-            // if (erase_queue_count < ERASE_QUEUE_MAX) {//insurance
-            //     erase_queue[erase_queue_count].frames_left = 2; // Two buffers to clean
-            //     erase_queue[erase_queue_count].x = tx;
-            //     erase_queue[erase_queue_count].y = ty;
-            //     erase_queue[erase_queue_count].w = tw;
-            //     erase_queue[erase_queue_count].h = th;
-            //     erase_queue_count++;
-            // }
-
+            //i--; // Re-check this index since we swapped
         }
     }
 }
