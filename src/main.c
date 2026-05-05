@@ -145,12 +145,10 @@ typedef struct {
 } Ball;
 
 uint16_t magicBrickIndex=0;
-
+// extern uint16_t get_brick_index_asm(uint8_t x, uint8_t y);//buggy
 
 //prototypes
-void check_brick_collision_prog1(char *,char *, int *, int *, int *);
-//void randomizeBox_prog1(char *_box_x, char *_box_y, int *_dx, int *_dy, int *_ballSpeed);
-//int speedMult_prog1(int source, int speed);
+void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, int *_ball_dy, int *_ballSpeed);
 void BrickHeal_prog1(unsigned char, unsigned char, unsigned char);
 void process_anim_queue_prog1();
 void process_anim_queue_v2_prog1();
@@ -219,27 +217,6 @@ BrickLayout brickLayouts[NUM_BRICK_LAYOUTS]=
     {60,2},
     {120,1}
 };
-
-
-
-// //boxes, make more modular
-// char box_x = 64, box_y = 64;
-// char box_x_old = 64, box_y_old = 64;
-// char box_x_old_old = 64, box_y_old_old = 64;
-
-// char boxA_x = 64, boxA_y = 64;
-// char boxA_x_old = 64, boxA_y_old = 64;
-// char boxA_x_old_old = 64, boxA_y_old_old = 64;
-
-// int ballSpeed = 1;//actual speed is in .5 increments
-// int ballSpeedA = 1;
-
-// //ball movement variables
-// //256 is 1 pixel per frame
-// int dx = 256, dy = 256;//range -256 to 256
-// int dxA = 256, dyA = 256;
-// int dxRem=0;//remainder
-// int dyRem=0;
 
 //new ball variables:
 unsigned char active_balls_count = 0;
@@ -326,12 +303,15 @@ void shrink_paddle_prog1() {
         if (isEmulator) trigger_rumble(100); // A mid-strength "notification" buzz
     }
 }
-
-uint16_t get_brick_index_prog1(uint8_t x, uint8_t y){
-    uint8_t row = (y - BRICK_TOP)/BRICK_HEIGHT;
-    uint8_t col = (x - BRICK_LEFT)/currentBrickWidth;
-    return row*currentNumBricksH + col;
-}
+#define GET_BRICK_INDEX_PROG1(x, y) ( \
+    (uint16_t)((uint8_t)((y) - (BRICK_TOP)) / (BRICK_HEIGHT)) * (currentNumBricksH) + \
+    (uint8_t)((x) - (BRICK_LEFT)) / (currentBrickWidth) \
+)
+// uint16_t get_brick_index_prog1(uint8_t x, uint8_t y){
+//     uint8_t row = (y - BRICK_TOP)/BRICK_HEIGHT;
+//     uint8_t col = (x - BRICK_LEFT)/currentBrickWidth;
+//     return row*currentNumBricksH + col;
+// }
 unsigned char get_active_ball_count_prog1() {//this makes it work better but it should be removed
     char i;
     active_balls_count=0;
@@ -1223,8 +1203,9 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
         unsigned char dist_bottom;
         unsigned char min_dist;
         unsigned char side;  // 0=left,1=right,2=top,3=bottom
-        uint8_t hitIndex = get_brick_index_prog1(ballCenterX, ballCenterY);//magic brick check
-
+        //uint8_t hitIndex = get_brick_index_asm(ballCenterX, ballCenterY);//magic brick check
+        //uint8_t hitIndex = get_brick_index_prog1(ballCenterX, ballCenterY);//magic brick check
+        uint8_t hitIndex = GET_BRICK_INDEX_PROG1(ballCenterX, ballCenterY);
         // Destroy brick
         brickRows[row].visible[col] = 0;
         brickRows[row].erase_frames[col] = 2;
