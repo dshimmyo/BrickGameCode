@@ -10,6 +10,7 @@ RES_LOW:    .res 1
 RES_HIGH:   .res 1
 
 .code
+.segment "PROG1" 
 .export _speed_mult_asm
 
 _speed_mult_asm:

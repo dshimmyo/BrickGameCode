@@ -8,6 +8,7 @@ T8_LOW:    .res 1
 T8_HIGH:   .res 1
 
 .code
+.segment "PROG1" 
 .export _approx_five_twelfths
 
 _approx_five_twelfths:
