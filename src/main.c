@@ -189,8 +189,8 @@ EntityRow brickRows[NUM_BRICK_ROWS];//init in NewLevel()
 EraseTask erase_queue[ERASE_QUEUE_MAX];
 unsigned char erase_queue_count = 0;
 
-#define NUM_ANIM_FRAMES 6 // 4 look unimpressive //6 pushing it //8 a little sluggish
-#define ANIM_QUEUE_MAX 4 // was 2 but back to 4 after math optimizations//4 - is nice but trying 2 combined with 6 frames as a compromise
+#define NUM_ANIM_FRAMES 8 // 4 look unimpressive //6 pushing it //8 a little sluggish
+#define ANIM_QUEUE_MAX 6 // was 2 but back to 4 after math optimizations//4 - is nice but trying 2 combined with 6 frames as a compromise
 EraseTask anim_queue[ANIM_QUEUE_MAX];//[NUM_ANIM_FRAMES*2*MAX_BALLS];//10 frames of animation over maybe double frames for up to two balls animframes * 2X * maxballs
 unsigned char  anim_queue_count = 0;
 
