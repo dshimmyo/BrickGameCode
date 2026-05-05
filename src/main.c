@@ -189,9 +189,9 @@ EntityRow brickRows[NUM_BRICK_ROWS];//init in NewLevel()
 EraseTask erase_queue[ERASE_QUEUE_MAX];
 unsigned char erase_queue_count = 0;
 
-#define NUM_ANIM_FRAMES 10 // 4 look unimpressive //6 pushing it //8 a little sluggish
+#define NUM_ANIM_FRAMES 7 // 4 look unimpressive //6 pushing it //8 a little sluggish
 #define ANIM_QUEUE_MAX 6 // was 2 but back to 4 after math optimizations//4 - is nice but trying 2 combined with 6 frames as a compromise
-EraseTask anim_queue[ANIM_QUEUE_MAX];//[NUM_ANIM_FRAMES*2*MAX_BALLS];//10 frames of animation over maybe double frames for up to two balls animframes * 2X * maxballs
+EraseTask anim_queue[ANIM_QUEUE_MAX]; //10 frames of animation over maybe double frames for up to two balls animframes * 2X * maxballs
 unsigned char  anim_queue_count = 0;
 
 //unsigned char animatedBricks[MAX_BRICK_COLS*NUM_BRICK_ROWS]; //this needs to be re-engineered
@@ -1224,7 +1224,7 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
         if (anim_queue_count < ANIM_QUEUE_MAX)
         {
             //anim_queue[anim_queue_count].brick_index = row*currentNumBricksH + col;
-            anim_queue[anim_queue_count].frames_left = NUM_ANIM_FRAMES+2;//double buffers?
+            anim_queue[anim_queue_count].frames_left = NUM_ANIM_FRAMES*2+2;//double buffers?
             anim_queue[anim_queue_count].x = BRICK_LEFT + (col * currentBrickWidth);
             anim_queue[anim_queue_count].y = BRICK_TOP + (row * BRICK_HEIGHT);
             anim_queue[anim_queue_count].w = currentBrickWidth;
@@ -1598,7 +1598,7 @@ void process_anim_queue_v2_prog1() {
         //redraw the brick
         queue_draw_sprite(task->x,task->y,task->w,task->h,task->x - BRICK_LEFT, task->y - BRICK_TOP, BRICKSSPRITEBANK);
         
-        animFrame = NUM_ANIM_FRAMES - (task->frames_left-2);
+        animFrame = NUM_ANIM_FRAMES - (task->frames_left/2-2);
         frameOffset = (animFrame * 4);//vertical offset by 4 pixels per frame
         
         //eat away at the brick
@@ -1668,7 +1668,7 @@ void BreakoutBricksSetupWrapper_prog1(char bank)
     loading_screen_prog1();
     load_spritesheet(ASSET__gfx__BreakoutBrickWide_bmp,bank);
     bevel_all_bricks_prog1();
-    bake_animation_frames_v2_prog1();
+    //bake_animation_frames_v2_prog1();
 }
 #pragma code-name (pop);
 
@@ -2147,6 +2147,7 @@ void main () {
     bake_gradient_mask_prog1();//only needs to be done once
     init_game_prog1();
     init_ball_system_prog1();
+    bake_animation_frames_v2_prog1();//only generate errosion vault once
 
     //BreakoutBricksSetupWrapper_prog1(BRICKSSPRITEBANK); //redundant but keeps vram properly setup
     GenNextLevel_prog1(0);//sets up the first level in advance
