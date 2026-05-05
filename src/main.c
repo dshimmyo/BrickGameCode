@@ -189,7 +189,7 @@ EntityRow brickRows[NUM_BRICK_ROWS];//init in NewLevel()
 EraseTask erase_queue[ERASE_QUEUE_MAX];
 unsigned char erase_queue_count = 0;
 
-#define NUM_ANIM_FRAMES 8 // 4 look unimpressive //6 pushing it //8 a little sluggish
+#define NUM_ANIM_FRAMES 10 // 4 look unimpressive //6 pushing it //8 a little sluggish
 #define ANIM_QUEUE_MAX 6 // was 2 but back to 4 after math optimizations//4 - is nice but trying 2 combined with 6 frames as a compromise
 EraseTask anim_queue[ANIM_QUEUE_MAX];//[NUM_ANIM_FRAMES*2*MAX_BALLS];//10 frames of animation over maybe double frames for up to two balls animframes * 2X * maxballs
 unsigned char  anim_queue_count = 0;
@@ -1224,7 +1224,7 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
         if (anim_queue_count < ANIM_QUEUE_MAX)
         {
             //anim_queue[anim_queue_count].brick_index = row*currentNumBricksH + col;
-            anim_queue[anim_queue_count].frames_left = NUM_ANIM_FRAMES*2+2;//double buffers?
+            anim_queue[anim_queue_count].frames_left = NUM_ANIM_FRAMES+2;//double buffers?
             anim_queue[anim_queue_count].x = BRICK_LEFT + (col * currentBrickWidth);
             anim_queue[anim_queue_count].y = BRICK_TOP + (row * BRICK_HEIGHT);
             anim_queue[anim_queue_count].w = currentBrickWidth;
@@ -1524,79 +1524,7 @@ void bake_gradient_mask_prog1() {//15 is theoretical largest possible brick widt
         dissolve_mask[i] = rnd_range(0,255);
     }
 }
-/*
-void bake_animation_frames_prog1() 
-{
-    char oldFlags = flagsMirror; // Save the original screen/DMA settings
-    char oldBanks = banksMirror; 
-    unsigned int animOffset = 24*128;//start of animation frames in bank 3
-    unsigned char x,y;
-    //unsigned char pixel;
 
-    // 1. SET THE HARDWARE MODE
-    // Clear Bit 0 (DMA_ENABLE) and Clear Bit 1 (DMA_CPU_TO_VRAM)
-    flagsMirror &= ~(DMA_ENABLE | DMA_CPU_TO_VRAM); 
-    *dma_flags = flagsMirror;
-
-    // 2. BANK IN THE SPRITES
-    banksMirror = bankflip | GRAM_PAGE(BRICKSSPRITEBANK);
-    *bank_reg = banksMirror;
-
-    //copy pixels from top of vram area, every pixel for 128 x 24 pixels
-    //write out anim frames in chunks of current_brick_width x 24 pixels
-    //change threshold for each frame
-    //maximum of 8 anim frames to accomodate 15 pixel wide bricks
-    //if I want more anim frames can accomodate at most 12-pixel-wide bricks for 10 frames
-    for (y=0; y<24; y++)//all 6 rows in one shot
-    {
-        char numFrames = (NUM_ANIM_FRAMES<=120/currentBrickWidth) ? NUM_ANIM_FRAMES : 120/currentBrickWidth;//limit to the 120 frame buffer
-        char frame=0;
-        unsigned char maxX = numFrames * currentBrickWidth;
-        for (frame=0; frame<numFrames; frame++)//draws animation horizontally out to numFrames * currentBrickWidth
-        {//for every frame offset by z*currentBrickWidth
-            unsigned int frameOffset = frame * currentBrickWidth;
-            unsigned int threshold = (frame * 255/numFrames);
-
-            for (x = 0; x < currentBrickWidth; x++)//only write out frames the size of the bricks
-            {
-                unsigned int origCoord = (y * 128) + x + frameOffset; //only needs to be the first frame over and over
-                unsigned int targetCoord = animOffset + origCoord;
-                unsigned int pixel = vram[origCoord];
-                //unsigned char noise = dissolve_mask[x+((y&0b00000011)*currentBrickWidth)] ;//no offset
-                unsigned char noise = dissolve_mask[(x+(y*currentBrickWidth))&(MAX_NOISE-1)] ;//no offset
-                // if (numFrames - frame <= 2) {
-                //     vram[targetCoord] = 0; // Erase the pixel
-                // } 
-                // else 
-                {
-                    // Check against your 'Master Gradient' mask
-                    if (noise < threshold) {
-                        vram[targetCoord] = 0b00100000; // Erase the pixel
-                    }
-                    else {
-                        vram[targetCoord] = pixel;
-                    }
-                }
-            }
-        }
-        if (maxX < 120){
-            char x1;
-            for (x1=maxX; x1<128; x1++)
-            {
-                unsigned int origCoord = (y * 128) + x1; //only needs to be the first frame over and over
-                unsigned int targetCoord = animOffset + origCoord;
-                vram[targetCoord] = 0b00100000; // Erase the pixel
-            }
-        }
-    }
-    
-    // 4. RESTORE EVERYTHING
-    flagsMirror = oldFlags;
-    banksMirror = oldBanks;
-    *dma_flags = flagsMirror;
-    *bank_reg = banksMirror;
-
-}*/
 void bake_animation_frames_v2_prog1() 
 {
     char oldFlags = flagsMirror; // Save the original screen/DMA settings
@@ -1629,7 +1557,9 @@ void bake_animation_frames_v2_prog1()
         {//each frame of anim is 30w and 4h
             //unsigned int origCoord = (y * maxWidth) + x; //only needs to be the first frame over and over
             unsigned int targetCoord = animOffset + x + (y*128); //offset begins at 24 row
-            unsigned char noise = dissolve_mask[(x+(y*maxWidth))&(MAX_NOISE-1)] ;//no offset
+            unsigned char sampleX = x & 15;//mod 16 //treating 64 values as 16x4 block
+            unsigned char sampleY = y & 3;
+            unsigned char noise = dissolve_mask[sampleX + (sampleY<<4)];//dissolve_mask[(x+(y*maxWidth))&(MAX_NOISE-1)] ;//no offset
             {
                 // Check against your 'Master Gradient' mask
                 if (noise < threshold) {
@@ -1665,7 +1595,7 @@ void process_anim_queue_v2_prog1() {
         //redraw the brick
         queue_draw_sprite(task->x,task->y,task->w,task->h,task->x - BRICK_LEFT, task->y - BRICK_TOP, BRICKSSPRITEBANK);
         
-        animFrame = NUM_ANIM_FRAMES - (task->frames_left/2-2);
+        animFrame = NUM_ANIM_FRAMES - (task->frames_left-2);
         frameOffset = (animFrame * 4);
         //eat away at the brick
         queue_draw_sprite(task->x,task->y,task->w,task->h, 0, animOffsetY + frameOffset,BRICKSSPRITEBANK);//brick sprite has no y offset
