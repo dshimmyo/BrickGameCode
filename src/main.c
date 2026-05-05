@@ -52,13 +52,6 @@ extern int approx_five_twelfths(int num);
 #define MAX_BRICK_COLS 120
 #define NUM_BRICK_ROWS 6
 
-//dynamic brick layout
-unsigned char currentBrickWidth = 120;//12;//8;//4;//2;
-unsigned int currentNumBricksH = 1;//10;//15;//30;//60;
-unsigned char currentPaddleWidth = STARTPADDLEWIDTH;
-unsigned char minPaddleWidth = 4;
-unsigned char paddleShrinkAmount = 4;
-
 #define CEILING 21
 
 #define BRICK_TOP    35//39//25 + 18
@@ -72,6 +65,18 @@ unsigned char paddleShrinkAmount = 4;
 #define CONTROLLER_STYLE_PADDLE0 0
 #define CONTROLLER_STYLE_GPAD1 1
 #define MAX_BALLS 4 //planning for insane mode
+
+#define ERASE_QUEUE_MAX 8 //eight is enough
+#define NUM_ANIM_FRAMES 16 //24 too much//8 // 4 look unimpressive //6 pushing it //8 a little sluggish
+#define ANIM_QUEUE_MAX 6 // was 2 but back to 4 after math optimizations//4 - is nice but trying 2 combined with 6 frames as a compromise
+#define ANIM_FRAME_MULTIPLIER 1//2
+
+//dynamic brick layout
+unsigned char currentBrickWidth = 120;//12;//8;//4;//2;
+unsigned int currentNumBricksH = 1;//10;//15;//30;//60;
+unsigned char currentPaddleWidth = STARTPADDLEWIDTH;
+unsigned char minPaddleWidth = 4;
+unsigned char paddleShrinkAmount = 4;
 
 //char gamestate = 0;
 typedef enum {
@@ -183,13 +188,8 @@ unsigned char brickRowPoints[6]={4,3,2,2,1,1};//number of points gained by hitti
 
 EntityRow brickRows[NUM_BRICK_ROWS];//init in NewLevel()
 
-#define ERASE_QUEUE_MAX 8 //eight is enough
 EraseTask erase_queue[ERASE_QUEUE_MAX];
 unsigned char erase_queue_count = 0;
-
-#define NUM_ANIM_FRAMES 24//8 // 4 look unimpressive //6 pushing it //8 a little sluggish
-#define ANIM_QUEUE_MAX 6 // was 2 but back to 4 after math optimizations//4 - is nice but trying 2 combined with 6 frames as a compromise
-#define ANIM_FRAME_MULTIPLIER 1//2
 
 EraseTask anim_queue[ANIM_QUEUE_MAX]; //10 frames of animation over maybe double frames for up to two balls animframes * 2X * maxballs
 unsigned char  anim_queue_count = 0;
