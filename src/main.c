@@ -31,9 +31,7 @@ extern int approx_five_twelfths(int num);
         paddleRotationMax = MOUSEMAX; \
     }
 
-#define BOXCOLOR WHITE//92
-#define BOXCOLORA WHITE
-#define PADDLECOLOR WHITE
+#define PADDLECOLOR 0b10111111//0b00111111//0b10101111
 #define STARTPADDLEWIDTH 24//16
 #define PADDLEHEIGHT 4
 #define PADDLEY 108
@@ -1463,7 +1461,7 @@ void eraseBlinkMessage(char *counter)
 void SelectControllerScreen_prog2(bool buttonAPress, bool buttonBPress)
 {
     static unsigned char timer = 0;
-    unsigned char loopTime = ((timer++ >>2) & 6);
+    unsigned char loopTime = ((timer++ >> 2) & 6);
     unsigned char flipLoopTime = 7-loopTime;
 
     //char top = 60;
@@ -1722,7 +1720,7 @@ void generate_paddle_sprite_prog1(){
     char oldFlags = flagsMirror; // Save the original screen/DMA settings
     char oldBanks = banksMirror; 
     unsigned char x,y;
-    unsigned char huesat = 0b10101000;//0 yellow 1 orange 2 pink 3 purple 4 blue 5 blue 7 grn
+    unsigned char huesat = PADDLECOLOR & 0b11111000;//0b10101000;//0 yellow 1 orange 2 pink 3 purple 4 blue 5 blue 7 grn
 
     // 1. SET THE HARDWARE MODE
     // Clear Bit 0 (DMA_ENABLE) and Clear Bit 1 (DMA_CPU_TO_VRAM)
@@ -1753,11 +1751,19 @@ void generate_paddle_sprite_prog1(){
         targetCoord = targetXOffset + 1 + ((y+4)*128);//target paddle starts at row 4
         vram[targetCoord] = (vram[sourceCoord] & 0b00000111) + huesat;
         }
-
-        for (x = 2; x<currentPaddleWidth-2;x++){//white in the middle
+        for (x = 2; x<currentPaddleWidth-2;x++){//copy the middle
             unsigned int targetCoord = x + ((y+4)*128);//target paddle starts at row 4
-            vram[targetCoord] = 0b00000111 + huesat;
+            //copy the 3rd column
+            sourceCoord = 2 + (y*128);
+            vram[targetCoord] = (vram[sourceCoord] & 0b00000111) + huesat;
+
         }
+
+        // for (x = 2; x<currentPaddleWidth-2;x++){//white in the middle
+        //     unsigned int targetCoord = x + ((y+4)*128);//target paddle starts at row 4
+            
+        //     vram[targetCoord] = 0b00000111 + huesat;
+        // }
         for (x = currentPaddleWidth; x<128;x++){//clean the rest of the line
             unsigned int targetCoord = x + ((y+4)*128);//target paddle starts at row 4
             vram[targetCoord] = 0b00000000;
@@ -1774,10 +1780,8 @@ void generate_paddle_sprite_prog1(){
 void render_paddle_prog1() 
 {
     queue_draw_sprite(paddleX,PADDLEY,currentPaddleWidth,PADDLEHEIGHT,0,4,PADDLESPRITEBANK);
-    //queue_draw_box(paddleX,PADDLEY,currentPaddleWidth,PADDLEHEIGHT,0b11100111);   
 }
 void erase_paddle_prog1(){
-    //queue_draw_box(paddleX_old_old,PADDLEY,PADDLEWIDTH,PADDLEHEIGHT,0);//erase paddle
     EraseRect(paddleX_old_old,PADDLEY,currentPaddleWidth,PADDLEHEIGHT);
 }
 void erase_balls_prog1(){
