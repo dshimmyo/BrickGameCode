@@ -1462,9 +1462,18 @@ void eraseBlinkMessage(char *counter)
 #pragma code-name (push, "PROG2")
 void SelectControllerScreen_prog2(bool buttonAPress, bool buttonBPress)
 {
+    static unsigned char timer = 0;
+    unsigned char loopTime = ((timer++ >>2) & 6);
+    unsigned char flipLoopTime = 7-loopTime;
+
     //char top = 60;
     //await_draw_queue();
     queue_draw_sprite(0,0,127,127,0,0,TITLESPRITEBANK);
+    //marching ants
+    queue_draw_sprite(6,86,115,1,0,80 + loopTime,PRESSSTARTSPRITEBANK);
+    queue_draw_sprite(6,108,115,1,0,80 + flipLoopTime,PRESSSTARTSPRITEBANK);
+    queue_draw_sprite(6,86,1,22,120+flipLoopTime,0,PRESSSTARTSPRITEBANK);
+    queue_draw_sprite(121,86,1,22,120+loopTime,0,PRESSSTARTSPRITEBANK);
     // text_init();
     
     // text_color = TEXT_COLOR_WHITE;
