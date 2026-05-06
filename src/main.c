@@ -31,7 +31,7 @@ extern int approx_five_twelfths(int num);
         paddleRotationMax = MOUSEMAX; \
     }
 
-#define PADDLECOLOR 0b10111111//0b00111111//0b10101111
+#define PADDLECOLOR 0b11010111//0b00111111//0b10101111
 #define STARTPADDLEWIDTH 24//16
 #define PADDLEHEIGHT 4
 #define PADDLEY 108
