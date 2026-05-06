@@ -45,6 +45,7 @@ extern int approx_five_twelfths(int num);
 #define BRICKSSPRITEBANK 2//3
 #define PRESSSTARTSPRITEBANK 3//4
 #define PADDLESPRITEBANK 4//5
+#define TITLESPRITEBANK 5
 
 #define LOADSPRITEBG false
 
@@ -1461,28 +1462,28 @@ void eraseBlinkMessage(char *counter)
 #pragma code-name (push, "PROG2")
 void SelectControllerScreen_prog2(bool buttonAPress, bool buttonBPress)
 {
-    char top = 60;
-    await_draw_queue();
-
-    text_init();
+    //char top = 60;
+    //await_draw_queue();
+    queue_draw_sprite(0,0,127,127,0,0,TITLESPRITEBANK);
+    // text_init();
     
-    text_color = TEXT_COLOR_WHITE;
-    text_cursor_x = 10;
-    text_cursor_y = top;
-    text_print_string("PRESS A");
-    text_cursor_x = 30;
-    text_cursor_y = 10 + top;
+    // text_color = TEXT_COLOR_WHITE;
+    // text_cursor_x = 10;
+    // text_cursor_y = top;
+    // text_print_string("PRESS A");
+    // text_cursor_x = 30;
+    // text_cursor_y = 10 + top;
 
-    text_print_string("FOR PADDLE");
+    // text_print_string("FOR PADDLE");
 
-    text_cursor_x = 10;
-    text_cursor_y = 30 + top;
+    // text_cursor_x = 10;
+    // text_cursor_y = 30 + top;
 
-    text_print_string("PRESS B");
-    text_cursor_x = 30;
-    text_cursor_y = 40 + top;
+    // text_print_string("PRESS B");
+    // text_cursor_x = 30;
+    // text_cursor_y = 40 + top;
 
-    text_print_string("FOR GAMEPAD");
+    // text_print_string("FOR GAMEPAD");
     if (buttonBPress) 
     {
         controller_style = CONTROLLER_STYLE_GPAD1;
@@ -2145,6 +2146,7 @@ void main () {
     init_music();
     load_spritesheet(ASSET__gfx__paddletank_paddle_bmp,PADDLESPRITEBANK);
     load_spritesheet(ASSET__gfx__PressStart_bmp,PRESSSTARTSPRITEBANK);
+    load_spritesheet(ASSET__gfx__TitleScreen_bmp,TITLESPRITEBANK);
 
     scoring_init();
     change_rom_bank(BANK_PROG1);
@@ -2171,19 +2173,19 @@ void main () {
         GameWrapperStateMachine();
         queue_clear_border(2);//color
 
-        //queue_draw_box(4,10,33,9,0);//clear scores with bg sprite
+        if (gameState != STATE_CONTROLLER_SELECT){
+            if (scoreRefreshFrames)EraseRect(SCOREPOSX-1,10,SCOREWIDTH,9);//clear scores from previous frames
+            if (hiscoreRefreshFrames)EraseRect(HISCOREPOSX-1,10,SCOREWIDTH,9);//clear scores from previous frames
+            if (livesRefreshFrames)draw_lives_prog1(lives_left);
+            livesRefreshFrames--;
+            await_draw_queue();
 
-        if (scoreRefreshFrames)EraseRect(SCOREPOSX-1,10,SCOREWIDTH,9);//clear scores from previous frames
-        if (hiscoreRefreshFrames)EraseRect(HISCOREPOSX-1,10,SCOREWIDTH,9);//clear scores from previous frames
-        if (livesRefreshFrames)draw_lives_prog1(lives_left);
-        livesRefreshFrames--;
-        await_draw_queue();
+            if (scoreRefreshFrames)print_scores(score,SCOREPOSX);
+            scoreRefreshFrames--;
 
-        if (scoreRefreshFrames)print_scores(score,SCOREPOSX);
-        scoreRefreshFrames--;
-
-        if (hiscoreRefreshFrames)print_scores(hiscore,HISCOREPOSX);
-        hiscoreRefreshFrames--;
+            if (hiscoreRefreshFrames)print_scores(hiscore,HISCOREPOSX);
+            hiscoreRefreshFrames--;
+        }
 
         await_vsync(1);
         flip_pages();
