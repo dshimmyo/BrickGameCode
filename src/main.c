@@ -1645,14 +1645,14 @@ void bevel_all_bricks_prog1() {
             for (col = 4; col < 124; col += currentBrickWidth) {//leap from brick to brick horizontally
                 int pos = row_start + (y * 128) + col;
                 if (pixel != 0) {
-                    vram[pos] = ((pixel & 0b00000111)<7) ? pixel + 1 : pixel;     // Highlight
+                    vram[pos] = ((pixel & 0b00000111)<7) ? pixel + 1 : pixel & 0b11101111;     // Highlight
                     vram[pos + currentBrickWidth-1] = ((pixel & 0b00000111)>0) ? pixel - 1 : pixel; // Shadow
                 }
             }
             //top and bottom shading overrides vertical
             if (y==0){
                 for (x=0; x<128;x++){
-                    vram[row_start + (y * 128) + x] = ((pixel & 0b00000111)<7) ? pixel + 1 : pixel; //hilite
+                    vram[row_start + (y * 128) + x] = ((pixel & 0b00000111)<7) ? pixel + 1 : pixel & 0b11101111; //hilite
                 }
             } else if (y==3){
                 for (x=0; x<128;x++){
