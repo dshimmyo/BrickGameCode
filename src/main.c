@@ -1653,8 +1653,10 @@ void bevel_all_bricks_prog1() {
             for (col = 4; col < 124; col += currentBrickWidth) {//leap from brick to brick horizontally
                 int pos = row_start + (y * 128) + col;
                 if (pixel != 0) {
-                    vram[pos] = ((pixel & 0b00000111)<7) ? pixel + 1 : pixel & 0b11101111;     // Highlight
-                    vram[pos + currentBrickWidth-1] = ((pixel & 0b00000111)>0) ? pixel - 1 : pixel; // Shadow
+                    //vram[pos] = ((pixel & 0b00000111)<7) ? pixel + 1 : pixel & 0b11101111;     // Highlight
+                    //vram[pos + currentBrickWidth-1] = ((pixel & 0b00000111)>0) ? pixel - 1 : pixel; // Shadow
+                    vram[pos + currentBrickWidth-1] = ((pixel & 0b00000111)<7) ? pixel + 1 : pixel & 0b11101111;     // Highlight
+                    vram[pos] = ((pixel & 0b00000111)>0) ? pixel - 1 : pixel; // Shadow
                 }
             }
             //top and bottom shading overrides vertical
