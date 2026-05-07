@@ -2011,12 +2011,7 @@ void GameWrapperStateMachine()
     buttonBPress = (player1_buttons & INPUT_MASK_PADDLE_B) && (~player1_old_buttons & INPUT_MASK_PADDLE_B);
     buttonCPress = (player1_buttons & INPUT_MASK_PADDLE_C) && (~player1_old_buttons & INPUT_MASK_PADDLE_C);
     buttonStartPress = player1_buttons & INPUT_MASK_PADDLE_START && ~player1_old_buttons & INPUT_MASK_PADDLE_START;
-    // if (buttonStartPress)//toggle demo mode automated/player modes
-    // {
-    //     demoMode = !demoMode;
-    //     if (!demoMode) messageEraseCount+=2;
-    // }
-    // change_rom_bank(BANK_PROG1);
+
     BreakoutBGRefresh_prog1();//always need the black background and borders
 
     switch (gameState) {
@@ -2070,6 +2065,10 @@ void GameWrapperStateMachine()
                     if (bricks_remaining<=0) {
                         newLevelTimer=100;
                         subState = SUBSTATE_NEW_LEVEL;
+                        if (get_active_ball_count_prog1()>=2){
+                            addLives(1);//extra life!
+                            //playNoteSequence(1,2);
+                        }
                     } 
                     else if (get_active_ball_count_prog1()<=0) //no balls in play
                     {
