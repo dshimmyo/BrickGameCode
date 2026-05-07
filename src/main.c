@@ -173,6 +173,7 @@ void loading_screen_prog1();
 void reset_reflect_angles_prog1();
 void increase_ball_speed_prog1(unsigned char level);
 void generate_paddle_sprite_prog1();
+void bake_wave_number_prog1(unsigned char wave, int posx, int posy, char bank);
 
 
 #define NUM_ANGLES 22
@@ -769,7 +770,6 @@ void GenNextLevel_prog1(char procLevel)
     bl = brickLayouts[procLevel % NUM_BRICK_LAYOUTS];
     currentBrickWidth = bl.brickWidth;
     currentNumBricksH = bl.numColumns;
-    // change_rom_bank(BANK_PROG1);
     BreakoutBricksSetupWrapper_prog1(BRICKSSPRITEBANK);
     increase_ball_speed_prog1(procLevel);
     // Every 2 waves: paddle shrinks
@@ -817,6 +817,7 @@ void NewLevel_prog1()
     hiscoreRefreshFrames=2;
     livesRefreshFrames=2;
     magicBrickIndex = rnd_range(0,(currentNumBricksH * NUM_BRICK_ROWS-1));
+
     //lives_left++;//hacky bullshit
 }
 #pragma code-name (pop)
@@ -1486,29 +1487,7 @@ void bake_animation_frames_v2_prog1()
 
 }
 
-// Example logic for the draw call
-void draw_wave_number_prog1(unsigned char wave, int posx, int posy) {
-    unsigned char tens = 0;
-    unsigned char ones = wave;
-    unsigned char shiftLeftOffset = wave / 10;
 
-    if (wave<1) return;
-    // Fast 8-bit division for numbers < 100
-    while (ones >= 10) {
-        ones -= 10;
-        tens++;
-    }
-
-    // Draw Tens digit (only if > 0 to avoid "01", "02", etc.)
-    if (tens > 0) {
-        queue_draw_sprite(posx - (shiftLeftOffset * 4), posy, 4, 4, 124, tens * 5, PRESSSTARTSPRITEBANK);
-        // Draw Ones digit with a 5-pixel offset
-        queue_draw_sprite(posx + 4 - (shiftLeftOffset * 4), posy, 4, 4, 124, ones * 5, PRESSSTARTSPRITEBANK);
-    } else {
-        // Just draw the single digit
-        queue_draw_sprite(posx - (shiftLeftOffset * 4), posy, 4, 4, 124, ones * 5, PRESSSTARTSPRITEBANK);
-    }
-}
 
 
 #pragma code-name (pop);
@@ -1866,7 +1845,7 @@ void BakeBreakoutBackground_prog1(char bank){
     *bank_reg = banksMirror;
     
     {
-        char vramIndex=0;
+        //char vramIndex=0;
         char posx = 92;
         char posy = 12;//11
         char w=17;
@@ -1890,6 +1869,126 @@ void BakeBreakoutBackground_prog1(char bank){
     *dma_flags = flagsMirror;
     *bank_reg = banksMirror;
 }
+void bake_wave_number_prog1(unsigned char wave, int posx, int posy, char bank){
+    char oldFlags = flagsMirror; // Save the original screen/DMA settings
+    char oldBanks = banksMirror; 
+    char digitsArray[10*4*5];
+
+    //prepare digits that need to be baked:
+    unsigned char tens = 0;
+    unsigned char ones = wave;
+    unsigned char shiftLeftOffset = ((wave / 10)>0) ? 1 : 0;
+    unsigned char tensDigitPosx = posx - (shiftLeftOffset * 4);
+    unsigned char onesDigitPosx = posx - (shiftLeftOffset * 4);
+    
+
+    if (wave<1) return; // do nothing
+    // Fast 8-bit division for numbers < 100
+    while (ones >= 10) {
+        ones -= 10;
+        tens++;
+    }
+    if (tens > 0) {
+        onesDigitPosx += 4;
+    }
+
+    // 1. SET THE HARDWARE MODE
+    // Clear Bit 0 (DMA_ENABLE) and Clear Bit 1 (DMA_CPU_TO_VRAM)
+    flagsMirror &= ~(DMA_ENABLE | DMA_CPU_TO_VRAM); 
+    *dma_flags = flagsMirror;
+
+    //load spritebank to sample "lives" text
+    banksMirror = bankflip | GRAM_PAGE(PRESSSTARTSPRITEBANK);//jump to a different bank to grab "lives text"
+    *bank_reg = banksMirror;
+    {
+        //char w=4;//4-pixel-wide digits
+        //char h=50;//10 digits 4-pixels high with 1 pixel gap
+        char arrayIndex=0;
+        char gx = 124;//
+        char x,y;
+        char digit = 0;
+        for (digit = 0; digit<=9; digit++){//should store the 4x5x10 column of data in an array
+            char yoffset =  digit * 5;
+            for (y=0; y<5; y++){
+                for (x=0; x<4; x++){
+                    digitsArray[arrayIndex++]= vram[(y+yoffset)*128 + (x + gx)];
+                }
+            }
+        }
+    }
+
+    // 2. BANK IN THE SPRITES - switch to target bank
+    banksMirror = bankflip | GRAM_PAGE(bank);
+    *bank_reg = banksMirror;
+    {//erase wave line completely
+        char h=4;
+        char x,y;
+        for (y=0; y<4; y++){
+            for (x=BRICK_LEFT; x<BRICK_RIGHT; x++){
+                //char index=(y * w) + x + gy * 4;
+                vram[((y + posy) * 128) + x] = 0b00100000;
+            }
+        }
+    }
+    if (tens > 0)
+    {
+        char _posx = tensDigitPosx;
+        char gy = tens * 5;
+        char w=4;
+        char h=4;
+        char x,y;
+        for (y=0; y<h; y++){
+            for (x=0; x<w; x++){
+                char index=(y * w) + x + gy * 4;
+                vram[((y + posy) * 128) + _posx+x] = digitsArray[index];
+            }
+        }
+    }
+    //if (tens <= 0)
+    {
+        char _posx = onesDigitPosx;
+        char gy = ones * 5;
+        char w=4;
+        char h=4;
+        char x,y;
+        for (y=0; y<h; y++){
+            for (x=0; x<w; x++){
+                char index=(y * w) + x + gy * 4;
+                vram[((y + posy) * 128) + _posx+x] = digitsArray[index];
+            }
+        }
+    }
+    
+    // 4. RESTORE EVERYTHING
+    flagsMirror = oldFlags;
+    banksMirror = oldBanks;
+    *dma_flags = flagsMirror;
+    *bank_reg = banksMirror;
+
+}
+void draw_wave_number_prog1(unsigned char wave, int posx, int posy) {
+    unsigned char tens = 0;
+    unsigned char ones = wave;
+    unsigned char shiftLeftOffset = wave / 10;
+
+    if (wave<1) return;
+    // Fast 8-bit division for numbers < 100
+    while (ones >= 10) {
+        ones -= 10;
+        tens++;
+    }
+
+    // Draw Tens digit (only if > 0 to avoid "01", "02", etc.)
+    if (tens > 0) {
+        queue_draw_sprite(posx - (shiftLeftOffset * 4), posy, 4, 4, 124, tens * 5, PRESSSTARTSPRITEBANK);
+        // Draw Ones digit with a 5-pixel offset
+        queue_draw_sprite(posx + 4 - (shiftLeftOffset * 4), posy, 4, 4, 124, ones * 5, PRESSSTARTSPRITEBANK);
+    } else {
+        // Just draw the single digit
+        queue_draw_sprite(posx - (shiftLeftOffset * 4), posy, 4, 4, 124, ones * 5, PRESSSTARTSPRITEBANK);
+    }
+}
+
 void BakeLifeBar_prog1(char bank){
     char oldFlags = flagsMirror; // Save the original screen/DMA settings
     char oldBanks = banksMirror; 
@@ -1992,7 +2091,7 @@ void GameWrapperStateMachine()
             }
             change_rom_bank(BANK_PROG1);
             DrawBricksWrapper_prog1();//blits
-            draw_wave_number_prog1(cycleLevel, BRICK_RIGHT - 4, 113);
+            //draw_wave_number_prog1(cycleLevel, BRICK_RIGHT - 4, 114);
             if (subState != SUBSTATE_NEW_LEVEL) process_all_balls_prog1();//not needed for new level but no harm
             erase_balls_prog1();//blits
             if (gameState == STATE_ATTRACT && (subState!=SUBSTATE_NEW_LEVEL)) printBlinkMessage_prog1(0);//message before balls
@@ -2007,6 +2106,7 @@ void GameWrapperStateMachine()
                 }
                 else{
                     GenNextLevel_prog1(cycleLevel++);//unbound intentionally
+                    bake_wave_number_prog1(cycleLevel, BRICK_RIGHT - 4, 114,BAKEDBACKGROUNDSPRITEBANK);
                     newLevelTimer=100;
                     NewLevel_prog1();
                     subState=SUBSTATE_PLAY;
