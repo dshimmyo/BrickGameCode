@@ -787,102 +787,6 @@ void GenNextLevel_prog1(char procLevel)
 #define ENABLEPADDLEHIGHESTBALL false
 #define ENABLEPADDLECLOSESTBALL false
 #define ENABLEPADDLEDOWNESTBALL false
-/*
-
-char paddleXFromBallArray_prog1() {
-    int midPaddle = paddleX + (PADDLEWIDTH>>1);
-    
-    // Tracking variables for our "Best Candidates"
-    char highestBallIdx = -1;
-    char closestBallIdx = -1;
-    char downestDyIdx = -1;
-    char lowestBallIdx = -1;
-    
-    unsigned char maxPosY = -1;
-    unsigned char minPosY = 255;
-    int maxDy = -512; // Start with lowest possible dy
-    int minClosestScore = 255;
-    unsigned char i;
-    if ((everyOtherFrame++) & 0x00000001) return paddleX;//skip every other frame
-    for (i = 0; i < MAX_BALLS; i++) {
-        int xDist;
-        if (!balls[i].active) continue;//jump to end of loop body
-
-        //0 find lowest
-        if (maxPosY > balls[i].y) {
-            maxPosY = balls[i].y;
-            lowestBallIdx = i;
-        }
-        // 1. Find Highest Ball (Smallest Y) - useful when all are moving up
-        // if (highestBallIdx<0) {highestBallIdx = i;minPosY = balls[i].y;}
-        // if (downestDyIdx<0) {downestDyIdx = i; maxDy = balls[i].dy;}
-        // if (closestBallIdx<0) closestBallIdx = i;
-        #if ENABLEPADDLEHIGHESTBALL
-        if (balls[i].y < minPosY) {
-            minPosY = balls[i].y;
-            highestBallIdx = i;
-        }
-        #else 
-        minPosY = balls[i].y;
-        highestBallIdx = i;
-        #endif
-        
-
-        // 2. Find Most Downward Ball (Largest dy)
-        #if ENABLEPADDLEDOWNESTBALL
-        if (balls[i].dy > maxDy) {
-            maxDy = balls[i].dy;
-            downestDyIdx = i;
-        }
-        #endif
-
-        // 3. Find "Closest" Ball 
-        // Logic: Distance to paddle + Bias for downward movement
-        #if ENABLEPADDLECLOSESTBALL
-        xDist = (balls[i].x > midPaddle) ? balls[i].x - midPaddle : midPaddle - balls[i].x;
-        if (balls[i].dy > 0) {
-            if (xDist < minClosestScore) {
-                minClosestScore = xDist;
-                closestBallIdx = i;
-            }
-        }
-        #else
-            closestBallIdx = i;
-        #endif
-
-    }
-
-    // Safety check: if no balls are active, just stay put or return 0
-    //if (highestBallIdx < 0) return paddleX;
-
-    // --- Decision Logic (Refined from your original) ---
-    
-    // If even the "most downward" ball is moving UP, follow the highest ball 
-    // (It's the most likely to bounce off a brick and come back down first)
-    #if ENABLEPADDLEDOWNESTBALL
-    if (balls[downestDyIdx].dy < 0) {
-        return ConstVelocity_prog1((char) paddleX, balls[highestBallIdx].x - (PADDLEWIDTH>>1) + rndPaddleOffset, 6);
-    } 
-    // If we have a ball moving downward, prioritize the one closest to our X
-    #endif
-    #if ENABLEPADDLECLOSESTBALL
-    if (closestBallIdx != -1) {
-        return ConstVelocity_prog1((char) paddleX, balls[closestBallIdx].x - (PADDLEWIDTH>>1) + rndPaddleOffset, 6);
-    } 
-     #endif
-    #if ENABLEPADDLEDOWNESTBALL
-    // Fallback: Just track the one with the most downward momentum
-    {
-        return ConstVelocity_prog1((char) paddleX, balls[downestDyIdx].x - (PADDLEWIDTH>>1) + rndPaddleOffset, 6);
-    }
-    #endif
-    //true fallback, lowest
-    {
-        return ConstVelocity_prog1((char) paddleX, balls[lowestBallIdx].x - (PADDLEWIDTH>>1) + rndPaddleOffset, 6);
-    }
-    return paddleX;//fallback of all fallbacks
-}
-    */
 
 void increase_ball_speed_prog1(unsigned char level)
 {
@@ -1922,8 +1826,8 @@ void BakeBreakoutBackground_prog1(char bank){
             }
         }
     }
-    //load spritebank to sample "lives"
-    banksMirror = bankflip | GRAM_PAGE(PRESSSTARTSPRITEBANK);
+    //load spritebank to sample "lives" text
+    banksMirror = bankflip | GRAM_PAGE(PRESSSTARTSPRITEBANK);//jump to a different bank to grab "lives text"
     *bank_reg = banksMirror;
     {
         char w=17;//13;////17;
@@ -1937,7 +1841,7 @@ void BakeBreakoutBackground_prog1(char bank){
         }
     }
     // 2. BANK IN THE SPRITES
-    banksMirror = bankflip | GRAM_PAGE(bank);
+    banksMirror = bankflip | GRAM_PAGE(bank);//back to our current bank
     *bank_reg = banksMirror;
     
     {
@@ -1953,10 +1857,36 @@ void BakeBreakoutBackground_prog1(char bank){
             }
         }
     }
-    {
+    // {//draw life bar //move to a different bank
+    //     char y=17;
+    //     for (x=92; x<BRICK_RIGHT; x+=2){
+    //         vram[y*128 + x] = 0b10111111;
+    //     }
+    // }
+    // 4. RESTORE EVERYTHING
+    flagsMirror = oldFlags;
+    banksMirror = oldBanks;
+    *dma_flags = flagsMirror;
+    *bank_reg = banksMirror;
+}
+void BakeLifeBar_prog1(char bank){
+    char oldFlags = flagsMirror; // Save the original screen/DMA settings
+    char oldBanks = banksMirror; 
+    unsigned char x,y;
+
+    // 1. SET THE HARDWARE MODE
+    // Clear Bit 0 (DMA_ENABLE) and Clear Bit 1 (DMA_CPU_TO_VRAM)
+    flagsMirror &= ~(DMA_ENABLE | DMA_CPU_TO_VRAM); 
+    *dma_flags = flagsMirror;
+
+    // 2. BANK IN THE SPRITES
+    banksMirror = bankflip | GRAM_PAGE(bank);
+    *bank_reg = banksMirror;
+
+    {//draw life bar
         char y=17;
         for (x=92; x<BRICK_RIGHT; x+=2){
-            vram[y*128 + x] = 0b10111111;
+            vram[y*128 + x] = PADDLECOLOR;//0b10111111;
         }
     }
     // 4. RESTORE EVERYTHING
@@ -1965,13 +1895,15 @@ void BakeBreakoutBackground_prog1(char bank){
     *dma_flags = flagsMirror;
     *bank_reg = banksMirror;
 }
-
 void draw_lives_prog1(char lives)
 {
     char width = BRICK_RIGHT-92;
     lives = (lives<0) ? 0 : lives;
     queue_draw_box(92,16,width,2,0);//erase line
-    if (lives > 0) EraseRect(92,16,lives << 1,2);//paints all lives
+    if (lives > 0) {
+        //EraseRect(92,16,lives << 1,2);//paints all lives
+        queue_draw_sprite(92,16,lives << 1,2,92,16,PADDLESPRITEBANK);
+    }
 }
 void loading_screen_prog1(){
     //print out loading message
@@ -2171,6 +2103,7 @@ void main () {
     scoring_init();
     change_rom_bank(BANK_PROG1);
     BakeBreakoutBackground_prog1(BAKEDBACKGROUNDSPRITEBANK);//bank 1
+    BakeLifeBar_prog1(PADDLESPRITEBANK);
     loading_screen_prog1();
 
     bake_gradient_mask_prog1();//only needs to be done once
