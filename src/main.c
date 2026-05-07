@@ -16,6 +16,10 @@
 extern int speed_mult_asm(int source, int mult);
 extern int approx_five_twelfths(int num);
 
+#define VERSION_MAJOR 1
+#define VERSION_MINOR 0
+#define VERSION_PATCH 0
+
 /////*********** */
 #define TESTFEATURES true
 /////*********** */
@@ -1370,33 +1374,13 @@ void SelectControllerScreen_prog2(bool buttonAPress, bool buttonBPress)
     unsigned char loopTime = ((timer++ >> 2) & 6);
     unsigned char flipLoopTime = 7-loopTime;
 
-    //char top = 60;
-    //await_draw_queue();
     queue_draw_sprite(0,0,127,127,0,0,TITLESPRITEBANK);
     //marching ants
     queue_draw_sprite(6,86,115,1,0,87 + loopTime,PRESSSTARTSPRITEBANK);
     queue_draw_sprite(6,108,115,1,0,87 + flipLoopTime,PRESSSTARTSPRITEBANK);
     queue_draw_sprite(6,86,1,22,88+flipLoopTime,0,PRESSSTARTSPRITEBANK);
     queue_draw_sprite(121,86,1,22,88+loopTime,0,PRESSSTARTSPRITEBANK);
-    // text_init();
     
-    // text_color = TEXT_COLOR_WHITE;
-    // text_cursor_x = 10;
-    // text_cursor_y = top;
-    // text_print_string("PRESS A");
-    // text_cursor_x = 30;
-    // text_cursor_y = 10 + top;
-
-    // text_print_string("FOR PADDLE");
-
-    // text_cursor_x = 10;
-    // text_cursor_y = 30 + top;
-
-    // text_print_string("PRESS B");
-    // text_cursor_x = 30;
-    // text_cursor_y = 40 + top;
-
-    // text_print_string("FOR GAMEPAD");
     if (buttonBPress) 
     {
         controller_style = CONTROLLER_STYLE_GPAD1;
@@ -1869,10 +1853,11 @@ void BakeBreakoutBackground_prog1(char bank){
     *dma_flags = flagsMirror;
     *bank_reg = banksMirror;
 }
+static char digitsArray[11 * 4 * 5]; // 11 digits (0-9 plus the dot)
 void bake_wave_number_prog1(unsigned char wave, int posx, int posy, char bank){
     char oldFlags = flagsMirror; // Save the original screen/DMA settings
     char oldBanks = banksMirror; 
-    char digitsArray[10*4*5];
+    //char digitsArray[10*4*5];
 
     //prepare digits that need to be baked:
     unsigned char tens = 0;
@@ -1958,6 +1943,63 @@ void bake_wave_number_prog1(unsigned char wave, int posx, int posy, char bank){
             }
         }
     }
+    
+    // 4. RESTORE EVERYTHING
+    flagsMirror = oldFlags;
+    banksMirror = oldBanks;
+    *dma_flags = flagsMirror;
+    *bank_reg = banksMirror;
+
+}
+void bake_num_prog1(char num, int posx, int posy, char bank){
+    char oldFlags = flagsMirror; // Save the original screen/DMA settings
+    char oldBanks = banksMirror; 
+
+    unsigned char ones = num;
+    unsigned char onesDigitPosx = posx ;
+
+    // 1. SET THE HARDWARE MODE
+    // Clear Bit 0 (DMA_ENABLE) and Clear Bit 1 (DMA_CPU_TO_VRAM)
+    flagsMirror &= ~(DMA_ENABLE | DMA_CPU_TO_VRAM); 
+    *dma_flags = flagsMirror;
+
+    //load spritebank to sample "lives" text
+    banksMirror = bankflip | GRAM_PAGE(PRESSSTARTSPRITEBANK);//jump to a different bank to grab "lives text"
+    *bank_reg = banksMirror;
+    {
+        //char w=4;//4-pixel-wide digits
+        //char h=55;//11 digits 4-pixels high with 1 pixel gap
+        char arrayIndex=0;
+        char gx = 124;//
+        char x,y;
+        char digit = 0;
+        for (digit = 0; digit<=10; digit++){//should store the 4x5x10 column of data in an array
+            char yoffset =  digit * 5;
+            for (y=0; y<5; y++){
+                for (x=0; x<4; x++){
+                    digitsArray[arrayIndex++]= vram[(y+yoffset)*128 + (x + gx)];
+                }
+            }
+        }
+    }
+
+    // 2. BANK IN THE SPRITES - switch to target bank
+    banksMirror = bankflip | GRAM_PAGE(bank);
+    *bank_reg = banksMirror;
+    
+    {
+        char _posx = onesDigitPosx;
+        char gy = ones * 5;
+        char w=4;
+        char h=4;
+        char x,y;
+        for (y=0; y<h; y++){
+            for (x=0; x<w; x++){
+                char index=(y * w) + x + gy * 4;
+                vram[((y + posy) * 128) + _posx+x] = digitsArray[index];
+            }
+        }
+    }   
     
     // 4. RESTORE EVERYTHING
     flagsMirror = oldFlags;
@@ -2232,6 +2274,13 @@ void main () {
     init_game_prog1();
     init_ball_system_prog1();
     bake_animation_frames_v2_prog1();//only generate errosion vault once
+    
+    //clunky version number
+    bake_num_prog1(VERSION_MAJOR,BRICK_RIGHT - 25,110,TITLESPRITEBANK);
+    bake_num_prog1(10,BRICK_RIGHT - 20,110,TITLESPRITEBANK);
+    bake_num_prog1(VERSION_MINOR,BRICK_RIGHT - 15,110,TITLESPRITEBANK);
+    bake_num_prog1(10,BRICK_RIGHT - 10,110,TITLESPRITEBANK);
+    bake_num_prog1(VERSION_PATCH,BRICK_RIGHT - 5,110,TITLESPRITEBANK);
 
     //BreakoutBricksSetupWrapper_prog1(BRICKSSPRITEBANK); //redundant but keeps vram properly setup
     GenNextLevel_prog1(0);//sets up the first level in advance
