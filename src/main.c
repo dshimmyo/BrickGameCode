@@ -277,10 +277,10 @@ void playBass(char row){
 void soundTest(){
     play_sound_effect(ASSET__audio__flongNew_sfx_ID,1);
 }
-void soundOutOfBounds()
-{
-    play_sound_effect(ASSET__audio__outOfBounds_sfx_ID,1);
-}
+// void soundOutOfBounds()
+// {
+//     play_sound_effect(ASSET__audio__outOfBounds_sfx_ID,1);
+// }
 void soundTestA(){
     play_sound_effect(ASSET__audio__chirp_sfx_ID,1);
 }
@@ -1277,10 +1277,13 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
     return;
 }
 #pragma code-name (pop)
-void playNoteSequence(unsigned char style, unsigned char noteLength){
+void playNoteSequence(unsigned char style){
     unsigned char x;
     signed char i;
-    
+    unsigned char noteLength=2;
+    //style 0 descending
+    //style 1 ascending
+    //style 2 random
     if (style==0){
         for (i=0;i<=5;i++)
         {
@@ -1302,7 +1305,7 @@ void playNoteSequence(unsigned char style, unsigned char noteLength){
             }
         }
     }
-    else
+    else if (style==2)//random
     {
         for (i=0;i<=5;i++)
         {
@@ -1498,7 +1501,7 @@ void SelectControllerScreen_prog2(bool buttonAPress, bool buttonBPress)
         breakoutRefresh=0;//triggers a bg refresh
         breakoutBricksRefresh=0;//triggers bricks refresh
         if (isEmulator){trigger_rumble(255);}
-        //playNoteSequence(2,2);
+        playNoteSequence(2);
 
     }
     else if (buttonAPress) 
@@ -1507,7 +1510,7 @@ void SelectControllerScreen_prog2(bool buttonAPress, bool buttonBPress)
         gameState = STATE_ATTRACT;
         breakoutRefresh=0;//triggers a bg refresh
         breakoutBricksRefresh=0;//triggers bricks refresh
-        //playNoteSequence(2,2);
+        playNoteSequence(2);
     }
 }
 #pragma code-name (pop);
@@ -2067,7 +2070,7 @@ void GameWrapperStateMachine()
                         subState = SUBSTATE_NEW_LEVEL;
                         if (get_active_ball_count_prog1()>=2){
                             addLives(1);//extra life!
-                            //playNoteSequence(1,2);
+                            //playNoteSequence(1);
                         }
                     } 
                     else if (get_active_ball_count_prog1()<=0) //no balls in play
@@ -2103,7 +2106,7 @@ void GameWrapperStateMachine()
                         gameState = STATE_BREAKOUT_PLAY;
                         subState = SUBSTATE_NEW_LEVEL;
                         messageEraseCount=2;
-                        playNoteSequence(1,2);
+                        playNoteSequence(1);//ascending
                     }
                 //}
                 break;
@@ -2114,7 +2117,8 @@ void GameWrapperStateMachine()
                             } else {
                                 printGetReady_prog1(32,64,true);
                             }
-                            spawnTimer--;                    }
+                            spawnTimer--;                    
+                    }
                     else{
                         spawnTimer = 100;//reset for next serve, is necessary
                         isSkipAhead = false;//just in case
