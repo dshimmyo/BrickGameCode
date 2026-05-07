@@ -1490,7 +1490,9 @@ void bake_animation_frames_v2_prog1()
 void draw_wave_number_prog1(unsigned char wave, int posx, int posy) {
     unsigned char tens = 0;
     unsigned char ones = wave;
+    unsigned char shiftLeftOffset = wave / 10;
 
+    if (wave<1) return;
     // Fast 8-bit division for numbers < 100
     while (ones >= 10) {
         ones -= 10;
@@ -1499,12 +1501,12 @@ void draw_wave_number_prog1(unsigned char wave, int posx, int posy) {
 
     // Draw Tens digit (only if > 0 to avoid "01", "02", etc.)
     if (tens > 0) {
-        queue_draw_sprite(posx, posy, 4, 4, 124, tens * 5, PRESSSTARTSPRITEBANK);
+        queue_draw_sprite(posx - (shiftLeftOffset * 4), posy, 4, 4, 124, tens * 5, PRESSSTARTSPRITEBANK);
         // Draw Ones digit with a 5-pixel offset
-        queue_draw_sprite(posx + 4, posy, 4, 4, 124, ones * 5, PRESSSTARTSPRITEBANK);
+        queue_draw_sprite(posx + 4 - (shiftLeftOffset * 4), posy, 4, 4, 124, ones * 5, PRESSSTARTSPRITEBANK);
     } else {
         // Just draw the single digit
-        queue_draw_sprite(posx, posy, 4, 4, 124, ones * 5, PRESSSTARTSPRITEBANK);
+        queue_draw_sprite(posx - (shiftLeftOffset * 4), posy, 4, 4, 124, ones * 5, PRESSSTARTSPRITEBANK);
     }
 }
 
@@ -1990,7 +1992,7 @@ void GameWrapperStateMachine()
             }
             change_rom_bank(BANK_PROG1);
             DrawBricksWrapper_prog1();//blits
-            draw_wave_number_prog1(cycleLevel, BRICK_RIGHT - 8, 113);
+            draw_wave_number_prog1(cycleLevel, BRICK_RIGHT - 4, 113);
             if (subState != SUBSTATE_NEW_LEVEL) process_all_balls_prog1();//not needed for new level but no harm
             erase_balls_prog1();//blits
             if (gameState == STATE_ATTRACT && (subState!=SUBSTATE_NEW_LEVEL)) printBlinkMessage_prog1(0);//message before balls
