@@ -240,6 +240,8 @@ int blinkTimer=0;
 char blinkMessageVisible=0;
 unsigned int readyTimer=0;
 unsigned char cycleLevel=0;
+bool isBallWentOutOfBounds = false;
+
 
 void trigger_rumble(unsigned char strength) {
     // Writing here does nothing on real hardware (it's open bus)
@@ -584,6 +586,7 @@ void update_ball_logic_prog1(Ball *b)
         else if(b->y >= 127) {//120 - BALLSIZE
             b->active = false;//despawn, stops rendering
             soundTest();
+            isBallWentOutOfBounds = true;
         }
 
         // --- WALLS ---
@@ -915,7 +918,7 @@ void NewLevel_prog1()
     hiscoreRefreshFrames=2;
     livesRefreshFrames=2;
     magicBrickIndex = rnd_range(0,(currentNumBricksH * NUM_BRICK_ROWS-1));
-    lives_left++;
+    //lives_left++;//hacky bullshit
 }
 #pragma code-name (pop)
 
@@ -1695,18 +1698,18 @@ void BreakoutBricksSetupWrapper_prog1(char bank)
 #pragma code-name (push, "PROG1")
 void process_all_balls_prog1() {
     unsigned char i; 
+    isBallWentOutOfBounds = false;
     active_balls_count=0;
     for (i = 0; i < MAX_BALLS; i++) {
         if (balls[i].active) {
             update_ball_logic_prog1(&balls[i]);
-            active_balls_count++;
+            if (balls[i].active) active_balls_count++;
         }
     }
-
-    // Transition to Game Over if the wave is dead
-    // if (lives_left == 0 && gameState == STATE_BREAKOUT_PLAY) {
-    //     gameState = STATE_BREAKOUT_GAMEOVER;
-    // }
+    if (!active_balls_count && isBallWentOutOfBounds){ 
+        addLives(-1);
+    }
+    
 }
 void render_balls_prog1() {
     unsigned char i;
@@ -2090,9 +2093,8 @@ void GameWrapperStateMachine()
                             }
                             spawnTimer--;
                         }
-                        else
+                        else//the ball just went out of bounds
                         {
-                            addLives(-1);
                             subState = SUBSTATE_NEW_BALL; //player serves ball or it auto-spawns
                             if (gameState != STATE_ATTRACT) {
                                 if (isSkipAhead) spawnTimer = 2;
