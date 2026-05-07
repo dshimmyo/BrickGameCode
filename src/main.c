@@ -1373,10 +1373,10 @@ void SelectControllerScreen_prog2(bool buttonAPress, bool buttonBPress)
     //await_draw_queue();
     queue_draw_sprite(0,0,127,127,0,0,TITLESPRITEBANK);
     //marching ants
-    queue_draw_sprite(6,86,115,1,0,80 + loopTime,PRESSSTARTSPRITEBANK);
-    queue_draw_sprite(6,108,115,1,0,80 + flipLoopTime,PRESSSTARTSPRITEBANK);
-    queue_draw_sprite(6,86,1,22,120+flipLoopTime,0,PRESSSTARTSPRITEBANK);
-    queue_draw_sprite(121,86,1,22,120+loopTime,0,PRESSSTARTSPRITEBANK);
+    queue_draw_sprite(6,86,115,1,0,87 + loopTime,PRESSSTARTSPRITEBANK);
+    queue_draw_sprite(6,108,115,1,0,87 + flipLoopTime,PRESSSTARTSPRITEBANK);
+    queue_draw_sprite(6,86,1,22,88+flipLoopTime,0,PRESSSTARTSPRITEBANK);
+    queue_draw_sprite(121,86,1,22,88+loopTime,0,PRESSSTARTSPRITEBANK);
     // text_init();
     
     // text_color = TEXT_COLOR_WHITE;
@@ -1485,6 +1485,30 @@ void bake_animation_frames_v2_prog1()
     *bank_reg = banksMirror;
 
 }
+
+// Example logic for the draw call
+void draw_wave_number_prog1(unsigned char wave, int posx, int posy) {
+    unsigned char tens = 0;
+    unsigned char ones = wave;
+
+    // Fast 8-bit division for numbers < 100
+    while (ones >= 10) {
+        ones -= 10;
+        tens++;
+    }
+
+    // Draw Tens digit (only if > 0 to avoid "01", "02", etc.)
+    if (tens > 0) {
+        queue_draw_sprite(posx, posy, 4, 4, 124, tens * 5, PRESSSTARTSPRITEBANK);
+        // Draw Ones digit with a 5-pixel offset
+        queue_draw_sprite(posx + 4, posy, 4, 4, 124, ones * 5, PRESSSTARTSPRITEBANK);
+    } else {
+        // Just draw the single digit
+        queue_draw_sprite(posx, posy, 4, 4, 124, ones * 5, PRESSSTARTSPRITEBANK);
+    }
+}
+
+
 #pragma code-name (pop);
 
 #pragma code-name (push, "PROG1")
@@ -1966,6 +1990,7 @@ void GameWrapperStateMachine()
             }
             change_rom_bank(BANK_PROG1);
             DrawBricksWrapper_prog1();//blits
+            draw_wave_number_prog1(cycleLevel, BRICK_RIGHT - 8, 113);
             if (subState != SUBSTATE_NEW_LEVEL) process_all_balls_prog1();//not needed for new level but no harm
             erase_balls_prog1();//blits
             if (gameState == STATE_ATTRACT && (subState!=SUBSTATE_NEW_LEVEL)) printBlinkMessage_prog1(0);//message before balls
