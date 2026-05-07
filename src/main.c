@@ -457,34 +457,29 @@ angle get_random_spawn_angles_prog1()
     switch (indexIndex)
     {
         case 0: //A send ball far left
-        // returnIndex = 4;//1//0
-        // break;
+        returnIndex = 4;//1//0
+        break;
         case 1:
         returnIndex = 6;
         break;
         case 2: //BC slight left
-        case 3:
         returnIndex = 8;
         break;
-        // case 3: //E almost vertical left
-        // returnIndex = 10;
-        // break;
-        // case 4: //E almost vertical right
-        // returnIndex = 11;
-        // break;
-        case 4:
+        case 3: //E almost vertical left
+        returnIndex = 10;
+        break;
+        case 4: //E almost vertical right
+        returnIndex = 11;
+        break;
         case 5://FG nudges right 
         returnIndex= 13;
         break;
         case 6://nudges right
-        case 7:
-         returnIndex = 15;
-         break; 
-        //case 7://H far right
-        case 8://extra zone? far right
-        // returnIndex = 17;//20;//21
-        default:
-        returnIndex = 13;
+        returnIndex = 15;
+        break; 
+        case 7://H far right
+        //case 8://extra zone? far right
+        returnIndex = 17;//20;//21
         break;
     }
     returnAngle = currentReflectAngles_prog1[returnIndex];
@@ -1902,7 +1897,7 @@ void draw_lives_prog1(char lives)
     queue_draw_box(92,16,width,2,0);//erase line
     if (lives > 0) {
         //EraseRect(92,16,lives << 1,2);//paints all lives
-        queue_draw_sprite(92,16,lives << 1,2,92,16,PADDLESPRITEBANK);
+        queue_draw_sprite(92,16,lives << 1,2,92,16,PADDLESPRITEBANK);//maximum 16 lives visible
     }
 }
 void loading_screen_prog1(){
