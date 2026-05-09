@@ -1444,6 +1444,7 @@ void bake_animation_frames_v2_prog1()
         unsigned char numFrames = NUM_ANIM_FRAMES;//26;//(NUM_ANIM_FRAMES<=104/4) ? NUM_ANIM_FRAMES : 104/4;//limit to the 104 available rows
         unsigned char frame=y>>2;
         unsigned int threshold = ((frame+2) * (256/numFrames));//(frame * 255/numFrames);//+2 makes sure it starts eaten and ends blank
+        unsigned int thresholdDim = ((frame+4) * (256/numFrames));//(frame * 255/numFrames);//+2 makes sure it starts eaten and ends blank
         unsigned char maxWidth = 128;//128 if bold
         for (x = 0; x < maxWidth; x++)//write out max width needed
         {//each frame of anim is 30w and 4h
@@ -1456,6 +1457,9 @@ void bake_animation_frames_v2_prog1()
                 if (noise <= threshold) {
                     vram[targetCoord] = 0b00100000;//0b11111111;//0b00100000; // Erase the pixel
                 }
+                else if (noise <= thresholdDim) {
+                    vram[targetCoord] = vram[targetCoord] & 0b11110011;//0b11111111;//0b00100000; // Erase the pixel
+                }  
                 else {
                     vram[targetCoord] = 0;//pixel; //transparent pixel
                 }
