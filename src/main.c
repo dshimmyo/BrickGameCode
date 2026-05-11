@@ -18,7 +18,9 @@ extern int approx_five_twelfths(int num);
 
 #define VERSION_MAJOR 1
 #define VERSION_MINOR 0
-#define VERSION_PATCH 0
+#define VERSION_PATCH 1//reduced juicy anims
+//v 1 0 0 first rc
+//v 1 0 1 reduced anim queue from 6 to 4, more color depth in animations
 
 /////*********** */
 #define TESTFEATURES true
