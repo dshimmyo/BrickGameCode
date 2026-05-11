@@ -71,7 +71,7 @@ extern int approx_five_twelfths(int num);
 
 #define ERASE_QUEUE_MAX 8 //eight is enough
 #define NUM_ANIM_FRAMES 16 //24 too much//8 // 4 look unimpressive //6 pushing it //8 a little sluggish
-#define ANIM_QUEUE_MAX 6 // was 2 but back to 4 after math optimizations//4 - is nice but trying 2 combined with 6 frames as a compromise
+#define ANIM_QUEUE_MAX 4 // was 2 but back to 4 after math optimizations//4 - is nice but trying 2 combined with 6 frames as a compromise
 #define ANIM_FRAME_MULTIPLIER 1//2
 
 //dynamic brick layout
