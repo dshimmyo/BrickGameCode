@@ -26,7 +26,18 @@ extern int approx_five_twelfths(int num);
 #define TESTFEATURES true
 /////*********** */
 #define CHK_EMU *((volatile uint8_t*) 0x2007) //emulator magic ID
-#define RUMBLE_PORT *((volatile unsigned char*) 0x2008) //magic rumble port
+#define GAMEPAD_1_REG (*(volatile unsigned char*)0x2008) //using read-only memory to send messages to the emulator
+#define GAMEPAD_2_REG (*(volatile unsigned char*)0x2009) //using read-only memory to send messages to the emulator
+#define RUMBLE_PORT GAMEPAD_1_REG //magic rumble port
+#define EMULATOR_INPUT_TYPE GAMEPAD_2_REG //tell emulator paddle or gamepad
+#define SIGNAL_PADDLE_MODE 0xA5 // Use a distinct signature byte for paddle mode
+
+void Set_emulator_paddle_mode(bool value) {
+    // We explicitly write to the register.
+    // Real hardware ignores this; your emulator traps it.
+    if (value) GAMEPAD_2_REG = SIGNAL_PADDLE_MODE;
+    else GAMEPAD_2_REG = 0x00;
+}
 
 #define CHECK_PADDLE_STATE() \
     if (CHK_EMU & 0x02) { \
@@ -1385,6 +1396,7 @@ void SelectControllerScreen_prog2(bool buttonAPress, bool buttonBPress)
     
     if (buttonBPress) 
     {
+        Set_emulator_paddle_mode(false);
         controller_style = CONTROLLER_STYLE_GPAD1;
         gameState = STATE_ATTRACT;
         breakoutRefresh=0;//triggers a bg refresh
@@ -1395,6 +1407,7 @@ void SelectControllerScreen_prog2(bool buttonAPress, bool buttonBPress)
     }
     else if (buttonAPress) 
     {
+        Set_emulator_paddle_mode(true);
         controller_style = CONTROLLER_STYLE_PADDLE0;
         gameState = STATE_ATTRACT;
         breakoutRefresh=0;//triggers a bg refresh
