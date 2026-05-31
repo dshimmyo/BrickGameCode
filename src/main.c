@@ -731,26 +731,38 @@ char paddleXFromPot8opt_prog1(unsigned char potVal)
 
     return ClampPaddleX_prog1(newPotVal);//(((newPotVal<<1)/3 + paddleX/3));//no smoothing
 }
-signed char dpadDx = 0;
-char paddleXFromDPad_prog1()
+signed int dpadDx = 0;
+static signed int paddleSubX = 0;
+#define MAX_DPAD_PADDLE_SPEED 3 * 64
+char paddleXFromDPad_prog1(unsigned char level)
 {
-    signed char result = paddleX;
+    signed int result = paddleX;
+
+    //dpadDx old behavior -3, 0, 3
+    //new behavior signed int try -256 * 3, 0, 256*3
     if (!((player1_buttons & INPUT_MASK_PADDLE_RIGHT) || (player1_buttons & INPUT_MASK_PADDLE_LEFT)))
     {
         dpadDx=0;//if no press, start back at 0
+        paddleSubX = 0; // Clear fractional accumulation when stopped
         return result;
     }
-    if ((player1_buttons & INPUT_MASK_PADDLE_RIGHT)){
-        dpadDx = (dpadDx<=0) ? 0 : dpadDx;
-        dpadDx = (dpadDx<3) ? (dpadDx+1) : dpadDx;
-        result += dpadDx;
+    else
+    {
+        int maxSpeed = MAX_DPAD_PADDLE_SPEED * (50 + level ) / 50;//64 scale
+
+        if ((player1_buttons & INPUT_MASK_PADDLE_RIGHT)){
+            dpadDx = (dpadDx<=0) ? 0 : dpadDx;
+            dpadDx = (dpadDx<maxSpeed) ? (dpadDx+32) : dpadDx;
+        }
+        else if ((player1_buttons & INPUT_MASK_PADDLE_LEFT)) {
+            dpadDx = (dpadDx>=0) ? 0 : dpadDx;
+            dpadDx = (dpadDx>(maxSpeed*-1)) ? (dpadDx-32) : dpadDx;
+        }
+        paddleSubX += dpadDx;
+        result += (paddleSubX / 64);
+        paddleSubX = paddleSubX % 64;
+        return ClampPaddleX_prog1(result);
     }
-    else if ((player1_buttons & INPUT_MASK_PADDLE_LEFT)) {
-        dpadDx = (dpadDx>=0) ? 0 : dpadDx;
-        dpadDx = (dpadDx>(-3)) ? (dpadDx-1) : dpadDx;
-        result += dpadDx;
-    }
-    return ClampPaddleX_prog1(result);
 }
 char ConstVelocity_prog1(char source, int target, char vel){
     int result = source;
@@ -1261,7 +1273,7 @@ void update_player_paddle_prog1(){
         }
         else if (controller_style == CONTROLLER_STYLE_GPAD1)
         {
-            paddleX = paddleXFromDPad_prog1();
+            paddleX = paddleXFromDPad_prog1(cycleLevel);
         }
     }
 }
@@ -2331,7 +2343,7 @@ void main () {
         }
 
         await_vsync(1);
-        flip_pages();
+        flip_pages(); 
         tick_music();
         //update_inputs();
         update_paddle_inputs();//new inputs for paddle feature
