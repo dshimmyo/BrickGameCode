@@ -18,10 +18,11 @@ extern int approx_five_twelfths(int num);
 
 #define VERSION_MAJOR 1
 #define VERSION_MINOR 0
-#define VERSION_PATCH 2
+#define VERSION_PATCH 3
 //v 1 0 0 first rc
 //v 1 0 1 reduced anim queue from 6 to 4, more color depth in animations
 //v 1 0 2 emulator switches a,b to z,x when no joystick detected
+//v 1 0 3 recognize paddle bit and mouse bit from emu
 
 /////*********** */
 #define TESTFEATURES true
@@ -43,7 +44,7 @@ void Set_emulator_paddle_mode(bool value) {
 //CHK_EMU 
 //CHK_EMU & 0x02 indicates that a joystick is connected and the game should setrange the input
 #define CHECK_PADDLE_STATE() \
-    if (CHK_EMU & 0x02) { \
+    if ((CHK_EMU & 0x02) && !(CHK_EMU & 0x08)) { \
         paddleRotationMin = PADDLEMIN; \
         paddleRotationMax = PADDLEMAX; \
     } else { \
@@ -2305,7 +2306,7 @@ uint8_t lazyDevFrameCounter=0;
 
 void main () {
     emuStatus = CHK_EMU;
-    if ((emuStatus & 0b11111101) == 0x55) {
+    if ((emuStatus & 0b11110101) == 0x55) {//2=paddle connected, 8=paddle emulation enabled
         isEmulator = true;
     }
     init_music();
