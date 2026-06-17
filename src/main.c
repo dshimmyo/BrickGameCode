@@ -39,6 +39,8 @@ void Set_emulator_paddle_mode(bool value) {
     else GAMEPAD_2_REG = 0x00;
 }
 
+//CHK_EMU 
+//CHK_EMU & 0x02 indicates that a joystick is connected and the game should setrange the input
 #define CHECK_PADDLE_STATE() \
     if (CHK_EMU & 0x02) { \
         paddleRotationMin = PADDLEMIN; \
@@ -1405,7 +1407,22 @@ void SelectControllerScreen_prog2(bool buttonAPress, bool buttonBPress)
     queue_draw_sprite(6,108,115,1,0,87 + flipLoopTime,PRESSSTARTSPRITEBANK);
     queue_draw_sprite(6,86,1,22,88+flipLoopTime,0,PRESSSTARTSPRITEBANK);
     queue_draw_sprite(121,86,1,22,88+loopTime,0,PRESSSTARTSPRITEBANK);
-    
+    if (isEmulator){
+    if  (CHK_EMU & 0x02) //a joystick is connected
+    {
+        //draw A at 10,97
+        queue_draw_sprite(10,95,5,5,0,78,PRESSSTARTSPRITEBANK);
+        //draw B at 64,97
+        queue_draw_sprite(64,95,5,5,6,78,PRESSSTARTSPRITEBANK);
+    }
+    else //fall back to keyboard Z,X
+    {
+        //draw z at 10,97
+        queue_draw_sprite(10,95,5,5,24,78,PRESSSTARTSPRITEBANK);
+        //draw x at 64,97
+        queue_draw_sprite(64,95,5,5,30,78,PRESSSTARTSPRITEBANK);
+    }
+    }
     if (buttonBPress) 
     {
         Set_emulator_paddle_mode(false);
