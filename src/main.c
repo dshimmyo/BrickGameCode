@@ -25,7 +25,8 @@ extern int approx_five_twelfths(int num);
 //v 1 0 3 recognize paddle bit and mouse bit from emu
 
 /////*********** */
-#define TESTFEATURES true
+#define TESTFEATURES false
+#define DEMOMODE false
 /////*********** */
 #define CHK_EMU *((volatile uint8_t*) 0x2007) //emulator magic ID
 #define GAMEPAD_1_REG (*(volatile unsigned char*)0x2008) //using read-only memory to send messages to the emulator
@@ -52,6 +53,7 @@ void Set_emulator_paddle_mode(bool value) {
         paddleRotationMax = MOUSEMAX; \
     }
 
+#define BGCOLOR 0b11100000    //was 2
 #define PADDLECOLOR 0b11010111//0b00111111//0b10101111
 #define STARTPADDLEWIDTH 24//16
 #define PADDLEHEIGHT 4
@@ -800,6 +802,9 @@ char paddleXFromLowestBall_prog1(){
 void GenNextLevel_prog1(char procLevel)
 {
     BrickLayout bl;
+#if DEMOMODE
+    procLevel = (procLevel<=2) ? procLevel : 2;//for demo 0,1,2
+#endif
     bl = brickLayouts[procLevel % NUM_BRICK_LAYOUTS];
     currentBrickWidth = bl.brickWidth;
     currentNumBricksH = bl.numColumns;
@@ -2119,12 +2124,12 @@ void draw_lives_prog1(char lives)
 }
 void loading_screen_prog1(){
     //print out loading message
-    queue_clear_border(2);//color
+    queue_clear_border(BGCOLOR);//color
     queue_draw_sprite(32,64,64,5,0,54,PRESSSTARTSPRITEBANK);//press start  
     await_draw_queue();
     await_vsync(1);
     flip_pages();
-    queue_clear_border(2);//color
+    queue_clear_border(BGCOLOR);//color
     queue_draw_sprite(32,64,64,5,0,54,PRESSSTARTSPRITEBANK);//press start  
     await_draw_queue();
     await_vsync(1);
@@ -2205,6 +2210,13 @@ void GameWrapperStateMachine()
                     if (isSkipAhead) spawnTimer = 2;
                     else spawnTimer = 100;
                     isSkipAhead = false;
+                    #if DEMOMODE
+                    if (cycleLevel>=3){
+                        if (lives_left>1) {
+                            lives_left=1;
+                        }
+                    }
+                    #endif
                 }
                 break;
                 case SUBSTATE_PLAY://ball(s) are in play                
@@ -2345,7 +2357,7 @@ void main () {
         }
         //GameWrapper();
         GameWrapperStateMachine();
-        queue_clear_border(2);//color
+        queue_clear_border(BGCOLOR);//2//color
 
         if (gameState != STATE_CONTROLLER_SELECT){
             if (scoreRefreshFrames)EraseRect(SCOREPOSX-1,10,SCOREWIDTH,9);//clear scores from previous frames
