@@ -18,11 +18,12 @@ extern int approx_five_twelfths(int num);
 
 #define VERSION_MAJOR 1
 #define VERSION_MINOR 0
-#define VERSION_PATCH 3
+#define VERSION_PATCH 4
 //v 1 0 0 first rc
 //v 1 0 1 reduced anim queue from 6 to 4, more color depth in animations
 //v 1 0 2 emulator switches a,b to z,x when no joystick detected
 //v 1 0 3 recognize paddle bit and mouse bit from emu
+//v 1 0 4 fix paddle trans, disable test features
 
 /////*********** */
 #define TESTFEATURES false
@@ -1686,10 +1687,11 @@ void generate_paddle_sprite_prog1(){
         //copy left two columns from 0,0
         unsigned int sourceCoord = 0 + (y*128);
         unsigned int targetCoord = 0 + ((y+4)*128);//target paddle starts at row 4
-        vram[targetCoord] = (vram[sourceCoord] & 0b00000111) + huesat;
+        
+        vram[targetCoord] = (vram[sourceCoord]==0) ? 0 : (vram[sourceCoord] & 0b00000111) + huesat;
         sourceCoord = 1 + (y*128);
         targetCoord = 1 + ((y+4)*128);//target paddle starts at row 4
-        vram[targetCoord] = (vram[sourceCoord] & 0b00000111) + huesat;
+        vram[targetCoord] = (vram[sourceCoord]==0) ? 0 : (vram[sourceCoord] & 0b00000111) + huesat;
 
         //copy last two columns from 14,0 
         {
@@ -1697,10 +1699,10 @@ void generate_paddle_sprite_prog1(){
         unsigned int targetXOffset = currentPaddleWidth - 2;
         sourceCoord = sourceXOffset + (y*128);
         targetCoord = targetXOffset + ((y+4)*128);//target paddle starts at row 4
-        vram[targetCoord] = (vram[sourceCoord] & 0b00000111) + huesat;
+        vram[targetCoord] = (vram[sourceCoord]==0) ? 0 : (vram[sourceCoord] & 0b00000111) + huesat;
         sourceCoord = sourceXOffset + 1 + (y*128);
         targetCoord = targetXOffset + 1 + ((y+4)*128);//target paddle starts at row 4
-        vram[targetCoord] = (vram[sourceCoord] & 0b00000111) + huesat;
+        vram[targetCoord] = (vram[sourceCoord]==0) ? 0 : (vram[sourceCoord] & 0b00000111) + huesat;
         }
         for (x = 2; x<currentPaddleWidth-2;x++){//copy the middle
             unsigned int targetCoord = x + ((y+4)*128);//target paddle starts at row 4
