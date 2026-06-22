@@ -93,6 +93,7 @@ void Set_emulator_paddle_mode(bool value) {
 #define NUM_ANIM_FRAMES 16 //24 too much//8 // 4 look unimpressive //6 pushing it //8 a little sluggish
 #define ANIM_QUEUE_MAX 4 // was 2 but back to 4 after math optimizations//4 - is nice but trying 2 combined with 6 frames as a compromise
 #define ANIM_FRAME_MULTIPLIER 1//2
+#define ATTRACT_MODE_SKIP_FRAME false
 
 //dynamic brick layout
 unsigned char currentBrickWidth = 120;//12;//8;//4;//2;
@@ -789,7 +790,12 @@ char paddleXFromLowestBall_prog1(){
     unsigned char lowest_y = 0;
     signed char target_ball_index = -1;
     unsigned char i;
+    int maxSpeed = (MAX_DPAD_PADDLE_SPEED * (50 + cycleLevel ) / 50)/64;//64 scale
+
+#if ATTRACT_MODE_SKIP_FRAME
+    maxSpeed *= 2;
     if ((everyOtherFrame++) & 0x00000001) return paddleX;//skip every other frame
+#endif
 
     // Find the ball closest to the paddle
     for (i = 0; i < MAX_BALLS; i++) {
@@ -798,7 +804,8 @@ char paddleXFromLowestBall_prog1(){
             target_ball_index = i;
         }
     }
-    return ConstVelocity_prog1(paddleX, balls[target_ball_index].x - (currentPaddleWidth>>1) + rndPaddleOffset,6);//double speed, skip alt frames
+
+    return ConstVelocity_prog1(paddleX, balls[target_ball_index].x - (currentPaddleWidth>>1) + rndPaddleOffset,maxSpeed);
 }
 void GenNextLevel_prog1(char procLevel)
 {
