@@ -1785,6 +1785,10 @@ void BakeBreakoutBackground_prog1(char bank){
     char oldBanks = banksMirror; 
     unsigned char x,y;
     char livesArray[17*4];
+    #if DEMOMODE
+    char demoArray[23*5];
+    #endif
+    
     #if LOADSPRITEBG
     load_spritesheet(ASSET__gfx__n44thumb_bmp,bank);
     #endif
@@ -1799,7 +1803,6 @@ void BakeBreakoutBackground_prog1(char bank){
     *bank_reg = banksMirror;
 
     #if !LOADSPRITEBG
-    //queue_clear_screen(0);
     for (y=0;y<128;y++)//blank the screen
     {
         for (x=0;x<128;x++)
@@ -1895,7 +1898,6 @@ void BakeBreakoutBackground_prog1(char bank){
     // 2. BANK IN THE SPRITES
     banksMirror = bankflip | GRAM_PAGE(bank);//back to our current bank
     *bank_reg = banksMirror;
-    
     {
         //char vramIndex=0;
         char posx = 92;
@@ -1909,6 +1911,55 @@ void BakeBreakoutBackground_prog1(char bank){
             }
         }
     }
+
+
+    #if DEMOMODE
+    //get demomode from pressStart bank, just like lives
+    //queue_draw_sprite(10,120,21,5,0,27,BAKEDBACKGROUNDSPRITEBANK);
+    //load spritebank to sample "lives" text
+    banksMirror = bankflip | GRAM_PAGE(PRESSSTARTSPRITEBANK);//jump to a different bank to grab "lives text"
+    *bank_reg = banksMirror;
+    {
+        char w=23;
+        char h=5;
+        char xoffset = 0;//25; //44 LIFE 3px 64 LIVES 3px
+        char yoffset = 27;
+        for (y=0; y<h; y++){
+            for (x=0; x<w; x++){
+               demoArray[y*w+x]= vram[(y+yoffset)*128 + (x + xoffset)];
+            }
+        }
+    }
+    banksMirror = bankflip | GRAM_PAGE(bank);//back to our current bank
+    *bank_reg = banksMirror;
+    {
+        char posx = 5;
+        char posy = 114;
+        char w=23;
+        char h=5;
+        for (y=0; y<h; y++){
+            for (x=0; x<w; x++){
+                char index=(y * w) + x;
+                vram[((y + posy) * 128) + posx+x] = demoArray[index];
+            }
+        }
+    }
+    banksMirror = bankflip | GRAM_PAGE(TITLESPRITEBANK);//side-hack into title sprite bank
+    *bank_reg = banksMirror;
+    {
+        char posx = 5;
+        char posy = 114;
+        char w=23;
+        char h=5;
+        for (y=0; y<h; y++){
+            for (x=0; x<w; x++){
+                char index=(y * w) + x;
+                vram[((y + posy) * 128) + posx+x] = demoArray[index];
+            }
+        }
+    }
+    #endif
+
     // {//draw life bar //move to a different bank
     //     char y=17;
     //     for (x=92; x<BRICK_RIGHT; x+=2){
@@ -1973,11 +2024,11 @@ void bake_wave_number_prog1(unsigned char wave, int posx, int posy, char bank){
     // 2. BANK IN THE SPRITES - switch to target bank
     banksMirror = bankflip | GRAM_PAGE(bank);
     *bank_reg = banksMirror;
-    {//erase wave line completely
+    {//erase right half of wave line to make room for DEMO
         char h=4;
         char x,y;
         for (y=0; y<4; y++){
-            for (x=BRICK_LEFT; x<BRICK_RIGHT; x++){
+            for (x=64; x<BRICK_RIGHT; x++){
                 //char index=(y * w) + x + gy * 4;
                 vram[((y + posy) * 128) + x] = 0b00100000;
             }
