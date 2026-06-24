@@ -28,6 +28,7 @@ extern int approx_five_twelfths(int num);
 /////*********** */
 #define TESTFEATURES false
 #define DEMOMODE false
+unsigned char demoModeFrames = 0;//need to update a couple frames
 /////*********** */
 #define CHK_EMU *((volatile uint8_t*) 0x2007) //emulator magic ID
 #define GAMEPAD_1_REG (*(volatile unsigned char*)0x2008) //using read-only memory to send messages to the emulator
@@ -812,6 +813,9 @@ void GenNextLevel_prog1(char procLevel)
     BrickLayout bl;
 #if DEMOMODE
     procLevel = (procLevel<=2) ? procLevel : 2;//for demo 0,1,2
+    if (procLevel == 2){
+        demoModeFrames = 0;
+    }
 #endif
     bl = brickLayouts[procLevel % NUM_BRICK_LAYOUTS];
     currentBrickWidth = bl.brickWidth;
@@ -2219,13 +2223,6 @@ void GameWrapperStateMachine()
                     if (isSkipAhead) spawnTimer = 2;
                     else spawnTimer = 100;
                     isSkipAhead = false;
-                    #if DEMOMODE
-                    if (cycleLevel>=3){
-                        if (lives_left>1) {
-                            lives_left=1;
-                        }
-                    }
-                    #endif
                 }
                 break;
                 case SUBSTATE_PLAY://ball(s) are in play                
@@ -2364,6 +2361,15 @@ void main () {
         if (isEmulator && (lazyDevFrameCounter & 0x3F)){
             CHECK_PADDLE_STATE();
         }
+        #if DEMOMODE
+        if (cycleLevel>3){//if level 3 is completed
+            if (demoModeFrames++==2){//give at least 2 frames to refresh
+                if (lives_left>1) {
+                    lives_left=0;//die asap
+                }
+            }
+        }
+        #endif
         //GameWrapper();
         GameWrapperStateMachine();
         queue_clear_border(BGCOLOR);//2//color
