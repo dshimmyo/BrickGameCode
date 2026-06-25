@@ -18,16 +18,20 @@ extern int approx_five_twelfths(int num);
 
 #define VERSION_MAJOR 1
 #define VERSION_MINOR 0
-#define VERSION_PATCH 4
+#define VERSION_PATCH 5
 //v 1 0 0 first rc
 //v 1 0 1 reduced anim queue from 6 to 4, more color depth in animations
 //v 1 0 2 emulator switches a,b to z,x when no joystick detected
 //v 1 0 3 recognize paddle bit and mouse bit from emu
 //v 1 0 4 fix paddle trans, disable test features
+//v 1 0 5 demo unlocks with dks paddle connected
 
 /////*********** */
 #define TESTFEATURES false
 #define DEMOMODE false
+#if DEMOMODE
+bool demoModeUnlock = false;
+#endif
 unsigned char demoModeFrames = 0;//need to update a couple frames
 /////*********** */
 #define CHK_EMU *((volatile uint8_t*) 0x2007) //emulator magic ID
@@ -46,6 +50,8 @@ void Set_emulator_paddle_mode(bool value) {
 
 //CHK_EMU 
 //CHK_EMU & 0x02 indicates that a joystick is connected and the game should setrange the input
+//0x08 is mouse emulation
+//0x20 is dksPaddle
 #define CHECK_PADDLE_STATE() \
     if ((CHK_EMU & 0x02) && !(CHK_EMU & 0x08)) { \
         paddleRotationMin = PADDLEMIN; \
@@ -812,9 +818,11 @@ void GenNextLevel_prog1(char procLevel)
 {
     BrickLayout bl;
 #if DEMOMODE
-    procLevel = (procLevel<=2) ? procLevel : 2;//for demo 0,1,2
-    if (procLevel == 2){
-        demoModeFrames = 0;
+    if (!demoModeUnlock){ //not dks paddle connected
+        procLevel = (procLevel<=2) ? procLevel : 2;//for demo 0,1,2
+        if (procLevel == 2){
+            demoModeFrames = 0;
+        }
     }
 #endif
     bl = brickLayouts[procLevel % NUM_BRICK_LAYOUTS];
@@ -1786,7 +1794,7 @@ void BakeBreakoutBackground_prog1(char bank){
     unsigned char x,y;
     char livesArray[17*4];
     #if DEMOMODE
-    char demoArray[23*5];
+        char demoArray[23*5];
     #endif
     
     #if LOADSPRITEBG
@@ -1914,47 +1922,50 @@ void BakeBreakoutBackground_prog1(char bank){
 
 
     #if DEMOMODE
-    //get demomode from pressStart bank, just like lives
-    //queue_draw_sprite(10,120,21,5,0,27,BAKEDBACKGROUNDSPRITEBANK);
-    //load spritebank to sample "lives" text
-    banksMirror = bankflip | GRAM_PAGE(PRESSSTARTSPRITEBANK);//jump to a different bank to grab "lives text"
-    *bank_reg = banksMirror;
-    {
-        char w=23;
-        char h=5;
-        char xoffset = 0;//25; //44 LIFE 3px 64 LIVES 3px
-        char yoffset = 27;
-        for (y=0; y<h; y++){
-            for (x=0; x<w; x++){
-               demoArray[y*w+x]= vram[(y+yoffset)*128 + (x + xoffset)];
+        if (!demoModeUnlock){ //not dks paddle connected
+
+        //get demomode from pressStart bank, just like lives
+        //queue_draw_sprite(10,120,21,5,0,27,BAKEDBACKGROUNDSPRITEBANK);
+        //load spritebank to sample "lives" text
+        banksMirror = bankflip | GRAM_PAGE(PRESSSTARTSPRITEBANK);//jump to a different bank to grab "lives text"
+        *bank_reg = banksMirror;
+        {
+            char w=23;
+            char h=5;
+            char xoffset = 0;//25; //44 LIFE 3px 64 LIVES 3px
+            char yoffset = 27;
+            for (y=0; y<h; y++){
+                for (x=0; x<w; x++){
+                demoArray[y*w+x]= vram[(y+yoffset)*128 + (x + xoffset)];
+                }
             }
         }
-    }
-    banksMirror = bankflip | GRAM_PAGE(bank);//back to our current bank
-    *bank_reg = banksMirror;
-    {
-        char posx = 5;
-        char posy = 114;
-        char w=23;
-        char h=5;
-        for (y=0; y<h; y++){
-            for (x=0; x<w; x++){
-                char index=(y * w) + x;
-                vram[((y + posy) * 128) + posx+x] = demoArray[index];
+        banksMirror = bankflip | GRAM_PAGE(bank);//back to our current bank
+        *bank_reg = banksMirror;
+        {
+            char posx = 5;
+            char posy = 114;
+            char w=23;
+            char h=5;
+            for (y=0; y<h; y++){
+                for (x=0; x<w; x++){
+                    char index=(y * w) + x;
+                    vram[((y + posy) * 128) + posx+x] = demoArray[index];
+                }
             }
         }
-    }
-    banksMirror = bankflip | GRAM_PAGE(TITLESPRITEBANK);//side-hack into title sprite bank
-    *bank_reg = banksMirror;
-    {
-        char posx = 5;
-        char posy = 114;
-        char w=23;
-        char h=5;
-        for (y=0; y<h; y++){
-            for (x=0; x<w; x++){
-                char index=(y * w) + x;
-                vram[((y + posy) * 128) + posx+x] = demoArray[index];
+        banksMirror = bankflip | GRAM_PAGE(TITLESPRITEBANK);//side-hack into title sprite bank
+        *bank_reg = banksMirror;
+        {
+            char posx = 5;
+            char posy = 114;
+            char w=23;
+            char h=5;
+            for (y=0; y<h; y++){
+                for (x=0; x<w; x++){
+                    char index=(y * w) + x;
+                    vram[((y + posy) * 128) + posx+x] = demoArray[index];
+                }
             }
         }
     }
@@ -2375,9 +2386,14 @@ uint8_t lazyDevFrameCounter=0;
 
 void main () {
     emuStatus = CHK_EMU;
-    if ((emuStatus & 0b11110101) == 0x55) {//2=paddle connected, 8=paddle emulation enabled
+    if ((emuStatus & 0b11010101) == 0x55) {//2=paddle connected, 8=paddle emulation enabled
         isEmulator = true;
     }
+    #if DEMOMODE
+        if (emuStatus & 0x20){//not dks paddle connected
+            demoModeUnlock = true; //only checks once
+        }
+    #endif
     init_music();
     load_spritesheet(ASSET__gfx__paddletank_paddle_bmp,PADDLESPRITEBANK);
     load_spritesheet(ASSET__gfx__PressStart_bmp,PRESSSTARTSPRITEBANK);
@@ -2413,10 +2429,12 @@ void main () {
             CHECK_PADDLE_STATE();
         }
         #if DEMOMODE
-        if (cycleLevel>3){//if level 3 is completed
-            if (demoModeFrames++==2){//give at least 2 frames to refresh
-                if (lives_left>1) {
-                    lives_left=0;//die asap
+        if (!demoModeUnlock){ //not dks paddle connected
+            if (cycleLevel>3){//if level 3 is completed
+                if (demoModeFrames++==2){//give at least 2 frames to refresh
+                    if (lives_left>1) {
+                        lives_left=0;//die asap
+                    }
                 }
             }
         }
