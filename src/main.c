@@ -2432,7 +2432,7 @@ void main () {
         if (!demoModeUnlock){ //not dks paddle connected
             if (cycleLevel>3){//if level 3 is completed
                 if (demoModeFrames++==2){//give at least 2 frames to refresh
-                    if (lives_left>1) {
+                    if (lives_left>0) {
                         lives_left=0;//die asap
                     }
                 }
