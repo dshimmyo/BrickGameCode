@@ -18,13 +18,14 @@ extern int approx_five_twelfths(int num);
 
 #define VERSION_MAJOR 1
 #define VERSION_MINOR 0
-#define VERSION_PATCH 5
+#define VERSION_PATCH 6
 //v 1 0 0 first rc
 //v 1 0 1 reduced anim queue from 6 to 4, more color depth in animations
 //v 1 0 2 emulator switches a,b to z,x when no joystick detected
 //v 1 0 3 recognize paddle bit and mouse bit from emu
 //v 1 0 4 fix paddle trans, disable test features
 //v 1 0 5 demo unlocks with dks paddle connected
+//v 1 0 6 4px font fixes
 
 /////*********** */
 #define TESTFEATURES false
