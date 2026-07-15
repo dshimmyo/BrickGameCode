@@ -2430,11 +2430,13 @@ void main () {
             CHECK_PADDLE_STATE();
         }
         #if DEMOMODE
-        if (!demoModeUnlock){ //not dks paddle connected
-            if (cycleLevel>3){//if level 3 is completed
-                if (demoModeFrames++==2){//give at least 2 frames to refresh
-                    if (lives_left>0) {
-                        lives_left=0;//die asap
+        if (gameState!=STATE_ATTRACT){//life limit not applied to attract mode
+            if (!demoModeUnlock){ //not dks paddle connected
+                if (cycleLevel>3){//if level 3 is completed
+                    if (demoModeFrames++==2){//give at least 2 frames to refresh
+                        if (lives_left>0) {
+                            lives_left=0;//die asap
+                        }
                     }
                 }
             }
