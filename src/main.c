@@ -17,8 +17,8 @@ extern int speed_mult_asm(int source, int mult);
 extern int approx_five_twelfths(int num);
 
 #define VERSION_MAJOR 1
-#define VERSION_MINOR 0
-#define VERSION_PATCH 7
+#define VERSION_MINOR 1
+#define VERSION_PATCH 0
 //v 1 0 0 first rc
 //v 1 0 1 reduced anim queue from 6 to 4, more color depth in animations
 //v 1 0 2 emulator switches a,b to z,x when no joystick detected
@@ -27,6 +27,7 @@ extern int approx_five_twelfths(int num);
 //v 1 0 5 demo unlocks with dks paddle connected
 //v 1 0 6 4px font fixes
 //v 1 0 7 demomode attract mode fix
+//v 1 1 0 remove/disable persist feature
 
 /////*********** */
 #define TESTFEATURES false
@@ -820,10 +821,12 @@ void GenNextLevel_prog1(char procLevel)
 {
     BrickLayout bl;
 #if DEMOMODE
-    if (!demoModeUnlock){ //not dks paddle connected
-        procLevel = (procLevel<=2) ? procLevel : 2;//for demo 0,1,2
-        if (procLevel == 2){
-            demoModeFrames = 0;
+    if (gameState!=STATE_ATTRACT){
+        if (!demoModeUnlock){ //not dks paddle connected
+            procLevel = (procLevel<=2) ? procLevel : 2;//for demo 0,1,2
+            if (procLevel == 2){
+                demoModeFrames = 0;
+            }
         }
     }
 #endif
