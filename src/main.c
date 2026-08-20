@@ -2365,7 +2365,7 @@ void GameWrapperStateMachine()
 
         case STATE_BREAKOUT_GAMEOVER:
         gameOverTimer--;
-        if (gameOverTimer==0){
+        if (gameOverTimer==0 || ((gameOverTimer < 400) && buttonAPress)){
             gameState = STATE_ATTRACT;
             messageEraseCount=2;
             init_game_prog1();
