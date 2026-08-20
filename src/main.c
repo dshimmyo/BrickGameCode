@@ -2283,7 +2283,7 @@ void GameWrapperStateMachine()
                 }
                 else{
                     GenNextLevel_prog1(cycleLevel++);//unbound intentionally
-                    bake_wave_number_prog1(cycleLevel, BRICK_RIGHT - 4, 114,BAKEDBACKGROUNDSPRITEBANK);
+                    bake_wave_number_prog1(cycleLevel, BRICK_RIGHT - 4, 113,BAKEDBACKGROUNDSPRITEBANK);
                     newLevelTimer=100;
                     NewLevel_prog1();
                     subState=SUBSTATE_PLAY;
