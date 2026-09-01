@@ -16,9 +16,11 @@
 extern int speed_mult_asm(int source, int mult);
 extern int approx_five_twelfths(int num);
 
-#define VERSION_MAJOR 1
-#define VERSION_MINOR 1
-#define VERSION_PATCH 0
+#define VERSION_MAJOR 1 //only single digit haha never change!
+#define VERSION_MINOR 1 //now up to 99
+#define VERSION_PATCH 2 //now up to 99
+
+//version logs for some reason:
 //v 1 0 0 first rc
 //v 1 0 1 reduced anim queue from 6 to 4, more color depth in animations
 //v 1 0 2 emulator switches a,b to z,x when no joystick detected
@@ -28,15 +30,18 @@ extern int approx_five_twelfths(int num);
 //v 1 0 6 4px font fixes
 //v 1 0 7 demomode attract mode fix
 //v 1 1 0 remove/disable persist feature
+// // v 1 1 1 implemented persistent hiscore, but only for liretro
+//v 1 1 2 adds 2 digit version, moves level number up by one pixel, gameover spam out
 
-/////*********** */
+/////*********** 
 #define TESTFEATURES false
 #define DEMOMODE false
 #if DEMOMODE
 bool demoModeUnlock = false;
 #endif
 unsigned char demoModeFrames = 0;//need to update a couple frames
-/////*********** */
+/////*********** 
+
 #define CHK_EMU *((volatile uint8_t*) 0x2007) //emulator magic ID
 #define GAMEPAD_1_REG (*(volatile unsigned char*)0x2008) //using read-only memory to send messages to the emulator
 #define GAMEPAD_2_REG (*(volatile unsigned char*)0x2009) //using read-only memory to send messages to the emulator
@@ -2416,11 +2421,13 @@ void main () {
     bake_animation_frames_v2_prog1();//only generate errosion vault once
     
     //clunky version number
-    bake_num_prog1(VERSION_MAJOR,BRICK_RIGHT - 25,110,TITLESPRITEBANK);
-    bake_num_prog1(10,BRICK_RIGHT - 20,110,TITLESPRITEBANK);
-    bake_num_prog1(VERSION_MINOR,BRICK_RIGHT - 15,110,TITLESPRITEBANK);
-    bake_num_prog1(10,BRICK_RIGHT - 10,110,TITLESPRITEBANK);
-    bake_num_prog1(VERSION_PATCH,BRICK_RIGHT - 5,110,TITLESPRITEBANK);
+    bake_num_prog1(VERSION_MAJOR,BRICK_RIGHT - 35,110,TITLESPRITEBANK);
+    bake_num_prog1(10,BRICK_RIGHT - 30,110,TITLESPRITEBANK);
+    bake_num_prog1(VERSION_MINOR/10,BRICK_RIGHT - 25,110,TITLESPRITEBANK);
+    bake_num_prog1(VERSION_MINOR%10,BRICK_RIGHT - 20,110,TITLESPRITEBANK);
+    bake_num_prog1(10,BRICK_RIGHT - 15,110,TITLESPRITEBANK);
+    bake_num_prog1(VERSION_PATCH / 10,BRICK_RIGHT - 10,110,TITLESPRITEBANK);
+    bake_num_prog1(VERSION_PATCH % 10,BRICK_RIGHT - 5,110,TITLESPRITEBANK);
 
     //BreakoutBricksSetupWrapper_prog1(BRICKSSPRITEBANK); //redundant but keeps vram properly setup
     GenNextLevel_prog1(0);//sets up the first level in advance
