@@ -13,6 +13,8 @@
 #include "gt/feature/text/text.h"
 #include "gen/assets/font.h"
 #include "gen/assets/sdk_default.h"
+#include "gt/feature/persist/persist.h"
+
 extern int speed_mult_asm(int source, int mult);
 extern int approx_five_twelfths(int num);
 
@@ -109,6 +111,21 @@ void Set_emulator_paddle_mode(bool value) {
 #define ANIM_QUEUE_MAX 4 // was 2 but back to 4 after math optimizations//4 - is nice but trying 2 combined with 6 frames as a compromise
 #define ANIM_FRAME_MULTIPLIER 1//2
 #define ATTRACT_MODE_SKIP_FRAME false
+
+//persist hiscore implementation
+typedef struct {
+    char canary;
+    unsigned int hiscore;
+} SaveData;
+
+// Pointer to the start of the save area in Flash ROM
+#define FLASH_SAVE_ADDR ((SaveData*) &save_canary)
+
+#define MAGIC_SAVE_NUM 0x42
+
+extern const char save_canary;
+extern const unsigned int saved_hiscore;
+
 
 //dynamic brick layout
 unsigned char currentBrickWidth = 120;//12;//8;//4;//2;
@@ -283,6 +300,34 @@ unsigned int readyTimer=0;
 unsigned char cycleLevel=0;
 bool isBallWentOutOfBounds = false;
 
+void load_hiscore() {
+    push_rom_bank();
+    change_rom_bank(BANK_SAVE);
+
+    // Check if valid data has been written to Flash
+    if (FLASH_SAVE_ADDR->canary == MAGIC_SAVE_NUM) {
+        hiscore = FLASH_SAVE_ADDR->hiscore;
+    } else {
+        // Sector is uninitialized (0xFF) or invalid
+        hiscore = 0;
+    }
+
+    pop_rom_bank();
+}
+
+void save_hiscore(unsigned int new_score) {
+    SaveData data_to_save;
+    
+    hiscore = new_score;
+    data_to_save.canary = MAGIC_SAVE_NUM;
+    data_to_save.hiscore = new_score;
+
+    // Erase the Flash sector before writing new values
+    clear_save_sector();
+
+    // Write structure from RAM to Flash ROM
+    save_write(&data_to_save, (void*) FLASH_SAVE_ADDR, sizeof(SaveData));
+}
 
 void trigger_rumble(unsigned char strength) {
     // Writing here does nothing on real hardware (it's open bus)
@@ -2373,6 +2418,9 @@ void GameWrapperStateMachine()
         if (gameOverTimer==0 || ((gameOverTimer < 400) && buttonAPress)){
             gameState = STATE_ATTRACT;
             messageEraseCount=2;
+            pop_rom_bank();
+            save_hiscore(hiscore);
+            change_rom_bank(BANK_PROG1);
             init_game_prog1();
         }
         else
@@ -2408,7 +2456,8 @@ void main () {
     load_spritesheet(ASSET__gfx__paddletank_paddle_bmp,PADDLESPRITEBANK);
     load_spritesheet(ASSET__gfx__PressStart_bmp,PRESSSTARTSPRITEBANK);
     load_spritesheet(ASSET__gfx__TitleScreen_bmp,TITLESPRITEBANK);
-
+    
+    load_hiscore();
     scoring_init();
     change_rom_bank(BANK_PROG1);
     BakeBreakoutBackground_prog1(BAKEDBACKGROUNDSPRITEBANK);//bank 1
