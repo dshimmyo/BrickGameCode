@@ -53,6 +53,14 @@ unsigned char demoModeFrames = 0;//need to update a couple frames
 #define EMULATOR_INPUT_TYPE GAMEPAD_2_REG //tell emulator paddle or gamepad
 #define SIGNAL_PADDLE_MODE 0xA5 // Use a distinct signature byte for paddle mode
 
+//hiscore stuff for emu/steam
+#define HYPER_HISCORE_BYTE0  (*(volatile uint8_t*)0x2400)
+#define HYPER_HISCORE_BYTE1  (*(volatile uint8_t*)0x2401)
+#define HYPER_HISCORE_BYTE2  (*(volatile uint8_t*)0x2402)
+#define HYPER_HISCORE_BYTE3  (*(volatile uint8_t*)0x2403)
+#define HYPER_COMMIT_SAVE    (*(volatile uint8_t*)0x2404)
+#define HYPER_SAVE_STATUS    (*(volatile uint8_t*)0x2405)
+
 void Set_emulator_paddle_mode(bool value) {
     // We explicitly write to the register.
     // Real hardware ignores this; your emulator traps it.
@@ -117,7 +125,7 @@ void Set_emulator_paddle_mode(bool value) {
 //persist hiscore implementation
 typedef struct {
     char canary;
-    unsigned int hiscore;
+    uint32_t hiscore;
 } SaveData;
 
 // Pointer to the start of the save area in Flash ROM
@@ -126,7 +134,7 @@ typedef struct {
 #define MAGIC_SAVE_NUM 0x42
 
 extern const char save_canary;
-extern const unsigned int saved_hiscore;
+extern const uint32_t saved_hiscore;
 
 
 //dynamic brick layout
@@ -286,7 +294,7 @@ char paddleX_old=64;
 char paddleX_old_old=64;
 unsigned char button_byte=0;//8-bit byte representing button states, for debugging and potential use in game mechanics
 unsigned int score = 0;//global score variable
-unsigned int hiscore = 100;//global score variable
+uint32_t hiscore = 100;//global score variable
 unsigned char scoreRefreshFrames = 2;
 unsigned char hiscoreRefreshFrames = 2;
 unsigned char livesRefreshFrames = 2;
@@ -304,7 +312,17 @@ bool isBallWentOutOfBounds = false;
 
 void load_hiscore() {
     if (isEmulator){
-        //emulator should use a different save method targeting mainly wrapper mode and steam cloud
+        // Check if the host wrapper has a valid save file on disk
+        if (HYPER_SAVE_STATUS == 0x01) {
+            uint32_t b0 = (uint32_t)HYPER_HISCORE_BYTE0;
+            uint32_t b1 = (uint32_t)HYPER_HISCORE_BYTE1;
+            uint32_t b2 = (uint32_t)HYPER_HISCORE_BYTE2;
+            uint32_t b3 = (uint32_t)HYPER_HISCORE_BYTE3;
+
+            hiscore = b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
+        } else {
+            hiscore = 0; // Default if no save exists
+        }
     }
     else
     {
@@ -323,15 +341,22 @@ void load_hiscore() {
     }
 }
 
-void save_hiscore(unsigned int new_score) {
+void save_hiscore(uint32_t new_score) {
     SaveData data_to_save;
+    
+    hiscore = new_score;
     if (isEmulator){
         //emulator should use a different save method targeting mainly wrapper mode and steam cloud
+        HYPER_HISCORE_BYTE0 = (uint8_t)(new_score & 0xFF);
+        HYPER_HISCORE_BYTE1 = (uint8_t)((new_score >> 8) & 0xFF);
+        HYPER_HISCORE_BYTE2 = (uint8_t)((new_score >> 16) & 0xFF);
+        HYPER_HISCORE_BYTE3 = (uint8_t)((new_score >> 24) & 0xFF);
 
+        // Writing 0x01 tells host C++ code to execute SaveHighScoreToNativeFile()
+        HYPER_COMMIT_SAVE = 0x01;
     }
     else
     {
-        hiscore = new_score;
         data_to_save.canary = MAGIC_SAVE_NUM;
         data_to_save.hiscore = new_score;
 
