@@ -2465,16 +2465,19 @@ void GameWrapperStateMachine()
     paddleX_old_old = paddleX_old;
     paddleX_old = paddleX;
 }
+#pragma data-name (push, "ZEROPAGE")
 unsigned char check_hiscore_time=0;
+#pragma data-name (pop)
+
 void check_hiscore()
 {
     if (gameState==STATE_BREAKOUT_PLAY){
-        if (++check_hiscore_time>>4){//0b00010000 every 16 frames
-            check_hiscore_time=0;
-                if (score > hiscore){
-                    hiscore = score;
-                    hiscoreRefreshFrames=2;
-                }
+        if ((++check_hiscore_time&15) == 0){//0b00010000 every 16 frames
+            //check_hiscore_time=0;
+            if (score > hiscore){
+                hiscore = score;
+                hiscoreRefreshFrames=2;
+            }
         }
     }
 }
