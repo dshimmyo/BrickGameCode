@@ -20,7 +20,7 @@ extern int approx_five_twelfths(int num);
 
 #define VERSION_MAJOR 1 //only single digit haha never change!
 #define VERSION_MINOR 1 //now up to 99
-#define VERSION_PATCH 2 //now up to 99
+#define VERSION_PATCH 3 //now up to 99
 
 //version logs for some reason:
 //v 1 0 0 first rc
@@ -34,6 +34,8 @@ extern int approx_five_twelfths(int num);
 //v 1 1 0 remove/disable persist feature
 // // v 1 1 1 implemented persistent hiscore, but only for liretro
 //v 1 1 2 adds 2 digit version, moves level number up by one pixel, gameover spam out
+
+//v 1 1 3 re-instating persist and hiscore and making it work with steam cloud
 
 /////*********** 
 #define TESTFEATURES false
@@ -301,32 +303,44 @@ unsigned char cycleLevel=0;
 bool isBallWentOutOfBounds = false;
 
 void load_hiscore() {
-    push_rom_bank();
-    change_rom_bank(BANK_SAVE);
-
-    // Check if valid data has been written to Flash
-    if (FLASH_SAVE_ADDR->canary == MAGIC_SAVE_NUM) {
-        hiscore = FLASH_SAVE_ADDR->hiscore;
-    } else {
-        // Sector is uninitialized (0xFF) or invalid
-        hiscore = 0;
+    if (isEmulator){
+        //emulator should use a different save method targeting mainly wrapper mode and steam cloud
     }
+    else
+    {
+        push_rom_bank();
+        change_rom_bank(BANK_SAVE);
 
-    pop_rom_bank();
+        // Check if valid data has been written to Flash
+        if (FLASH_SAVE_ADDR->canary == MAGIC_SAVE_NUM) {
+            hiscore = FLASH_SAVE_ADDR->hiscore;
+        } else {
+            // Sector is uninitialized (0xFF) or invalid
+            hiscore = 0;
+        }
+
+        pop_rom_bank();
+    }
 }
 
 void save_hiscore(unsigned int new_score) {
     SaveData data_to_save;
-    
-    hiscore = new_score;
-    data_to_save.canary = MAGIC_SAVE_NUM;
-    data_to_save.hiscore = new_score;
+    if (isEmulator){
+        //emulator should use a different save method targeting mainly wrapper mode and steam cloud
 
-    // Erase the Flash sector before writing new values
-    clear_save_sector();
+    }
+    else
+    {
+        hiscore = new_score;
+        data_to_save.canary = MAGIC_SAVE_NUM;
+        data_to_save.hiscore = new_score;
 
-    // Write structure from RAM to Flash ROM
-    save_write(&data_to_save, (void*) FLASH_SAVE_ADDR, sizeof(SaveData));
+        // Erase the Flash sector before writing new values
+        clear_save_sector();
+
+        // Write structure from RAM to Flash ROM
+        save_write(&data_to_save, (void*) FLASH_SAVE_ADDR, sizeof(SaveData));
+    }
 }
 
 void trigger_rumble(unsigned char strength) {
