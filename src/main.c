@@ -1173,12 +1173,6 @@ void DrawBricksWrapper_prog1(){
 void incrementScore_prog1(char num){
     scoreRefreshFrames=2;
     score += num;
-    if (gameState==STATE_BREAKOUT_PLAY){
-        if (score > hiscore){
-            hiscore = score;
-            hiscoreRefreshFrames=2;
-        }
-    }
 }
 void addLives(char num)
 {
@@ -2471,7 +2465,19 @@ void GameWrapperStateMachine()
     paddleX_old_old = paddleX_old;
     paddleX_old = paddleX;
 }
-
+unsigned char check_hiscore_time=0;
+void check_hiscore()
+{
+    if (gameState==STATE_BREAKOUT_PLAY){
+        if (++check_hiscore_time>>4){//0b00010000 every 16 frames
+            check_hiscore_time=0;
+                if (score > hiscore){
+                    hiscore = score;
+                    hiscoreRefreshFrames=2;
+                }
+        }
+    }
+}
 
 #define SCOREPOSX 6//5
 #define HISCOREPOSX 52//50//(64 - ((7 * 4)/2)) //46
@@ -2558,7 +2564,7 @@ void main () {
             if (hiscoreRefreshFrames)print_scores(hiscore,HISCOREPOSX);
             hiscoreRefreshFrames--;
         }
-
+        check_hiscore();
         await_vsync(1);
         flip_pages(); 
         tick_music();
