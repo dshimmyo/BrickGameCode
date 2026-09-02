@@ -3,6 +3,7 @@
     "romname" : "game.gtr",
     "progbanks" : 3,
     "modules" : [
+        "PERSIST",
         "RANDOM",
         "TEXT",
         "DRAWQUEUE",
