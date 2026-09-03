@@ -20,7 +20,7 @@ extern int approx_five_twelfths(int num);
 
 #define VERSION_MAJOR 1 //only single digit haha never change!
 #define VERSION_MINOR 1 //now up to 99
-#define VERSION_PATCH 3 //now up to 99
+#define VERSION_PATCH 4 //now up to 99
 
 //version logs for some reason:
 //v 1 0 0 first rc
@@ -36,6 +36,7 @@ extern int approx_five_twelfths(int num);
 //v 1 1 2 adds 2 digit version, moves level number up by one pixel, gameover spam out
 
 //v 1 1 3 re-instating persist and hiscore and making it work with steam cloud
+//v 1 1 4 better hiscore save sequencing
 
 /////*********** 
 #define TESTFEATURES false
