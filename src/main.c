@@ -121,6 +121,7 @@ void Set_emulator_paddle_mode(bool value) {
 #define ANIM_QUEUE_MAX 4 // was 2 but back to 4 after math optimizations//4 - is nice but trying 2 combined with 6 frames as a compromise
 #define ANIM_FRAME_MULTIPLIER 1//2
 #define ATTRACT_MODE_SKIP_FRAME false
+#define GAMEOVERDELAY 400 //500
 
 //persist hiscore implementation
 typedef struct {
@@ -2312,6 +2313,7 @@ void EraseRect(char x, char y, char w, char h) {
 }
 
 bool isSkipAhead = false;
+bool hasSavedHiscore = 0;
 void GameWrapperStateMachine()
 {
     bool buttonCPress;
@@ -2395,7 +2397,7 @@ void GameWrapperStateMachine()
                         if (lives_left == 0) 
                         {
                             gameState = STATE_BREAKOUT_GAMEOVER;
-                            gameOverTimer = 500;
+                            gameOverTimer = GAMEOVERDELAY;
                         }
                         else if ( spawnTimer > 0){
                             if (gameState != STATE_ATTRACT) {//attract mode never says get ready
@@ -2448,12 +2450,14 @@ void GameWrapperStateMachine()
 
         case STATE_BREAKOUT_GAMEOVER:
         gameOverTimer--;
-        if (gameOverTimer==0 || ((gameOverTimer < 400) && buttonAPress)){
+        if (!hasSavedHiscore && (gameOverTimer <= GAMEOVERDELAY - 50)){
+            save_hiscore(hiscore);
+            hasSavedHiscore=1;
+        }
+        if (gameOverTimer==0 || ((gameOverTimer < GAMEOVERDELAY-100) && buttonAPress)){
+            hasSavedHiscore = 0; // Reset flag for next game over
             gameState = STATE_ATTRACT;
             messageEraseCount=2;
-            pop_rom_bank();
-            save_hiscore(hiscore);
-            change_rom_bank(BANK_PROG1);
             init_game_prog1();
         }
         else
