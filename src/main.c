@@ -20,7 +20,7 @@ extern int approx_five_twelfths(int num);
 
 #define VERSION_MAJOR 1 //only single digit haha never change!
 #define VERSION_MINOR 1 //now up to 99
-#define VERSION_PATCH 4 //now up to 99
+#define VERSION_PATCH 5 //now up to 99
 
 //version logs for some reason:
 //v 1 0 0 first rc
@@ -37,6 +37,7 @@ extern int approx_five_twelfths(int num);
 
 //v 1 1 3 re-instating persist and hiscore and making it work with steam cloud
 //v 1 1 4 better hiscore save sequencing
+//v 1 1 5 clean up banking, remove prog2
 
 /////*********** 
 #define TESTFEATURES false
@@ -787,8 +788,8 @@ void boxAMotion_prog1()
 }*/
 #pragma code-name (pop)
 
-#pragma code-name (push, "PROG2")
-void update_paddle_offset_prog2(){
+#pragma code-name (push, "PROG1")
+void update_paddle_offset_prog1(){
     if (rndPaddleOffsetTimer++ > 128)
     {
         rndPaddleOffset = rnd_range(0,currentPaddleWidth>>1);
@@ -974,53 +975,7 @@ void NewLevel_prog1()
 
     //lives_left++;//hacky bullshit
 }
-#pragma code-name (pop)
 
-
-#pragma code-name (push, "PROG2")
-void inputButtonsDraw_prog2()
-{
-    //input testing
-    if (player1_buttons & INPUT_MASK_PADDLE_UP){queue_draw_box(1,7,8,2,182);}
-    if (player1_buttons & INPUT_MASK_PADDLE_DOWN){queue_draw_box(11,7,8,2,182);}
-    if (player1_buttons & INPUT_MASK_PADDLE_LEFT){queue_draw_box(21,7,8,2,182);}
-    if (player1_buttons & INPUT_MASK_PADDLE_RIGHT){queue_draw_box(31,7,8,2,182);}
-    if (player1_buttons & INPUT_MASK_PADDLE_A){queue_draw_box(41,7,8,2,182);}
-    if (player1_buttons & INPUT_MASK_PADDLE_B){queue_draw_box(51,7,8,2,182);}
-    if (player1_buttons & INPUT_MASK_PADDLE_C){queue_draw_box(61,7,8,2,182);}
-    if (player1_buttons & INPUT_MASK_PADDLE_START){queue_draw_box(71,7,8,2,182);}
-    if (player1_buttons & INPUT_MASK_PADDLE_X){queue_draw_box(81,7,8,2,199);}//x
-    if (player1_buttons & INPUT_MASK_PADDLE_Y){queue_draw_box(91,7,8,2,199);}//y
-    if (player1_buttons & INPUT_MASK_PADDLE_Z){queue_draw_box(101,7,8,2,199);}//z
-    if (player1_buttons & INPUT_MASK_PADDLE_MODE){queue_draw_box(111,7,8,2,199);}//mode
-
-}
-void inputBinaryDraw_prog2()
-{
-    //inputs mapped as 7 bytes from low to high (right to left)
-    //up,down,left,right,a,b,c
-    //128 possibilities, should map cleanly to pixels from left to right
-    queue_draw_box(0,BINARYTESTPOSY,button_byte>>1,1,182);
-}
-
-#pragma code-name (pop)
-
-
-
-#pragma code-name (push, "PROG1")
-// void ToggleDemoMode_prog1()
-// {
-//     if (player1_buttons & INPUT_MASK_START && ~player1_old_buttons & INPUT_MASK_START)
-//     {
-//         demoMode = !demoMode;
-//     }
-// }
-
-// void NewGame_prog1()
-// {
-//     lives_left = 3;
-//     score = 0;
-// }
 void init_game_prog1()//used to refresh the screen when all the bricks are gone
 {
     cycleLevel=0;
@@ -1511,8 +1466,8 @@ void eraseBlinkMessage(char *counter)
     }
 }
 
-#pragma code-name (push, "PROG2")
-void SelectControllerScreen_prog2(bool buttonAPress, bool buttonBPress)
+#pragma code-name (push, "PROG1")
+void SelectControllerScreen_prog1(bool buttonAPress, bool buttonBPress)
 {
     static unsigned char timer = 0;
     unsigned char loopTime = ((timer++ >> 2) & 6);
@@ -2337,14 +2292,14 @@ void GameWrapperStateMachine()
 
     switch (gameState) {
         case STATE_CONTROLLER_SELECT:
-        change_rom_bank(BANK_PROG2);
-        SelectControllerScreen_prog2(buttonAPress,buttonBPress);
         change_rom_bank(BANK_PROG1);
+        SelectControllerScreen_prog1(buttonAPress,buttonBPress);
+        //change_rom_bank(BANK_PROG1);
         break;
         
         case STATE_ATTRACT:
-            change_rom_bank(BANK_PROG2);
-            update_paddle_offset_prog2();//for paddle automation only
+            change_rom_bank(BANK_PROG1);
+            update_paddle_offset_prog1();//for paddle automation only
         case STATE_BREAKOUT_PLAY:
             if ((gameState != STATE_ATTRACT) && (buttonAPress || buttonStartPress)){
                 if (spawnTimer>3 && (get_active_ball_count_prog1()<=0) && !isSkipAhead){
