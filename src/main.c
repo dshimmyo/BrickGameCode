@@ -349,7 +349,7 @@ void save_hiscore(uint32_t new_score) {
     
     hiscore = new_score;
     if (isEmulator){
-        //emulator should use a different save method targeting mainly wrapper mode and steam cloud
+        // Emulator hyper-call path (safe from hardware flash/timing concerns)
         HYPER_HISCORE_BYTE0 = (uint8_t)(new_score & 0xFF);
         HYPER_HISCORE_BYTE1 = (uint8_t)((new_score >> 8) & 0xFF);
         HYPER_HISCORE_BYTE2 = (uint8_t)((new_score >> 16) & 0xFF);
@@ -363,11 +363,24 @@ void save_hiscore(uint32_t new_score) {
         data_to_save.canary = MAGIC_SAVE_NUM;
         data_to_save.hiscore = new_score;
 
-        // Erase the Flash sector before writing new values
+        // 1. Disable all interrupts (IRQs and NMIs)
+        asm("sei");
+
+        // 2. Explicitly push and switch to the flash bank
+        push_rom_bank();
+        change_rom_bank(BANK_SAVE);
+
+        // 3. Erase the Flash sector before writing new values
         clear_save_sector();
 
-        // Write structure from RAM to Flash ROM
+        // 4. Write structure from RAM to Flash ROM
         save_write(&data_to_save, (void*) FLASH_SAVE_ADDR, sizeof(SaveData));
+
+        // 5. Restore the original caller bank
+        pop_rom_bank();
+
+        // 6. Re-enable interrupts once the flash operation is 100% complete
+        asm("cli");
     }
 }
 
