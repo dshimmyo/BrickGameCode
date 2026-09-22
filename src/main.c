@@ -15,8 +15,7 @@
 #include "gen/assets/sdk_default.h"
 #include "gt/feature/persist/persist.h"
 
-extern int speed_mult_asm(int source, int mult);
-extern int approx_five_twelfths(int num);
+extern int speed_mult_asm(int source, int mult); //special function result = source * 13/32 * mult
 
 #define VERSION_MAJOR 1 //only single digit haha never change!
 #define VERSION_MINOR 1 //now up to 99
