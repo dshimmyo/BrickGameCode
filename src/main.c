@@ -49,10 +49,10 @@ unsigned char demoModeFrames = 0;//need to update a couple frames
 /////*********** 
 
 #define CHK_EMU *((volatile uint8_t*) 0x2007) //emulator magic ID
-#define GAMEPAD_1_REG (*(volatile unsigned char*)0x2008) //using read-only memory to send messages to the emulator
-#define GAMEPAD_2_REG (*(volatile unsigned char*)0x2009) //using read-only memory to send messages to the emulator
-#define RUMBLE_PORT GAMEPAD_1_REG //magic rumble port
-#define EMULATOR_INPUT_TYPE GAMEPAD_2_REG //tell emulator paddle or gamepad
+//#define GAMEPAD_1_REG (*(volatile unsigned char*)0x2008) //using read-only memory to send messages to the emulator
+//#define GAMEPAD_2_REG (*(volatile unsigned char*)0x2009) //using read-only memory to send messages to the emulator
+#define RUMBLE_PORT (*(volatile unsigned char*)0x2008)//GAMEPAD_1_REG //magic rumble port
+#define EMULATOR_INPUT_TYPE (*(volatile unsigned char*)0x2009)//GAMEPAD_2_REG //tell emulator paddle or gamepad
 #define SIGNAL_PADDLE_MODE 0xA5 // Use a distinct signature byte for paddle mode
 
 //hiscore stuff for emu/steam
@@ -66,9 +66,10 @@ unsigned char demoModeFrames = 0;//need to update a couple frames
 void Set_emulator_paddle_mode(bool value) {
     // We explicitly write to the register.
     // Real hardware ignores this; your emulator traps it.
-    if (value) GAMEPAD_2_REG = SIGNAL_PADDLE_MODE;
-    else GAMEPAD_2_REG = 0x00;
+    if (value) EMULATOR_INPUT_TYPE = SIGNAL_PADDLE_MODE;
+    else EMULATOR_INPUT_TYPE = 0x00;
 }
+uint8_t emuStatus;
 
 //CHK_EMU 
 //CHK_EMU & 0x02 indicates that a joystick is connected and the game should setrange the input
@@ -631,12 +632,6 @@ angle get_random_spawn_angles_prog1()
 
 #pragma code-name (push, "PROG1")
 
-// int approx_five_twelfths(int num){
-//     return (num * 13) >> 5;
-// }
-// int speedMult_prog1(int source,int mult){//multiplier can be fine-tuned here and hidden from code
-//     return approx_five_twelfths(source) * mult;
-// }
 /*
 void boxMotion_prog1()
 {
@@ -2460,7 +2455,6 @@ void check_hiscore()
 #define SCOREWIDTH 36
 
 //emulator checks
-uint8_t emuStatus;
 uint8_t lazyDevFrameCounter=0;
 
 void main () {
@@ -2507,8 +2501,10 @@ void main () {
     while (1) 
     {                                     //  Run forever
         lazyDevFrameCounter++;
-        if (isEmulator && (lazyDevFrameCounter & 0x3F)){
-            CHECK_PADDLE_STATE();
+        if (isEmulator){
+            if ((lazyDevFrameCounter & 0x3F)){
+                CHECK_PADDLE_STATE();//warning: checks volatile memory
+            }
         }
         #if DEMOMODE
         if (gameState!=STATE_ATTRACT){//life limit not applied to attract mode
