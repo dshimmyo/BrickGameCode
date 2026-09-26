@@ -1,126 +1,164 @@
-.importzp sp ; sp is a zero page variable defined in an external file
-                ; sp stands for evaluation stack pointer
-.import incsp2 ; Increment Stack Pointer by 2. . When your C function finishes, it calls incsp2 
-                ; to drop/pop 2 bytes off the parameter stack (cleaning up arguments passed from C).
+; speed_mult_asm.s
+; Calling convention: __fastcall__
+; C signature:
+;   extern int __fastcall__ speed_mult_asm(int source, int mult);
 
-.zeropage ; the following variables in zero page
+.export _speed_mult_asm
+.importzp c_sp
+.import incsp2
 
-; note on terminology ; extern int speed_mult_asm(int source, int mult)
-; this is a special multiply function where the operand is called delta (source)
-; and the multiplier is called speed, but has another * 13 / 32 to fine-tune the speed
-DELTA_LOW:  .res 1 ; reserve one byte ; source
-DELTA_HIGH: .res 1
-SPEED_LOW:  .res 1 ; speed = mult
-SPEED_HIGH: .res 1
-RES_LOW:    .res 1 ; result
-RES_HIGH:   .res 1
+; Allocate temporary workspace in RAM to prevent Zero-Page conflicts
+.segment "BSS"
+val_source: .res 2
+val_mult:   .res 2
+val_res:    .res 2
+val_temp:   .res 2
+val_sign:   .res 1
 
-.code ; out of zero page, back to code
-.segment "PROG1" 
-.export _speed_mult_asm ; .export makes visible to c compiler
-    ; cc65 automatically prepends an underscore to all C functions
+.segment "PROG1"
 
-_speed_mult_asm: 
-    ; First argument (source): Pushed onto cc65's software stack (sp) before calling the function.
-    ; Second argument (mult): Left in A (low byte) and X (high byte)
-    ; 1. 'speed' is in A (low) and X (high)
-    STA SPEED_LOW
-    STX SPEED_HIGH
+_speed_mult_asm:
+    ; 1. Store 'mult' (passed in AX via __fastcall__)
+    sta val_mult
+    stx val_mult+1
 
-    ; 2. Grab 'delta' (dx/dy) from the cc65 stack
-    LDY #1
-    LDA (sp),y    ; Reads high byte from stack (sp + 1)
-    TAX           ; Moves high byte into X register
-    DEY           ; Decrements Y from 1 down to 0
-    LDA (sp),y    ; Reads low byte from stack (sp + 0)
-    STA DELTA_LOW  ; Stores low byte
-    STX DELTA_HIGH ; Stores high byte
+    ; 2. Fetch 'source' off C stack frame (c_sp)
+    ldy #0
+    lda (c_sp),y
+    sta val_source
+    iny
+    lda (c_sp),y
+    sta val_source+1
 
-    ; 3. PHASE 1: delta * 13
-    ; (num * 8) + (num * 4) + (num * 1)
-    
-    ; Calculate num * 2
-    ASL A ;<<1 low bit shift left
-    TAY             ; Y = delta * 2 low
-    TXA ; high bit 
-    ROL A ;Rotate One Bit Left (shift left and rotates carry bit from previous << into bit 0 of A, high byte)
-    TAX             ; X = delta * 2 high
-    TYA             ; A = delta * 2 low
-    
-    ; Calculate num * 4
-    ASL A
-    STA RES_LOW     ; RES = delta * 4 low
-    TXA
-    ROL A
-    STA RES_HIGH    ; RES = delta * 4 high
-    
-    ; Calculate num * 8 (from RES)
-    LDA RES_LOW
-    ASL A
-    TAY             ; Y = delta * 8 low
-    LDA RES_HIGH
-    ROL A
-    TAX             ; X = delta * 8 high
-    
-    ; Final Add: (delta * 8) + (delta * 4) + (delta * 1)
-    CLC
-    TYA             ; * 8 low
-    ADC RES_LOW     ; + * 4 low
-    ADC DELTA_LOW   ; + original low
-    STA DELTA_LOW
-    
-    TXA             ; * 8 high
-    ADC RES_HIGH    ; + * 4 high
-    ADC DELTA_HIGH  ; + original high
-    STA DELTA_HIGH
+    ; 3. Clean up the 2-byte stack parameter (source)
+    jsr incsp2
 
-    ; 4. PHASE 2: Divide by 32 (Arithmetic Shift Right 5)
-    ; We use CMP #$80 to "smear" the sign bit so negative stays negative
-    LDY #5
-@asr_loop:
-    LDA DELTA_HIGH
-    CMP #$80        ; Sets carry if bit 7 is 1 (negative)
-    ROR DELTA_HIGH  ; Pulls carry into bit 7
-    ROR DELTA_LOW   ; Pulls bit 0 of high into bit 7 of low
-    DEY
-    BNE @asr_loop
-    
-    ; 5. PHASE 3: Multiply by 'speed'
-    ; Clear RES to act as our product accumulator
-    LDA #0
-    STA RES_LOW
-    STA RES_HIGH
+    ; 4. Extract signs (convert operands to positive, track net sign in val_sign)
+    lda #0
+    sta val_sign
+
+    ; Check source sign
+    lda val_source+1
+    bpl @source_pos
+    sec
+    lda #0
+    sbc val_source
+    sta val_source
+    lda #0
+    sbc val_source+1
+    sta val_source+1
+    inc val_sign
+@source_pos:
+
+    ; Check mult sign
+    lda val_mult+1
+    bpl @mult_pos
+    sec
+    lda #0
+    sbc val_mult
+    sta val_mult
+    lda #0
+    sbc val_mult+1
+    sta val_mult+1
+    lda val_sign
+    eor #1
+    sta val_sign
+@mult_pos:
+
+    ; 5. Calculate val_source * 13  (13 = 8 + 4 + 1)
+    ; S2 = S * 2
+    lda val_source
+    asl A
+    sta val_temp
+    lda val_source+1
+    rol A
+    sta val_temp+1
+
+    ; S4 = S2 * 2
+    lda val_temp
+    asl A
+    sta val_res
+    lda val_temp+1
+    rol A
+    sta val_res+1
+
+    ; S8 = S4 * 2 (held in X:Y)
+    lda val_res
+    asl A
+    tay
+    lda val_res+1
+    rol A
+    tax
+
+    ; val_temp = S8 + S4
+    clc
+    tya
+    adc val_res
+    sta val_temp
+    txa
+    adc val_res+1
+    sta val_temp+1
+
+    ; val_source = (S8 + S4) + S1
+    clc
+    lda val_temp
+    adc val_source
+    sta val_source
+    lda val_temp+1
+    adc val_source+1
+    sta val_source+1
+
+    ; 6. Divide val_source by 32 (Unsigned Shift Right 5)
+    ldy #5
+@lsr_loop:
+    lsr val_source+1
+    ror val_source
+    dey
+    bne @lsr_loop
+
+    ; 7. Multiply (val_source * val_mult) -> val_res
+    lda #0
+    sta val_res
+    sta val_res+1
 
 @mult_loop:
-    LSR SPEED_HIGH
-    ROR SPEED_LOW   ; Check lowest bit of speed
-    BCC @no_add
-    
-    CLC
-    LDA RES_LOW
-    ADC DELTA_LOW
-    STA RES_LOW
-    LDA RES_HIGH
-    ADC DELTA_HIGH
-    STA RES_HIGH
+    lsr val_mult+1
+    ror val_mult
+    bcc @no_add
+
+    clc
+    lda val_res
+    adc val_source
+    sta val_res
+    lda val_res+1
+    adc val_source+1
+    sta val_res+1
 
 @no_add:
-    ASL DELTA_LOW   ; Shift multiplicand left for next bit
-    ROL DELTA_HIGH
-    
-    LDA SPEED_LOW   ; Check if multiplier is now 0
-    ORA SPEED_HIGH
-    BNE @mult_loop
+    asl val_source
+    rol val_source+1
 
-    ; 6. CLEANUP & RETURN
-    LDA RES_LOW
-    LDX RES_HIGH
+    lda val_mult
+    ora val_mult+1
+    bne @mult_loop
+
+    ; 8. Apply net sign if calculation was negative
+    lda val_sign
+    lsr A
+    bcc @done           ; Bit 0 clear -> positive result
+
+    ; Negate val_res (0 - val_res)
+    sec
+    lda #0
+    sbc val_res
+    sta val_res
+    lda #0
+    sbc val_res+1
+    sta val_res+1
+
+@done:
+    ; Return 16-bit integer in AX (A = low byte, X = high byte)
+    lda val_res
+    ldx val_res+1
+    rts
     
-    PHA             ; Save result
-    TXA
-    PHA
-    JSR incsp2      ; Pop b->dx/dy from stack
-    PLA
-    TAX
-    PLA
-    RTS

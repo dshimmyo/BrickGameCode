@@ -15,11 +15,15 @@
 #include "gen/assets/sdk_default.h"
 #include "gt/feature/persist/persist.h"
 
-extern int speed_mult_asm(int source, int mult); //special function result = source * 13/32 * mult
+extern int __fastcall__ speed_mult_asm(int source, int mult); //special function result = source * 13/32 * mult
+extern unsigned char __fastcall__ setRangeOptASM_prog1(unsigned char input, unsigned char inMin, unsigned char inMax);
+int accumulator = 0;
+
+#define USESETRANGEASM true
 
 #define VERSION_MAJOR 1 //only single digit haha never change!
 #define VERSION_MINOR 1 //now up to 99
-#define VERSION_PATCH 5 //now up to 99
+#define VERSION_PATCH 10 //now up to 99
 
 //version logs for some reason:
 //v 1 0 0 first rc
@@ -37,6 +41,11 @@ extern int speed_mult_asm(int source, int mult); //special function result = sou
 //v 1 1 3 re-instating persist and hiscore and making it work with steam cloud
 //v 1 1 4 better hiscore save sequencing
 //v 1 1 5 clean up banking, remove prog2
+//v 1 1 6 support for player 2 port
+//v 1 1 7 when unused port is detected, jump back to select screen
+//v 1 1 8 bypass 1 1 7, add player2 long-press to enable player2
+//v 1 1 9 memory map updates, long-press not in wrapper mode
+//v 1 1 10 asm paddle set range function optimization, more robust paddle state checking
 
 /////*********** 
 #define TESTFEATURES false
@@ -47,11 +56,16 @@ bool demoModeUnlock = false;
 unsigned char demoModeFrames = 0;//need to update a couple frames
 /////*********** 
 
-#define CHK_EMU *((volatile uint8_t*) 0x2007) //emulator magic ID
-//#define GAMEPAD_1_REG (*(volatile unsigned char*)0x2008) //using read-only memory to send messages to the emulator
-//#define GAMEPAD_2_REG (*(volatile unsigned char*)0x2009) //using read-only memory to send messages to the emulator
-#define RUMBLE_PORT (*(volatile unsigned char*)0x2008)//GAMEPAD_1_REG //magic rumble port
-#define EMULATOR_INPUT_TYPE (*(volatile unsigned char*)0x2009)//GAMEPAD_2_REG //tell emulator paddle or gamepad
+//unused memory zone between 0x200A and 0x27FF, inclusive
+//don't need to abuse 0x2007(system control register) and 0x2009 (gamepad2)
+//verified 0x2007 was full of noise
+//magic rom addresses that are technically unused on original hardware
+#define CHK_EMU *((volatile uint8_t*) 0x2507) //emulator magic ID
+#define CHK_EMU_PADDLE *((volatile uint8_t*) 0x2508)//safer new memory address
+#define CHK_EMU_WRAPPER *((volatile uint8_t*) 0x250A)//safer new memory address
+
+#define RUMBLE_PORT (*(volatile unsigned char*)0x24FF)//GAMEPAD_1_REG //magic rumble port - unused
+#define EMULATOR_INPUT_TYPE (*(volatile unsigned char*)0x2509)//GAMEPAD_2_REG //tell emulator paddle or gamepad
 #define SIGNAL_PADDLE_MODE 0xA5 // Use a distinct signature byte for paddle mode
 
 //hiscore stuff for emu/steam
@@ -69,19 +83,27 @@ void Set_emulator_paddle_mode(bool value) {
     else EMULATOR_INPUT_TYPE = 0x00;
 }
 uint8_t emuStatus;
+uint8_t emuPaddleStatus;
+uint8_t emuPaddleStatusChk;
 
 //CHK_EMU 
 //CHK_EMU & 0x02 indicates that a joystick is connected and the game should setrange the input
 //0x08 is mouse emulation
 //0x20 is dksPaddle
-#define CHECK_PADDLE_STATE() \
-    if ((CHK_EMU & 0x02) && !(CHK_EMU & 0x08)) { \
-        paddleRotationMin = PADDLEMIN; \
-        paddleRotationMax = PADDLEMAX; \
-    } else { \
-        paddleRotationMin = MOUSEMIN; \
-        paddleRotationMax = MOUSEMAX; \
-    }
+#define CHECK_EMU_PADDLE_STATE() \
+    do { \
+        emuPaddleStatus = CHK_EMU_PADDLE; \
+        emuPaddleStatusChk = emuPaddleStatus & 0b01010101; \
+        if (emuPaddleStatusChk == 0x55) { \
+            if ((emuPaddleStatus & 0x02) && !(emuPaddleStatus & 0x08)) { \
+                paddleRotationMin = PADDLEMIN; \
+                paddleRotationMax = PADDLEMAX; \
+            } else { \
+                paddleRotationMin = MOUSEMIN; \
+                paddleRotationMax = MOUSEMAX; \
+            } \
+        } \
+    } while(0)
 
 #define BGCOLOR 0b11100000    //was 2
 #define PADDLECOLOR 0b11010111//0b00111111//0b10101111
@@ -97,6 +119,7 @@ uint8_t emuStatus;
 #define PRESSSTARTSPRITEBANK 3//4
 #define PADDLESPRITEBANK 4//5
 #define TITLESPRITEBANK 5
+#define P2LONGPRESSSPRITEBANK 6
 
 #define LOADSPRITEBG false
 
@@ -169,8 +192,20 @@ GameplaySubState subState;
 #define PADDLEMIN 64
 #define PADDLEMAX 192
 bool isEmulator = false;
+bool isEmuWrapper = false;
 unsigned char paddleRotationMin=64;//64
 unsigned char paddleRotationMax=192;//192
+
+// Pointer declaration (default to Player 1)
+volatile int* chosenPlayer_buttons = &player1_buttons;
+volatile int* inactivePlayer_buttons = &player2_buttons;
+volatile int* chosenPlayer_old_buttons = &player1_old_buttons;
+bool dualControllerEnabled = false;//assume disconnected
+
+#pragma bss-name (push, "ZEROPAGE")
+int current_player_buttons;
+int current_player_old_buttons;
+#pragma bss-name (pop)
 
 char controller_style = 0;
 unsigned char lives_left = 3;
@@ -628,52 +663,6 @@ angle get_random_spawn_angles_prog1()
 }
 #pragma code-name (pop)
 
-
-#pragma code-name (push, "PROG1")
-
-/*
-void boxMotion_prog1()
-{
-    //check collision for every frame
-    //frameskipping/subframe should only limit incrementing movement
-    //boxes draw left-right top-down 0->127, 7->120
-    int scaledDx = speedMult_prog1(dx,ballSpeed);//dx * ballSpeed / 2;
-    int scaledDy = speedMult_prog1(dy,ballSpeed);//dy * ballSpeed / 2;
-    int dxTot = scaledDx + dxRem;
-    int dyTot = scaledDy + dyRem;
-    if (((unsigned int) dxTot >= 255 || (unsigned int) dyTot >= 255))
-    {
-        box_x += dxTot>>8;
-        box_y += dyTot>>8;
-
-        if(box_y <= CEILING+1) {//7
-            dy = (dy<0) ? -dy : dy;
-            soundCeiling();
-        } else if(box_y >= 120-BALLSIZE){//112) {
-            randomizeBox_prog1(&box_x, &box_y, &dx, &dy, &ballSpeed);
-            soundTest();
-        }
-
-        if(box_x <= BRICK_LEFT) {
-            dx = (dx<0) ? -dx : dx;
-            soundWall();
-        } else if(box_x >= BRICK_RIGHT-BALLSIZE+1 ) {
-            dx = (dx>0) ? -dx : dx;
-            soundWall();
-        } else if (detectPaddleCollision_prog1(box_x,box_x+BALLSIZE,box_y, box_y+BALLSIZE,&dx,&dy,&ballSpeed)){
-            //dy = (dy>0) ? -dy : dy;
-            //box_y = PADDLEY-BALLSIZE-1;//height correction, maybe redundant
-            dyTot=0;//neutralize accumulated y motion
-            dyRem=0;
-            //soundCol();
-        }
-        check_brick_collision_prog1(&box_x,&box_y,&dx,&dy,&ballSpeed);
-    }
-    dxRem = dxTot & 255;// % 256;//update the remainder for sub-frame movement
-    dyRem = dyTot & 255;//% 256;//update the remainder for sub-frame movement
-}*/
-#pragma code-name (pop)
-
 #pragma code-name (push, "PROG1")
 void update_ball_logic_prog1(Ball *b) 
 {
@@ -750,51 +739,6 @@ void update_ball_logic_prog1(Ball *b)
 #pragma code-name (pop)
 
 
-int dxARem=0;//remainder
-int dyARem=0;
-
-#pragma code-name (push, "PROG1")
-/*
-void boxAMotion_prog1()
-{
-    int scaledDx = speedMult_prog1(dxA,ballSpeedA);//dxA * ballSpeedA / 2;
-    int scaledDy = speedMult_prog1(dyA,ballSpeedA);//dyA * ballSpeedA / 2;
-    int dxATot = scaledDx + dxARem;
-    int dyATot = scaledDy + dyARem;
-    if (((unsigned int) dxATot >= 255 || (unsigned int) dyATot >= 255))
-    {
-        boxA_x += dxATot>>8;
-        boxA_y += dyATot>>8;
-
-        if(boxA_y <= CEILING+1) {//7
-            dyA = (dyA<0) ? -dyA : dyA;
-            soundCeiling();
-        } else if(boxA_y >= 120-BALLSIZE) {
-            randomizeBox_prog1(&boxA_x, &boxA_y, &dxA, &dyA, &ballSpeedA);
-            soundTest();
-        }
-
-        if (boxA_x <= BRICK_LEFT) {
-            dxA = (dxA<0) ? -dxA : dxA;
-            soundWall();
-        } else if(boxA_x >= BRICK_RIGHT-BALLSIZE+1) {
-            dxA = (dxA>0) ? -dxA : dxA;
-            soundWall();
-        } else if (detectPaddleCollision_prog1(boxA_x,boxA_x+BALLSIZE,boxA_y, boxA_y+BALLSIZE,&dxA,&dyA,&ballSpeedA)){
-            //dyA = (dyA>0) ? -dyA : dyA;
-            //boxA_y = PADDLEY-BALLSIZE-1;//height correction, maybe redundant
-            dyATot = 0; //neutralize accumulated y motion
-            dyARem =0;
-            //soundCol();
-        }
-
-        check_brick_collision_prog1(&boxA_x,&boxA_y,&dxA,&dyA,&ballSpeedA);
-    }
-    dxARem = dxATot & 255;//% 256;//update the remainder for sub-frame movement
-    dyARem = dyATot & 255;//% 256;//update the remainder for sub-frame movement
-}*/
-#pragma code-name (pop)
-
 #pragma code-name (push, "PROG1")
 void update_paddle_offset_prog1(){
     if (rndPaddleOffsetTimer++ > 128)
@@ -807,7 +751,6 @@ void update_paddle_offset_prog1(){
 
 #pragma code-name (pop)
 
-static int accumulator = 0;
 
 #pragma code-name (push, "PROG1")
 
@@ -822,30 +765,35 @@ char ClampPaddleX_prog1(int paddlex){
 
 int setRangeOpt_prog1(unsigned char input, unsigned char inMin, unsigned char inMax)
 {
-    int output = 0;
-    int target = (int)input << 8; // 1. Convert 8-bit input to 16-bit for "Internal" math
     unsigned char smoothedInput;
-    // sub-pixel nudge
-    // We move the accumulator toward the target by a fraction
-    // This averages out the 1-bit jitter over a couple of frames
-    accumulator += (target - accumulator) >> 1;
+    unsigned int delta;
+    unsigned char range = inMax - inMin;
 
-    // extract the smoothed 8-bit value for the range math
+    // Early exit if range is invalid
+    if (range == 0) return 0;
+
+    // Sub-pixel smoothing: move accumulator toward target (input << 8)
+    accumulator += (((int)input << 8) - accumulator) >> 1;
+
+    // Extract high byte
     smoothedInput = (unsigned char)(accumulator >> 8);
 
-    if (smoothedInput < inMin) return 0;
-    else if (smoothedInput > inMax) return 127;
+    if (smoothedInput <= inMin) return 0;
+    if (smoothedInput >= inMax) return 127;
 
-    output = (((127) << 8) / (inMax - inMin) * (smoothedInput - inMin) >> 8);
-
-    return output;
+    // Unsigned 16-bit multiply before 8-bit scale avoids heavy cc65 runtime division
+    delta = smoothedInput - inMin;
+    return (int)((delta * 127) / range);
 }
 
 char paddleXFromPot8opt_prog1(unsigned char potVal)
 {
     //need to make a cheaper setrange function
-    unsigned char newPotVal = setRangeOpt_prog1(potVal,paddleRotationMin,paddleRotationMax);//changed for 8-bit
-
+    #if USESETRANGEASM
+    int newPotVal = setRangeOptASM_prog1(potVal,paddleRotationMin,paddleRotationMax);//changed for 8-bit
+    #else
+    int newPotVal = setRangeOpt_prog1(potVal,paddleRotationMin,paddleRotationMax);//changed for 8-bit
+    #endif
     return ClampPaddleX_prog1(newPotVal);//(((newPotVal<<1)/3 + paddleX/3));//no smoothing
 }
 signed int dpadDx = 0;
@@ -857,7 +805,7 @@ char paddleXFromDPad_prog1(unsigned char level)
 
     //dpadDx old behavior -3, 0, 3
     //new behavior signed int try -256 * 3, 0, 256*3
-    if (!((player1_buttons & INPUT_MASK_PADDLE_RIGHT) || (player1_buttons & INPUT_MASK_PADDLE_LEFT)))
+    if (!((current_player_buttons & INPUT_MASK_PADDLE_RIGHT) || (current_player_buttons & INPUT_MASK_PADDLE_LEFT)))
     {
         dpadDx=0;//if no press, start back at 0
         paddleSubX = 0; // Clear fractional accumulation when stopped
@@ -867,11 +815,11 @@ char paddleXFromDPad_prog1(unsigned char level)
     {
         int maxSpeed = MAX_DPAD_PADDLE_SPEED * (50 + level ) / 50;//64 scale
 
-        if ((player1_buttons & INPUT_MASK_PADDLE_RIGHT)){
+        if ((current_player_buttons & INPUT_MASK_PADDLE_RIGHT)){
             dpadDx = (dpadDx<=0) ? 0 : dpadDx;
             dpadDx = (dpadDx<maxSpeed) ? (dpadDx+32) : dpadDx;
         }
-        else if ((player1_buttons & INPUT_MASK_PADDLE_LEFT)) {
+        else if ((current_player_buttons & INPUT_MASK_PADDLE_LEFT)) {
             dpadDx = (dpadDx>=0) ? 0 : dpadDx;
             dpadDx = (dpadDx>(maxSpeed*-1)) ? (dpadDx-32) : dpadDx;
         }
@@ -1472,13 +1420,21 @@ void eraseBlinkMessage(char *counter)
         *counter = *counter - 1;
     }
 }
+SpriteSlot player_sprite=6;
 
 #pragma code-name (push, "PROG1")
-void SelectControllerScreen_prog1(bool buttonAPress, bool buttonBPress)
+void SelectControllerScreen_prog1()
 {
     static unsigned char timer = 0;
+    static unsigned char longPressTimer = 0;
     unsigned char loopTime = ((timer++ >> 2) & 6);
     unsigned char flipLoopTime = 7-loopTime;
+    bool buttonAPress;
+    bool buttonBPress;  
+    // bool buttonAPort2LongPress;
+    // bool buttonBPort2LongPress; 
+    bool buttonALongPress;
+    bool buttonBLongPress;
 
     queue_draw_sprite(0,0,127,127,0,0,TITLESPRITEBANK);
     //marching ants
@@ -1487,21 +1443,99 @@ void SelectControllerScreen_prog1(bool buttonAPress, bool buttonBPress)
     queue_draw_sprite(6,86,1,22,88+flipLoopTime,0,PRESSSTARTSPRITEBANK);
     queue_draw_sprite(121,86,1,22,88+loopTime,0,PRESSSTARTSPRITEBANK);
     if (isEmulator){
-    if  (CHK_EMU & 0x02) //a joystick is connected
-    {
-        //draw A at 10,97
-        queue_draw_sprite(10,95,5,5,0,78,PRESSSTARTSPRITEBANK);
-        //draw B at 64,97
-        queue_draw_sprite(64,95,5,5,6,78,PRESSSTARTSPRITEBANK);
+        if  (emuPaddleStatus & 0x02) //2 bit means joystick is connected
+        {
+            //draw A at 10,97
+            queue_draw_sprite(10,95,5,5,0,78,PRESSSTARTSPRITEBANK);
+            //draw B at 64,97
+            queue_draw_sprite(64,95,5,5,6,78,PRESSSTARTSPRITEBANK);
+        }
+        else //fall back to keyboard Z,X
+        {
+            //draw z at 10,97
+            queue_draw_sprite(10,95,5,5,24,78,PRESSSTARTSPRITEBANK);
+            //draw x at 64,97
+            queue_draw_sprite(64,95,5,5,30,78,PRESSSTARTSPRITEBANK);
+        }
     }
-    else //fall back to keyboard Z,X
-    {
-        //draw z at 10,97
-        queue_draw_sprite(10,95,5,5,24,78,PRESSSTARTSPRITEBANK);
-        //draw x at 64,97
-        queue_draw_sprite(64,95,5,5,30,78,PRESSSTARTSPRITEBANK);
+
+    //button-press gets activated on button-up to allow for long-press activation
+
+    if (!isEmuWrapper){ //longpress for port2 is disabled in wrapper mode
+        buttonALongPress = (player1_buttons & INPUT_MASK_PADDLE_A) && (player1_old_buttons & INPUT_MASK_PADDLE_A);
+        buttonBLongPress = (player1_buttons & INPUT_MASK_PADDLE_B) && (player1_old_buttons & INPUT_MASK_PADDLE_B);
+    
+        if (longPressTimer>63){
+            buttonAPress = false;
+            buttonBPress = false;
+        }
+        else 
+        {
+            buttonAPress = (~current_player_buttons & INPUT_MASK_PADDLE_A) && (current_player_old_buttons & INPUT_MASK_PADDLE_A);
+            buttonBPress = (~current_player_buttons & INPUT_MASK_PADDLE_B) && (current_player_old_buttons & INPUT_MASK_PADDLE_B);
+        }
+    } else { //wrapper mode just checks the button presses as usual
+        longPressTimer = 0;//also disables the fill-in animation
+        buttonAPress = (~current_player_buttons & INPUT_MASK_PADDLE_A) && (current_player_old_buttons & INPUT_MASK_PADDLE_A);
+        buttonBPress = (~current_player_buttons & INPUT_MASK_PADDLE_B) && (current_player_old_buttons & INPUT_MASK_PADDLE_B);
     }
+    //check button presses and detect port2 activity here
+    if (!dualControllerEnabled){ //only runs if dual-control is not established
+        //poll current player buttons (assumed to be port1)
+
+        if ((player1_buttons & INPUT_MASK_PADDLE_A) ||  (player1_buttons & INPUT_MASK_PADDLE_B) || longPressTimer>64){
+            //manage timer for animation - fill-in or unfill
+            if ((player1_buttons & INPUT_MASK_PADDLE_A) ||  (player1_buttons & INPUT_MASK_PADDLE_B)) longPressTimer++;
+            else if (longPressTimer>64) longPressTimer--;
+            //animate:
+            if (longPressTimer>=64 && longPressTimer <= 127){
+                queue_draw_sprite(34,64,16,16,(longPressTimer&7)<<4,((longPressTimer-64)>>3)<<4,P2LONGPRESSSPRITEBANK);
+            }
+        } else { //if long-press ends prematurely and unfills completely, reset
+            longPressTimer = 0;
+        }
+
+        if (longPressTimer >=128) //long-press success, enable port 2
+        {
+            playBass(0);
+            queue_draw_box(34,64,16,16,0b01111011);
+            dualControllerEnabled = true;
+            //swap to player2
+            chosenPlayer_buttons = &player2_buttons;
+            inactivePlayer_buttons= &player1_buttons;
+            chosenPlayer_old_buttons = &player2_old_buttons;
+            current_player_buttons = *chosenPlayer_buttons;
+            current_player_old_buttons = *chosenPlayer_old_buttons;
+            // if (buttonAPort2LongPress) buttonAPress = true;
+            // else if (buttonBPort2LongPress) buttonBPress = true;
+        }
+        // else{
+        //     buttonAPress = (current_player_buttons & INPUT_MASK_PADDLE_A) && (~current_player_old_buttons & INPUT_MASK_PADDLE_A);
+        //     buttonBPress = (current_player_buttons & INPUT_MASK_PADDLE_B) && (~current_player_old_buttons & INPUT_MASK_PADDLE_B);
+        // }
+    } else {
+        queue_draw_sprite(36,110,52,5,64,123,PRESSSTARTSPRITEBANK);
+        //if dual-controller is already enabled, allow for port swapping
+        if (player1_buttons & (INPUT_MASK_PADDLE_A | INPUT_MASK_PADDLE_B)) {
+            chosenPlayer_buttons = &player1_buttons;
+            inactivePlayer_buttons = &player2_buttons;
+            chosenPlayer_old_buttons = &player1_old_buttons;
+            current_player_buttons = *chosenPlayer_buttons;
+            current_player_old_buttons = *chosenPlayer_old_buttons;
+        } else if (player2_buttons & (INPUT_MASK_PADDLE_A | INPUT_MASK_PADDLE_B)) {
+            chosenPlayer_buttons = &player2_buttons;
+            inactivePlayer_buttons= &player1_buttons;
+            chosenPlayer_old_buttons = &player2_old_buttons;
+            current_player_buttons = *chosenPlayer_buttons;
+            current_player_old_buttons = *chosenPlayer_old_buttons;
+        }
+
+        //poll for button presses after swap
+        buttonAPress = (current_player_buttons & INPUT_MASK_PADDLE_A) && (~current_player_old_buttons & INPUT_MASK_PADDLE_A);
+        buttonBPress = (current_player_buttons & INPUT_MASK_PADDLE_B) && (~current_player_old_buttons & INPUT_MASK_PADDLE_B);
     }
+    //slower dereferencing just for the select screen:
+
     if (buttonBPress) 
     {
         Set_emulator_paddle_mode(false);
@@ -2277,6 +2311,7 @@ void EraseRect(char x, char y, char w, char h) {
 
 bool isSkipAhead = false;
 bool hasSavedHiscore = 0;
+
 void GameWrapperStateMachine()
 {
     bool buttonCPress;
@@ -2284,24 +2319,55 @@ void GameWrapperStateMachine()
     bool buttonBPress;
     bool buttonStartPress;
     
+    // Title screen input check
+    if ((gameState == STATE_CONTROLLER_SELECT) || (gameState == STATE_ATTRACT)){ //allow port selection at "press start" or controller select
+        if (dualControllerEnabled){//dual controller mode needs to be activated by port2 long-press
+            // if attract mode, player2 enabled, and inactive controller gets pressed, then go back to the select screen
+            if (gameState == STATE_ATTRACT && (*inactivePlayer_buttons & (INPUT_MASK_PADDLE_A | INPUT_MASK_PADDLE_B))){
+                //if (*inactivePlayer_buttons & (INPUT_MASK_PADDLE_A | INPUT_MASK_PADDLE_B)){ //returns to select screen
+                gameState = STATE_CONTROLLER_SELECT;
+                change_rom_bank(BANK_PROG1);
+                init_game_prog1();//fix glitch after revisiting select screen
+                return;//skip a cycle
+                //}
+            }
+            //if we didn't jump back to player select, this code makes sure th
+            // if (player1_buttons & (INPUT_MASK_PADDLE_A | INPUT_MASK_PADDLE_B)) {
+            //     chosenPlayer_buttons = &player1_buttons;
+            //     inactivePlayer_buttons = &player2_buttons;
+            //     chosenPlayer_old_buttons = &player1_old_buttons;
+            // } else if (player2_buttons & (INPUT_MASK_PADDLE_A | INPUT_MASK_PADDLE_B)) {
+            //     chosenPlayer_buttons = &player2_buttons;
+            //     inactivePlayer_buttons= &player1_buttons;
+            //     chosenPlayer_old_buttons = &player2_old_buttons;
+            // }
+            
+        }
+    }
+
+    // Top of frame update
+    current_player_buttons = *chosenPlayer_buttons;
+    current_player_old_buttons = *chosenPlayer_old_buttons;
+
     eraseBlinkMessage(&messageEraseCount);
-    button_byte = get_paddle_rotation(player1_buttons);//gets paddle input byte
+    button_byte = get_paddle_rotation(current_player_buttons);//gets paddle input byte
 
     change_rom_bank(BANK_PROG1);
     erase_paddle_prog1();
     //sample inputs first
-    buttonAPress = (player1_buttons & INPUT_MASK_PADDLE_A) && (~player1_old_buttons & INPUT_MASK_PADDLE_A);
-    buttonBPress = (player1_buttons & INPUT_MASK_PADDLE_B) && (~player1_old_buttons & INPUT_MASK_PADDLE_B);
-    buttonCPress = (player1_buttons & INPUT_MASK_PADDLE_C) && (~player1_old_buttons & INPUT_MASK_PADDLE_C);
-    buttonStartPress = player1_buttons & INPUT_MASK_PADDLE_START && ~player1_old_buttons & INPUT_MASK_PADDLE_START;
+
+
+    buttonAPress = (current_player_buttons & INPUT_MASK_PADDLE_A) && (~current_player_old_buttons & INPUT_MASK_PADDLE_A);
+    buttonBPress = (current_player_buttons & INPUT_MASK_PADDLE_B) && (~current_player_old_buttons & INPUT_MASK_PADDLE_B);
+    buttonCPress = (current_player_buttons & INPUT_MASK_PADDLE_C) && (~current_player_old_buttons & INPUT_MASK_PADDLE_C);
+    buttonStartPress = current_player_buttons & INPUT_MASK_PADDLE_START && ~current_player_old_buttons & INPUT_MASK_PADDLE_START;
 
     BreakoutBGRefresh_prog1();//always need the black background and borders
 
     switch (gameState) {
         case STATE_CONTROLLER_SELECT:
         change_rom_bank(BANK_PROG1);
-        SelectControllerScreen_prog1(buttonAPress,buttonBPress);
-        //change_rom_bank(BANK_PROG1);
+        SelectControllerScreen_prog1();
         break;
         
         case STATE_ATTRACT:
@@ -2455,14 +2521,25 @@ void check_hiscore()
 
 //emulator checks
 uint8_t lazyDevFrameCounter=0;
-
 void main () {
+    uint8_t emuStatus1 = false;
+
     emuStatus = CHK_EMU;
-    if ((emuStatus & 0b11010101) == 0x55) {//2=paddle connected, 8=paddle emulation enabled
+    await_vsync(1);
+    emuStatus1 = CHK_EMU;
+
+    emuPaddleStatus = CHK_EMU_PADDLE;
+
+    //if ((emuStatus & 0b11010101) == 0x55) {//2=paddle connected, 8=paddle emulation enabled
+    if ((emuStatus == 0x55) && (emuStatus1 == 0x55)) {//was bit 2=paddle, 4=dkspaddle 8=paddle emulation enabled, but no longer
+        uint8_t emuWrapperStatus = CHK_EMU_WRAPPER;
         isEmulator = true;
+        if (emuWrapperStatus == 0x55){
+            isEmuWrapper = true;
+        }
     }
     #if DEMOMODE
-        if (emuStatus & 0x20){//not dks paddle connected
+        if (emuPaddleStatus & 0x20){//dks paddle connected
             demoModeUnlock = true; //only checks once
         }
     #endif
@@ -2470,6 +2547,9 @@ void main () {
     load_spritesheet(ASSET__gfx__paddletank_paddle_bmp,PADDLESPRITEBANK);
     load_spritesheet(ASSET__gfx__PressStart_bmp,PRESSSTARTSPRITEBANK);
     load_spritesheet(ASSET__gfx__TitleScreen_bmp,TITLESPRITEBANK);
+    load_spritesheet(ASSET__gfx__P2LongPress_bmp,P2LONGPRESSSPRITEBANK);
+    //player_sprite = allocate_sprite(&ASSET__gfx__P2LongPress_bmp_load_list);
+    //set_sprite_frametable(player_sprite,ASSET__gfx__P2LongPress_json);
     
     load_hiscore();
     scoring_init();
@@ -2501,8 +2581,8 @@ void main () {
     {                                     //  Run forever
         lazyDevFrameCounter++;
         if (isEmulator){
-            if ((lazyDevFrameCounter & 0x3F)){
-                CHECK_PADDLE_STATE();//warning: checks volatile memory
+            if ((lazyDevFrameCounter & 0x3F)){//always checking in case someone connects/disconnects
+                CHECK_EMU_PADDLE_STATE();//warning: checks volatile memory
             }
         }
         #if DEMOMODE
