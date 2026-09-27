@@ -1097,58 +1097,47 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
     char row;
     unsigned char ballCenterX;
     unsigned char ballCenterY;
-    unsigned char ballXMinMax[2];// = {*_ball_x,*_ball_x + BALLSIZE-1};
-    unsigned char ballYMinMax[2];// = {*_ball_y,*_ball_y + BALLSIZE-1};
-    unsigned char i=0;
-    unsigned char j=0;
+    unsigned char ballMinX, ballMinY, ballMaxX, ballMaxY;//ballXMinMax[2];// = {*_ball_x,*_ball_x + BALLSIZE-1};
+    //unsigned char ballYMinMax[2];// = {*_ball_y,*_ball_y + BALLSIZE-1};
     bool collisionFound = false;
-    ballXMinMax[0] = *_ball_x;
-    ballXMinMax[1] = *_ball_x + BALLSIZE-1;
-    ballYMinMax[0] = *_ball_y;
-    ballYMinMax[1] = *_ball_y + BALLSIZE-1;
+    ballMinX = *_ball_x;
+    ballMaxX = *_ball_x + BALLSIZE-1;
+    ballMinY = *_ball_y;
+    ballMaxY = *_ball_y + BALLSIZE-1;
     
-    if (ballYMinMax[1] < BRICK_TOP || ballYMinMax[0] > BRICK_BOTTOM) return; //false
-    if (ballXMinMax[1] < BRICK_LEFT || ballXMinMax[0] > BRICK_RIGHT) return; // false //redundant
+    if (ballMaxY < BRICK_TOP || ballMinY > BRICK_BOTTOM) return; //false
+    if (ballMaxX < BRICK_LEFT || ballMinX > BRICK_RIGHT) return; // false //redundant
 
     //check collision on 4 bounding corners but only recognize the first collision
-
-    //if (BALLSIZE==2) {//picks collision point based on direction for 2x2 ball
-        // ballCenterX = (*_ball_dx>0) ? *_ball_x+1 : *_ball_x;
-        // ballCenterY = (*_ball_dy>0) ? *_ball_y+1 : *_ball_y;
-    //} else { //assume ball will never be 1 pixel
-    //    ballCenterX = *_ball_x + BALLCENTEROFFSET;
-    //    ballCenterY = *_ball_y + BALLCENTEROFFSET;
-    //}
 
         // Quick reject if ball not in brick zone
     // if (ballCenterY < BRICK_TOP || (ballCenterY) > BRICK_BOTTOM) return false;
     // if (ballCenterX < BRICK_LEFT || ballCenterX > BRICK_RIGHT) return false;
     
 
-    //check 4 collisions and exit when first found else return
-    // for (j=0;j<2;j++){
-    //     for (i=0;i<2;i++){
-            ballCenterX = ballXMinMax[i];
-            ballCenterY = ballYMinMax[j];
+    //check 4 collisions and 
+            ballCenterX = ballMinX;
+            ballCenterY = ballMinY;
             // Convert to brick coordinates
             col = (ballCenterX - BRICK_LEFT) / currentBrickWidth;//>> 3;        // 0-15
             row = (ballCenterY - BRICK_TOP) / BRICK_HEIGHT;
-            if (row>=0 && col>=0){//both must be positive
-                if (brickRows[row].visible[col]) 
-                {
-                    collisionFound = true;
-                    //break;
-                }
-            }
+            // if (row>=0 && col>=0){//both must be positive
+            //     if (brickRows[row].visible[col]) 
+            //     {
+            //         collisionFound = true;
+            //         //break;
+            //     }
+            // }
     //     }
     // }
-    if (!collisionFound) return; //false
+    if (!brickRows[row].visible[col]) return;
+    //if (!collisionFound) return; //false
 
     // Convert to brick coordinates
     // col = (ballCenterX - BRICK_LEFT) / BRICKWIDTH;//>> 3;        // 0-15
     // row = (ballCenterY - BRICK_TOP) / BRICKHEIGHT;  
     
-    if (brickRows[row].visible[col])//redundant
+    //if (brickRows[row].visible[col])//redundant
     {
         unsigned char brick_top;
         unsigned char brick_bottom;
