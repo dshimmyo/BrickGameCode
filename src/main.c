@@ -1099,7 +1099,7 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
     // char ballCenterY;
     unsigned char ballMinX, ballMinY, ballMaxX, ballMaxY;//ballXMinMax[2];// = {*_ball_x,*_ball_x + BALLSIZE-1};
     //unsigned char ballYMinMax[2];// = {*_ball_y,*_ball_y + BALLSIZE-1};
-    bool collisionFound = false;
+    //bool collisionFound = false;
     ballMinX = *_ball_x;
     ballMaxX = *_ball_x + BALLSIZE-1;
     ballMinY = *_ball_y;
@@ -1108,80 +1108,55 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
     if (ballMaxY < BRICK_TOP || ballMinY > BRICK_BOTTOM) return; //false
     if (ballMaxX < BRICK_LEFT || ballMinX > BRICK_RIGHT) return; // false //redundant
 
-    //check collision on 4 bounding corners but only recognize the first collision
+    col = (ballMinX - BRICK_LEFT) / currentBrickWidth;//>> 3;        // 0-15
+    row = (ballMinY - BRICK_TOP) / BRICK_HEIGHT;
 
-        // Quick reject if ball not in brick zone
-    // if (ballCenterY < BRICK_TOP || (ballCenterY) > BRICK_BOTTOM) return false;
-    // if (ballCenterX < BRICK_LEFT || ballCenterX > BRICK_RIGHT) return false;
-    
-
-    //check 4 collisions and 
-            //ballCenterX = ballMinX;
-            //ballCenterY = ballMinY;
-            // Convert to brick coordinates
-            col = (ballMinX - BRICK_LEFT) / currentBrickWidth;//>> 3;        // 0-15
-            row = (ballMinY - BRICK_TOP) / BRICK_HEIGHT;
-            // if (row>=0 && col>=0){//both must be positive
-            //     if (brickRows[row].visible[col]) 
-            //     {
-            //         collisionFound = true;
-            //         //break;
-            //     }
-            // }
-    //     }
-    // }
     if (!brickRows[row].visible[col]) return;
-    //if (!collisionFound) return; //false
-
-    // Convert to brick coordinates
-    // col = (ballCenterX - BRICK_LEFT) / BRICKWIDTH;//>> 3;        // 0-15
-    // row = (ballCenterY - BRICK_TOP) / BRICKHEIGHT;  
     
+    // Destroy brick
+    brickRows[row].visible[col] = 0;
+    brickRows[row].erase_frames[col] = 2;
+
     //if (brickRows[row].visible[col])//redundant
     {
         unsigned char brick_top;
         unsigned char brick_bottom;
         unsigned char brick_left;
         unsigned char brick_right;
-        unsigned char dist_left;
-        unsigned char dist_right;
-        unsigned char dist_top;
-        unsigned char dist_bottom;
-        unsigned char min_dist;
-        unsigned char side;  // 0=left,1=right,2=top,3=bottom
-        //uint8_t hitIndex = get_brick_index_asm(ballCenterX, ballCenterY);//magic brick check
-        //uint8_t hitIndex = get_brick_index_prog1(ballCenterX, ballCenterY);//magic brick check
+        //unsigned char dist_left;
+        //unsigned char dist_right;
+        //unsigned char dist_top;
+        //unsigned char dist_bottom;
+        //unsigned char min_dist;
+        //unsigned char side;  // 0=left,1=right,2=top,3=bottom
+
         uint8_t hitIndex = GET_BRICK_INDEX_PROG1(ballMinX, ballMinY);
-        // Destroy brick
-        brickRows[row].visible[col] = 0;
-        brickRows[row].erase_frames[col] = 2;
-        //animatedBricks[row*currentNumBricksH + col] = 20;//start animation for this brick //animate at half speed
         
+        // Calculate brick boundaries
+        brick_top = BRICK_TOP + (row << 2);//assume row height of 4
+        brick_bottom = brick_top + BRICK_HEIGHT;//was + 3  assume row height of 4
+        brick_left = BRICK_LEFT + (col * currentBrickWidth);
+        brick_right = brick_left + (currentBrickWidth);
+
         if (BRICK_ANIMATION && (anim_queue_count < ANIM_QUEUE_MAX))
         {
             anim_queue[anim_queue_count].frames_left = NUM_ANIM_FRAMES+2;//double buffers?
-            anim_queue[anim_queue_count].x = BRICK_LEFT + (col * currentBrickWidth);
-            anim_queue[anim_queue_count].y = BRICK_TOP + (row * BRICK_HEIGHT);
+            anim_queue[anim_queue_count].x = brick_left;//BRICK_LEFT + (col * currentBrickWidth);
+            anim_queue[anim_queue_count].y = brick_top;//BRICK_TOP + (row * BRICK_HEIGHT);
             anim_queue[anim_queue_count].w = currentBrickWidth;
             anim_queue[anim_queue_count].h = BRICK_HEIGHT;
             anim_queue_count++;
         } else if (erase_queue_count < ERASE_QUEUE_MAX) {
             erase_queue[erase_queue_count].frames_left = 2; // Two buffers to clean
-            erase_queue[erase_queue_count].x = BRICK_LEFT + (col * currentBrickWidth);
-            erase_queue[erase_queue_count].y = BRICK_TOP + (row * BRICK_HEIGHT);
+            erase_queue[erase_queue_count].x = brick_left;//BRICK_LEFT + (col * currentBrickWidth);
+            erase_queue[erase_queue_count].y = brick_top;//BRICK_TOP + (row * BRICK_HEIGHT);
             erase_queue[erase_queue_count].w = currentBrickWidth;
             erase_queue[erase_queue_count].h = BRICK_HEIGHT;
             erase_queue_count++;
         }
 
         bricks_remaining--;//counting bricks
-
-        // Calculate brick boundaries
-        brick_top = BRICK_TOP + (row << 2);//assume row height of 4
-        brick_bottom = brick_top + BRICK_HEIGHT;//was + 3  assume row height of 4
-        brick_left = BRICK_LEFT + (col * currentBrickWidth);
-        brick_right = brick_left + (currentBrickWidth);
-        
+/*
         // Calculate distances to each edge
         dist_left = *_ball_x - brick_left;
         dist_right = brick_right - *_ball_x;
@@ -1210,6 +1185,7 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
             //case 3: //*_ball_y = brick_bottom + 1; 
               //  break; // Bottom
         }
+*/
         if (hitIndex == magicBrickIndex) {
             angle randomAngle;
             randomAngle = get_random_spawn_angles_prog1();
