@@ -144,7 +144,6 @@ uint8_t emuPaddleStatusChk;
 #define ERASE_QUEUE_MAX 8 //eight is enough
 #define NUM_ANIM_FRAMES 16 //24 too much//8 // 4 look unimpressive //6 pushing it //8 a little sluggish
 #define ANIM_QUEUE_MAX 4 // was 2 but back to 4 after math optimizations//4 - is nice but trying 2 combined with 6 frames as a compromise
-#define ANIM_FRAME_MULTIPLIER 1//2
 #define ATTRACT_MODE_SKIP_FRAME false
 #define GAMEOVERDELAY 400 //500
 
@@ -1066,7 +1065,7 @@ void DrawBricksErase_prog1(){ //erase bricks in the queue
 
 #pragma code-name (push, "PROG1")
 void DrawBricksWrapper_prog1(){
-    if (breakoutBricksRefresh<4){//seems to clean things up to let it go a few extra frames
+    if (breakoutBricksRefresh<2){//was 4, changed to 2
         DrawBricks_prog1();
         breakoutBricksRefresh++;
     }
@@ -1170,7 +1169,7 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
         
         if (BRICK_ANIMATION && (anim_queue_count < ANIM_QUEUE_MAX))
         {
-            anim_queue[anim_queue_count].frames_left = NUM_ANIM_FRAMES*ANIM_FRAME_MULTIPLIER+2;//double buffers?
+            anim_queue[anim_queue_count].frames_left = NUM_ANIM_FRAMES+2;//double buffers?
             anim_queue[anim_queue_count].x = BRICK_LEFT + (col * currentBrickWidth);
             anim_queue[anim_queue_count].y = BRICK_TOP + (row * BRICK_HEIGHT);
             anim_queue[anim_queue_count].w = currentBrickWidth;
@@ -1640,46 +1639,48 @@ void bake_animation_frames_v2_prog1()
 #pragma code-name (push, "PROG1")
 
 void process_anim_queue_v2_prog1() {
-    unsigned char i = anim_queue_count;
-    unsigned char animOffsetY = 24;
-    unsigned char frameOffset=0;
-    unsigned char animFrame;
-    unsigned char row;
-    unsigned char stagger;
-    unsigned char tx, ty, tw, th, tfl;
-    unsigned char rel_x, rel_y;
-    EraseTask *task;
-    
-    //for (i = 0; i < anim_queue_count; i++) {
-    while (i--) {// Iterating backwards is slightly faster on 6502
+    // Declaring locals as 'static' moves them off cc65's virtual stack,
+    // switching access from slow stack-indexing to fast absolute addressing.
+    static unsigned char i;
+    static unsigned char tx, ty, tw, th, tfl;
+    static unsigned char rel_x, rel_y, stagger;
+    //static unsigned char animFrame;
+    static EraseTask *task;
+
+    i = anim_queue_count;
+    while (i--) { // Backward iteration compiles to fast DEY / BPL 6502 assembly
         task = &anim_queue[i];
-        // Cache values to local registers/Zero Page
-        tx = task->x;
-        ty = task->y;
-        tw = task->w;
-        th = task->h;
+
         tfl = task->frames_left;
-        
+        tx  = task->x;
+        ty  = task->y;
+        tw  = task->w;
+        th  = task->h;
+
         rel_x = tx - BRICK_LEFT;
         rel_y = ty - BRICK_TOP;
 
-        row = rel_y >> 2;
-        stagger = stagger = rel_y & 4;//(row << 2) & 7;
-        // 3. Draw the resulting sprite to the screen
-        //redraw the brick //not needed, this was a mistake
-        //queue_draw_sprite(tx,ty,tw,th,rel_x, rel_y, BRICKSSPRITEBANK);
-        
-        animFrame = NUM_ANIM_FRAMES - (tfl/ANIM_FRAME_MULTIPLIER-2);
-        frameOffset = (animFrame * 4);//vertical offset by 4 pixels per frame
-        
-        //eat away at the brick
-        queue_draw_sprite(tx,ty,tw,th, (rel_x + stagger) & (127 - tw), animOffsetY + frameOffset,BRICKSSPRITEBANK);//brick sprite has no y offset
+        // Directly mask for stagger (dead 'row' calculation removed)
+        stagger = rel_y & 4;
+
+        // Calculate animFrame and fold base offset (24) directly into shift output
+        //animFrame = NUM_ANIM_FRAMES - (tfl - 2);
+        //sprite_y = 24 + (( NUM_ANIM_FRAMES - (tfl - 2)) << 2);
+
+        // Draw to screen
+        queue_draw_sprite(
+            tx, ty, tw, th,
+            (rel_x + stagger) & (127 - tw),
+            24 + (( NUM_ANIM_FRAMES - (tfl - 2)) << 2), //sprite_y
+            BRICKSSPRITEBANK
+        );
+
+        // Decrement frame count
         task->frames_left = --tfl;
 
-        // 5. Cleanup: If 0, remove from queue (standard swap-and-pop)
+        // Swap-and-pop cleanup on expiration
         if (tfl == 0) {
             anim_queue[i] = anim_queue[--anim_queue_count];
-            //i--; // Re-check this index since we swapped
         }
     }
 }
