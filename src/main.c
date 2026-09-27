@@ -639,14 +639,16 @@ angle get_random_spawn_angles_prog1()
         returnIndex = 6;
         break;
         case 2: //BC slight left
+        case 3: //absorb case 3
         returnIndex = 8;
         break;
-        case 3: //E almost vertical left
-        returnIndex = 10;
-        break;
+        //case 3: //E almost vertical left
+        //returnIndex = 10;
+        //break;
+        //absorb case 4
         case 4: //E almost vertical right
-        returnIndex = 11;
-        break;
+        //returnIndex = 11;
+        //break;
         case 5://FG nudges right 
         returnIndex= 13;
         break;
