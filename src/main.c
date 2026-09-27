@@ -1095,8 +1095,8 @@ void addLives(char num)
 void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, int *_ball_dy, int *_ballSpeed) {
     char col;
     char row;
-    unsigned char ballCenterX;
-    unsigned char ballCenterY;
+    //unsigned char ballCenterX;
+    // char ballCenterY;
     unsigned char ballMinX, ballMinY, ballMaxX, ballMaxY;//ballXMinMax[2];// = {*_ball_x,*_ball_x + BALLSIZE-1};
     //unsigned char ballYMinMax[2];// = {*_ball_y,*_ball_y + BALLSIZE-1};
     bool collisionFound = false;
@@ -1116,11 +1116,11 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
     
 
     //check 4 collisions and 
-            ballCenterX = ballMinX;
-            ballCenterY = ballMinY;
+            //ballCenterX = ballMinX;
+            //ballCenterY = ballMinY;
             // Convert to brick coordinates
-            col = (ballCenterX - BRICK_LEFT) / currentBrickWidth;//>> 3;        // 0-15
-            row = (ballCenterY - BRICK_TOP) / BRICK_HEIGHT;
+            col = (ballMinX - BRICK_LEFT) / currentBrickWidth;//>> 3;        // 0-15
+            row = (ballMinY - BRICK_TOP) / BRICK_HEIGHT;
             // if (row>=0 && col>=0){//both must be positive
             //     if (brickRows[row].visible[col]) 
             //     {
@@ -1151,7 +1151,7 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
         unsigned char side;  // 0=left,1=right,2=top,3=bottom
         //uint8_t hitIndex = get_brick_index_asm(ballCenterX, ballCenterY);//magic brick check
         //uint8_t hitIndex = get_brick_index_prog1(ballCenterX, ballCenterY);//magic brick check
-        uint8_t hitIndex = GET_BRICK_INDEX_PROG1(ballCenterX, ballCenterY);
+        uint8_t hitIndex = GET_BRICK_INDEX_PROG1(ballMinX, ballMinY);
         // Destroy brick
         brickRows[row].visible[col] = 0;
         brickRows[row].erase_frames[col] = 2;
