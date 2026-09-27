@@ -23,7 +23,7 @@ int accumulator = 0;
 
 #define VERSION_MAJOR 1 //only single digit haha never change!
 #define VERSION_MINOR 1 //now up to 99
-#define VERSION_PATCH 10 //now up to 99
+#define VERSION_PATCH 11 //now up to 99
 
 //version logs for some reason:
 //v 1 0 0 first rc
@@ -46,6 +46,7 @@ int accumulator = 0;
 //v 1 1 8 bypass 1 1 7, add player2 long-press to enable player2
 //v 1 1 9 memory map updates, long-press not in wrapper mode
 //v 1 1 10 asm paddle set range function optimization, more robust paddle state checking
+//v 1 1 11 anim queue optimizations
 
 /////*********** 
 #define TESTFEATURES false
