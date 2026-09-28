@@ -252,7 +252,8 @@ typedef struct {
     bool was_active_old_old; 
 } Ball;
 
-uint16_t magicBrickIndex=0;
+#define NO_MAGIC_BRICK 0xFFFF
+uint16_t magicBrickIndex=NO_MAGIC_BRICK;
 // extern uint16_t get_brick_index_asm(uint8_t x, uint8_t y);//buggy
 
 //prototypes
@@ -628,8 +629,12 @@ bool detectPaddleCollision_prog1(char sourceXLow,char sourceXHi,char sourceYLow,
 angle get_random_spawn_angles_prog1()
 {
     char returnIndex;
-    int indexIndex = rnd_range(0,7);
+    int indexIndex = rnd_range(0,4);// range 0,1,2,3
     angle returnAngle;
+
+    //4,6,8,10,11,13,15,17 //annoying 10 and 11
+    //8 and 13 are also annoying
+    //limit to just 4,6,15,17
     switch (indexIndex)
     {
         case 0: //A send ball far left
@@ -639,26 +644,13 @@ angle get_random_spawn_angles_prog1()
         returnIndex = 6;
         break;
         case 2: //BC slight left
-        case 3: //absorb case 3
-        returnIndex = 8;
-        break;
-        //case 3: //E almost vertical left
-        //returnIndex = 10;
-        //break;
-        //absorb case 4
-        case 4: //E almost vertical right
-        //returnIndex = 11;
-        //break;
-        case 5://FG nudges right 
-        returnIndex= 13;
-        break;
-        case 6://nudges right
         returnIndex = 15;
-        break; 
-        case 7://H far right
-        //case 8://extra zone? far right
-        returnIndex = 17;//20;//21
         break;
+        case 3: //E almost vertical left
+        returnIndex = 17;
+        break;
+        default:
+        returnIndex = 6;
     }
     returnAngle = currentReflectAngles_prog1[returnIndex];
     return returnAngle;
@@ -928,7 +920,7 @@ void NewLevel_prog1()
     scoreRefreshFrames=2;
     hiscoreRefreshFrames=2;
     livesRefreshFrames=2;
-    magicBrickIndex = rnd_range(0,(currentNumBricksH * NUM_BRICK_ROWS-1));
+    magicBrickIndex = rnd_range(0,(currentNumBricksH * NUM_BRICK_ROWS)); //already exclusive of max
 
     //lives_left++;//hacky bullshit
 }
@@ -1132,7 +1124,7 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
         //unsigned char min_dist;
         //unsigned char side;  // 0=left,1=right,2=top,3=bottom
 
-        uint8_t hitIndex = GET_BRICK_INDEX_PROG1(ballMinX, ballMinY);
+        uint16_t hitIndex = GET_BRICK_INDEX_PROG1(ballMinX, ballMinY);
         
         // Calculate brick boundaries
         brick_top = BRICK_TOP + (row << 2);//assume row height of 4
@@ -1191,6 +1183,7 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
         if (hitIndex == magicBrickIndex) {
             angle randomAngle;
             randomAngle = get_random_spawn_angles_prog1();
+            magicBrickIndex = NO_MAGIC_BRICK;
             spawn_new_ball_prog1(*_ball_x,*_ball_y,randomAngle.dx,randomAngle.dy, *_ballSpeed);
         }
         *_ball_dy = -(*_ball_dy);
@@ -1237,7 +1230,7 @@ void playNoteSequence(unsigned char style){
     {
         for (i=0;i<=5;i++)
         {
-            if (i>=0)playBass(rnd_range(0,5));
+            if (i>=0)playBass(rnd_range(0,5));//not inclusive, returns 0..4
             for(x=0;x<noteLength;x++){
                 tick_music();
                 await_vsync(1);
