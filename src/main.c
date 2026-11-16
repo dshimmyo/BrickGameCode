@@ -177,7 +177,6 @@ typedef struct {
 
 #define NO_MAGIC_BRICK 0xFFFF
 uint16_t magicBrickIndex=NO_MAGIC_BRICK;
-// extern uint16_t get_brick_index_asm(uint8_t x, uint8_t y);//buggy
 
 //prototypes
 void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, int *_ball_dy, int *_ballSpeed);
@@ -204,7 +203,7 @@ void increase_ball_speed_prog1(unsigned char level);
 void generate_paddle_sprite_prog1();
 void bake_wave_number_prog1(unsigned char wave, int posx, int posy, char bank);
 
-
+//reflection angles from paddle collisions
 #define NUM_ANGLES 22
 #pragma rodata-name (push, "PROG1")
 const angle reflectAnglesNew_prog1[NUM_ANGLES]=
@@ -217,13 +216,11 @@ unsigned char brickRowPoints[6]={4,3,2,2,1,1};//number of points gained by hitti
 
 EntityRow brickRows[NUM_BRICK_ROWS];//init in NewLevel()
 
-EraseTask erase_queue[ERASE_QUEUE_MAX];
+EraseTask erase_queue[ERASE_QUEUE_MAX];//handles erasing blocks of pixels and redrawing the background image
 unsigned char erase_queue_count = 0;
 
 EraseTask anim_queue[ANIM_QUEUE_MAX]; //10 frames of animation over maybe double frames for up to two balls animframes * 2X * maxballs
 unsigned char  anim_queue_count = 0;
-
-//unsigned char animatedBricks[MAX_BRICK_COLS*NUM_BRICK_ROWS]; //this needs to be re-engineered
 
 #define NUM_BRICK_LAYOUTS 11//16
 BrickLayout brickLayouts[NUM_BRICK_LAYOUTS]=
@@ -820,48 +817,31 @@ void DrawBricks_prog1(){//only gets used to refresh the whole fully-populated fi
         unsigned char animFrame;
         for (col=0;col<currentNumBricksH;col++)
         {
-            // if (!brickRows[row].visible[col]){
-            //     animFrame = animatedBricks[row*currentNumBricksH + col];
-            //     if (animFrame)
-            //     {
-            //         unsigned char xDrawStart = BRICK_LEFT + col * currentBrickWidth;
-            //         unsigned char gx = ((20-animFrame)>>1)*currentBrickWidth;//calculate the growing x offset based on the animation frame (0-6)
-            //         queue_draw_sprite(BRICK_LEFT + col * currentBrickWidth,posy,currentBrickWidth,BRICK_HEIGHT,gx,(row*BRICK_HEIGHT)+80,3);
-            //         animatedBricks[row*currentNumBricksH + col]--;
-            //     }
-            // }
-            // else
-            {//if current brick is visible, draw the box
-                unsigned char numBricksWidth = 1;
-                unsigned char newX = col;
-                unsigned char xDrawStart=BRICK_LEFT;
-                unsigned char brickDrawWidth;
-                if (col<currentNumBricksH-1){//if it isn't the last box check the next brick in the sequence
-                    bool done = false;
-                    while (!done){
-                        if (newX>=currentNumBricksH-1){//end
-                            done = true;
-                        } else if (!brickRows[row].visible[newX+1]){
-                            done = true;
-                        }
-                        else {
-                            numBricksWidth++;
-                            newX++;
-                        }              
+            unsigned char numBricksWidth = 1;
+            unsigned char newX = col;
+            unsigned char xDrawStart=BRICK_LEFT;
+            unsigned char brickDrawWidth;
+            if (col<currentNumBricksH-1){//if it isn't the last box check the next brick in the sequence
+                bool done = false;
+                while (!done){
+                    if (newX>=currentNumBricksH-1){//end
+                        done = true;
+                    } else if (!brickRows[row].visible[newX+1]){
+                        done = true;
                     }
-                }//if it is NUMBRICKSH-1 brick it will draw it
-                //if (numBricksWidth>NUMBRICKSH) numBricksWidth=NUMBRICKSH;//total hack
-                //queue_draw_box(brickColumnPos[col], posy, BRICKWIDTH, BRICKHEIGHT, rowColor);
-
-                xDrawStart = BRICK_LEFT + col * currentBrickWidth;
-                brickDrawWidth = currentBrickWidth * numBricksWidth;
-                if (xDrawStart + brickDrawWidth > 127) brickDrawWidth-=1;//last brick index is one pixel short?
-
-                //queue_draw_box(xDrawStart,posy,brickDrawWidth,BRICKHEIGHT,rowColor);
-                queue_draw_sprite(xDrawStart,posy,brickDrawWidth,BRICK_HEIGHT,xDrawStart,(row*BRICK_HEIGHT)/*+60*/,BRICKSSPRITEBANK);
-
-                col=newX;
+                    else {
+                        numBricksWidth++;
+                        newX++;
+                    }              
+                }
             }
+            xDrawStart = BRICK_LEFT + col * currentBrickWidth;
+            brickDrawWidth = currentBrickWidth * numBricksWidth;
+            if (xDrawStart + brickDrawWidth > 127) brickDrawWidth-=1;//last brick index is one pixel short?
+
+            queue_draw_sprite(xDrawStart,posy,brickDrawWidth,BRICK_HEIGHT,xDrawStart,(row*BRICK_HEIGHT)/*+60*/,BRICKSSPRITEBANK);
+
+            col=newX;
         }
     }
 }
@@ -876,8 +856,6 @@ void BrickHeal_prog1(unsigned char posx, unsigned char posy, unsigned char offse
     unsigned char posXArray[2];
     unsigned char posYArray[2];
     char i,j=0;
-    // unsigned char newX = BRICK_LEFT+(BRICKWIDTH * col[0]);//
-    // unsigned char newY = BRICK_TOP+(BRICKHEIGHT * row[0]);
     
     //should check 4 corners of ball
     posXArray[0]=posx;
@@ -906,9 +884,6 @@ void BrickHeal_prog1(unsigned char posx, unsigned char posy, unsigned char offse
 
 #pragma code-name (push, "PROG1")
 void DrawBricksErase_prog1(){ //erase bricks in the queue
-    //unsigned char row;
-    //unsigned char col;
-    //int idx;
     unsigned char posy;
     int i;
 
@@ -985,18 +960,11 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
     brickRows[row].visible[col] = 0;
     brickRows[row].erase_frames[col] = 2;
 
-    //if (brickRows[row].visible[col])//redundant
     {
         unsigned char brick_top;
         unsigned char brick_bottom;
         unsigned char brick_left;
         unsigned char brick_right;
-        //unsigned char dist_left;
-        //unsigned char dist_right;
-        //unsigned char dist_top;
-        //unsigned char dist_bottom;
-        //unsigned char min_dist;
-        //unsigned char side;  // 0=left,1=right,2=top,3=bottom
 
         uint16_t hitIndex = GET_BRICK_INDEX_PROG1(ballMinX, ballMinY);
         
@@ -1024,36 +992,7 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
         }
 
         bricks_remaining--;//counting bricks
-/*
-        // Calculate distances to each edge
-        dist_left = *_ball_x - brick_left;
-        dist_right = brick_right - *_ball_x;
-        dist_top = *_ball_y - brick_top;
-        dist_bottom = brick_bottom - *_ball_y;
 
-        // Find closest edge
-        min_dist = dist_left;
-        side = 0;  // 0=left,1=right,2=top,3=bottom
-        if (dist_right < min_dist) { min_dist = dist_right; side = 1; }
-        if (dist_top < min_dist) { min_dist = dist_top; side = 2; }
-        if (dist_bottom < min_dist) { side = 3; }
-
-        switch(side) 
-        {
-            case 0: //*_ball_x = brick_left - 1; 
-            case 1:
-                *_ball_dx = -(*_ball_dx);   
-                //break;  // Left
-            //case 1: //*_ball_x = brick_right + 1; 
-                *_ball_dx = -(*_ball_dx);
-                break;  // Right
-            case 2: //*_ball_y = brick_top - 1; 
-            case 3:
-                break;    // Top
-            //case 3: //*_ball_y = brick_bottom + 1; 
-              //  break; // Bottom
-        }
-*/
         if (hitIndex == magicBrickIndex) {
             angle randomAngle;
             randomAngle = get_random_spawn_angles_prog1();
@@ -1061,17 +1000,14 @@ void check_brick_collision_prog1(char *_ball_x, char *_ball_y, int *_ball_dx, in
             spawn_new_ball_prog1(*_ball_x,*_ball_y,randomAngle.dx,randomAngle.dy, *_ballSpeed);
         }
         *_ball_dy = -(*_ball_dy);
-        //stop_music();
         playBass(row);
-        //soundTestA();
-        //play_single_note();
-        //score+= brickRowPoints[row];//brickRows[row].points;//(7-row)>>1;
         incrementScore_prog1(brickRowPoints[row]);
         if (row==0) *_ballSpeed = 3;//not double speed but 3/2 speed
     }
     return;
 }
 #pragma code-name (pop)
+
 void playNoteSequence(unsigned char style){
     unsigned char x;
     signed char i;
@@ -1112,6 +1048,7 @@ void playNoteSequence(unsigned char style){
         }
     }
 }
+
 #pragma code-name (push, "PROG1")
 void BreakoutBGRefresh_prog1()
 {
@@ -1124,7 +1061,6 @@ void BreakoutBGRefresh_prog1()
         EraseRect(2,(CEILING-2),124,2);
         EraseRect(0,7,BRICK_LEFT,127);
         EraseRect(BRICK_RIGHT+1,7,3,113);
-
     }
 }
 void update_player_paddle_prog1(){
@@ -1175,7 +1111,7 @@ void spawn_new_rnd_ball_prog1() {
     _speed = 1;//default slow
     
     for (i = 0; i < MAX_BALLS; i++) {
-        if (!(balls[i].active)){//} || balls[i].was_active_old || balls[i].was_active_old_old)) {
+        if (!(balls[i].active)){
             balls[i].x = _x;
             balls[i].y = _y;
             balls[i].x_old = _x;
@@ -1254,7 +1190,6 @@ void eraseBlinkMessage(char *counter)
         *counter = *counter - 1;
     }
 }
-SpriteSlot player_sprite=6;
 
 #pragma code-name (push, "PROG1")
 void SelectControllerScreen_prog1()
@@ -1265,8 +1200,6 @@ void SelectControllerScreen_prog1()
     unsigned char flipLoopTime = 7-loopTime;
     bool buttonAPress;
     bool buttonBPress;  
-    // bool buttonAPort2LongPress;
-    // bool buttonBPort2LongPress; 
     bool buttonALongPress;
     bool buttonBLongPress;
 
@@ -1279,20 +1212,19 @@ void SelectControllerScreen_prog1()
 
     //button-press gets activated on button-up to allow for long-press activation
 
-    //if (!isEmuWrapper){ //longpress for port2 is disabled in wrapper mode
-        buttonALongPress = (player1_buttons & INPUT_MASK_PADDLE_A) && (player1_old_buttons & INPUT_MASK_PADDLE_A);
-        buttonBLongPress = (player1_buttons & INPUT_MASK_PADDLE_B) && (player1_old_buttons & INPUT_MASK_PADDLE_B);
-    
-        if (longPressTimer>63){
-            buttonAPress = false;
-            buttonBPress = false;
-        }
-        else 
-        {
-            buttonAPress = (~current_player_buttons & INPUT_MASK_PADDLE_A) && (current_player_old_buttons & INPUT_MASK_PADDLE_A);
-            buttonBPress = (~current_player_buttons & INPUT_MASK_PADDLE_B) && (current_player_old_buttons & INPUT_MASK_PADDLE_B);
-        }
-    //} 
+    buttonALongPress = (player1_buttons & INPUT_MASK_PADDLE_A) && (player1_old_buttons & INPUT_MASK_PADDLE_A);
+    buttonBLongPress = (player1_buttons & INPUT_MASK_PADDLE_B) && (player1_old_buttons & INPUT_MASK_PADDLE_B);
+
+    if (longPressTimer>63){
+        buttonAPress = false;
+        buttonBPress = false;
+    }
+    else 
+    {
+        buttonAPress = (~current_player_buttons & INPUT_MASK_PADDLE_A) && (current_player_old_buttons & INPUT_MASK_PADDLE_A);
+        buttonBPress = (~current_player_buttons & INPUT_MASK_PADDLE_B) && (current_player_old_buttons & INPUT_MASK_PADDLE_B);
+    }
+
     //check button presses and detect port2 activity here
     if (!dualControllerEnabled){ //only runs if dual-control is not established
         //poll current player buttons (assumed to be port1)
@@ -1323,10 +1255,7 @@ void SelectControllerScreen_prog1()
             // if (buttonAPort2LongPress) buttonAPress = true;
             // else if (buttonBPort2LongPress) buttonBPress = true;
         }
-        // else{
-        //     buttonAPress = (current_player_buttons & INPUT_MASK_PADDLE_A) && (~current_player_old_buttons & INPUT_MASK_PADDLE_A);
-        //     buttonBPress = (current_player_buttons & INPUT_MASK_PADDLE_B) && (~current_player_old_buttons & INPUT_MASK_PADDLE_B);
-        // }
+
     } else {
         queue_draw_sprite(36,110,52,5,64,123,PRESSSTARTSPRITEBANK);
         //if dual-controller is already enabled, allow for port swapping
@@ -1352,7 +1281,6 @@ void SelectControllerScreen_prog1()
 
     if (buttonBPress) 
     {
-        //Set_emulator_paddle_mode(false);
         controller_style = CONTROLLER_STYLE_GPAD1;
         gameState = STATE_ATTRACT;
         breakoutRefresh=0;//triggers a bg refresh
@@ -1444,9 +1372,6 @@ void bake_animation_frames_v2_prog1()
 
 }
 
-
-
-
 #pragma code-name (pop);
 
 #pragma code-name (push, "PROG1")
@@ -1457,7 +1382,6 @@ void process_anim_queue_v2_prog1() {
     static unsigned char i;
     static unsigned char tx, ty, tw, th, tfl;
     static unsigned char rel_x, rel_y, stagger;
-    //static unsigned char animFrame;
     static EraseTask *task;
 
     i = anim_queue_count;
@@ -1473,12 +1397,8 @@ void process_anim_queue_v2_prog1() {
         rel_x = tx - BRICK_LEFT;
         rel_y = ty - BRICK_TOP;
 
-        // Directly mask for stagger (dead 'row' calculation removed)
+        // Directly mask for stagger 
         stagger = rel_y & 4;
-
-        // Calculate animFrame and fold base offset (24) directly into shift output
-        //animFrame = NUM_ANIM_FRAMES - (tfl - 2);
-        //sprite_y = 24 + (( NUM_ANIM_FRAMES - (tfl - 2)) << 2);
 
         // Draw to screen
         queue_draw_sprite(
@@ -1522,8 +1442,6 @@ void bevel_all_bricks_prog1() {
             for (col = 4; col < 124; col += currentBrickWidth) {//leap from brick to brick horizontally
                 int pos = row_start + (y * 128) + col;
                 if (pixel != 0) {
-                    //vram[pos] = ((pixel & 0b00000111)<7) ? pixel + 1 : pixel & 0b11101111;     // Highlight
-                    //vram[pos + currentBrickWidth-1] = ((pixel & 0b00000111)>0) ? pixel - 1 : pixel; // Shadow
                     vram[pos + currentBrickWidth-1] = ((pixel & 0b00000111)<7) ? pixel + 1 : pixel & 0b11101111;     // Highlight
                     vram[pos] = ((pixel & 0b00000111)>0) ? pixel - 1 : pixel; // Shadow
                 }
@@ -1579,7 +1497,6 @@ void render_balls_prog1() {
     for (i = 0; i < MAX_BALLS; i++) {
         if (balls[i].active) {
             // Only draw the ones currently in play
-            //draw_sprite(balls[i].x, balls[i].y, BALL_SPRITE_ID);
             queue_draw_sprite(balls[i].x, balls[i].y,BALLSIZE,BALLSIZE,4,0,PADDLESPRITEBANK);//hacky use of paddle sprite bank
         }
     }
@@ -1631,11 +1548,6 @@ void generate_paddle_sprite_prog1(){
 
         }
 
-        // for (x = 2; x<currentPaddleWidth-2;x++){//white in the middle
-        //     unsigned int targetCoord = x + ((y+4)*128);//target paddle starts at row 4
-            
-        //     vram[targetCoord] = 0b00000111 + huesat;
-        // }
         for (x = currentPaddleWidth; x<128;x++){//clean the rest of the line
             unsigned int targetCoord = x + ((y+4)*128);//target paddle starts at row 4
             vram[targetCoord] = 0b00000000;
@@ -1661,12 +1573,10 @@ void erase_balls_prog1(){
     for (i = 0; i < MAX_BALLS; i++) {
         if (balls[i].active || balls[i].was_active_old || balls[i].was_active_old_old) {
             EraseRect(balls[i].x_old_old ,balls[i].y_old_old,BALLSIZE,BALLSIZE);
-            //BrickHeal_prog1(balls[i].x_old_old ,balls[i].y_old_old,0);
         }
     }
     for (i = 0; i < MAX_BALLS; i++) {
         if (balls[i].active || balls[i].was_active_old || balls[i].was_active_old_old) {
-            //EraseRect(balls[i].x_old_old ,balls[i].y_old_old,BALLSIZE,BALLSIZE);
             BrickHeal_prog1(balls[i].x_old_old ,balls[i].y_old_old,0);
         }
     }
@@ -1817,69 +1727,13 @@ void BakeBreakoutBackground_prog1(char bank){
         }
     }
 
-
-    // #if DEMOMODE
-    //     if (!demoModeUnlock){ //not dks paddle connected
-
-    //     //get demomode from pressStart bank, just like lives
-    //     //queue_draw_sprite(10,120,21,5,0,27,BAKEDBACKGROUNDSPRITEBANK);
-    //     //load spritebank to sample "lives" text
-    //     banksMirror = bankflip | GRAM_PAGE(PRESSSTARTSPRITEBANK);//jump to a different bank to grab "lives text"
-    //     *bank_reg = banksMirror;
-    //     {
-    //         char w=23;
-    //         char h=5;
-    //         char xoffset = 0;//25; //44 LIFE 3px 64 LIVES 3px
-    //         char yoffset = 27;
-    //         for (y=0; y<h; y++){
-    //             for (x=0; x<w; x++){
-    //             demoArray[y*w+x]= vram[(y+yoffset)*128 + (x + xoffset)];
-    //             }
-    //         }
-    //     }
-    //     banksMirror = bankflip | GRAM_PAGE(bank);//back to our current bank
-    //     *bank_reg = banksMirror;
-    //     {
-    //         char posx = 5;
-    //         char posy = 114;
-    //         char w=23;
-    //         char h=5;
-    //         for (y=0; y<h; y++){
-    //             for (x=0; x<w; x++){
-    //                 char index=(y * w) + x;
-    //                 vram[((y + posy) * 128) + posx+x] = demoArray[index];
-    //             }
-    //         }
-    //     }
-    //     banksMirror = bankflip | GRAM_PAGE(TITLESPRITEBANK);//side-hack into title sprite bank
-    //     *bank_reg = banksMirror;
-    //     {
-    //         char posx = 5;
-    //         char posy = 114;
-    //         char w=23;
-    //         char h=5;
-    //         for (y=0; y<h; y++){
-    //             for (x=0; x<w; x++){
-    //                 char index=(y * w) + x;
-    //                 vram[((y + posy) * 128) + posx+x] = demoArray[index];
-    //             }
-    //         }
-    //     }
-    // }
-    // #endif
-
-    // {//draw life bar //move to a different bank
-    //     char y=17;
-    //     for (x=92; x<BRICK_RIGHT; x+=2){
-    //         vram[y*128 + x] = 0b10111111;
-    //     }
-    // }
     // 4. RESTORE EVERYTHING
     flagsMirror = oldFlags;
     banksMirror = oldBanks;
     *dma_flags = flagsMirror;
     *bank_reg = banksMirror;
 }
+
 static char digitsArray[11 * 4 * 5]; // 11 digits (0-9 plus the dot)
 void bake_wave_number_prog1(unsigned char wave, int posx, int posy, char bank){
     char oldFlags = flagsMirror; // Save the original screen/DMA settings
@@ -1892,7 +1746,6 @@ void bake_wave_number_prog1(unsigned char wave, int posx, int posy, char bank){
     unsigned char shiftLeftOffset = ((wave / 10)>0) ? 1 : 0;
     unsigned char tensDigitPosx = posx - (shiftLeftOffset * 4);
     unsigned char onesDigitPosx = posx - (shiftLeftOffset * 4);
-    
 
     if (wave<1) return; // do nothing
     // Fast 8-bit division for numbers < 100
@@ -1913,8 +1766,6 @@ void bake_wave_number_prog1(unsigned char wave, int posx, int posy, char bank){
     banksMirror = bankflip | GRAM_PAGE(PRESSSTARTSPRITEBANK);//jump to a different bank to grab "lives text"
     *bank_reg = banksMirror;
     {
-        //char w=4;//4-pixel-wide digits
-        //char h=50;//10 digits 4-pixels high with 1 pixel gap
         char arrayIndex=0;
         char gx = 124;//
         char x,y;
@@ -1994,8 +1845,6 @@ void bake_num_prog1(char num, int posx, int posy, char bank){
     banksMirror = bankflip | GRAM_PAGE(PRESSSTARTSPRITEBANK);//jump to a different bank to grab "lives text"
     *bank_reg = banksMirror;
     {
-        //char w=4;//4-pixel-wide digits
-        //char h=55;//11 digits 4-pixels high with 1 pixel gap
         char arrayIndex=0;
         char gx = 124;//
         char x,y;
@@ -2142,17 +1991,6 @@ void GameWrapperStateMachine()
                 return;//skip a cycle
                 //}
             }
-            //if we didn't jump back to player select, this code makes sure th
-            // if (player1_buttons & (INPUT_MASK_PADDLE_A | INPUT_MASK_PADDLE_B)) {
-            //     chosenPlayer_buttons = &player1_buttons;
-            //     inactivePlayer_buttons = &player2_buttons;
-            //     chosenPlayer_old_buttons = &player1_old_buttons;
-            // } else if (player2_buttons & (INPUT_MASK_PADDLE_A | INPUT_MASK_PADDLE_B)) {
-            //     chosenPlayer_buttons = &player2_buttons;
-            //     inactivePlayer_buttons= &player1_buttons;
-            //     chosenPlayer_old_buttons = &player2_old_buttons;
-            // }
-            
         }
     }
 
@@ -2166,7 +2004,6 @@ void GameWrapperStateMachine()
     change_rom_bank(BANK_PROG1);
     erase_paddle_prog1();
     //sample inputs first
-
 
     buttonAPress = (current_player_buttons & INPUT_MASK_PADDLE_A) && (~current_player_old_buttons & INPUT_MASK_PADDLE_A);
     buttonBPress = (current_player_buttons & INPUT_MASK_PADDLE_B) && (~current_player_old_buttons & INPUT_MASK_PADDLE_B);
@@ -2303,15 +2140,13 @@ void GameWrapperStateMachine()
     paddleX_old_old = paddleX_old;
     paddleX_old = paddleX;
 }
-#pragma data-name (push, "ZEROPAGE")
+
 unsigned char check_hiscore_time=0;
-#pragma data-name (pop)
 
 void check_hiscore()
 {
     if (gameState==STATE_BREAKOUT_PLAY){
         if ((++check_hiscore_time&15) == 0){//0b00010000 every 16 frames
-            //check_hiscore_time=0;
             if (score > hiscore){
                 hiscore = score;
                 hiscoreRefreshFrames=2;
@@ -2331,8 +2166,6 @@ void main () {
     load_spritesheet(ASSET__gfx__PressStart_bmp,PRESSSTARTSPRITEBANK);
     load_spritesheet(ASSET__gfx__TitleScreen_bmp,TITLESPRITEBANK);
     load_spritesheet(ASSET__gfx__P2LongPress_bmp,P2LONGPRESSSPRITEBANK);
-    //player_sprite = allocate_sprite(&ASSET__gfx__P2LongPress_bmp_load_list);
-    //set_sprite_frametable(player_sprite,ASSET__gfx__P2LongPress_json);
     
     load_hiscore();
     scoring_init();
