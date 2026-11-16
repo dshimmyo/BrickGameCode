@@ -17,50 +17,12 @@
 
 extern int __fastcall__ speed_mult_asm(int source, int mult); //special function result = source * 13/32 * mult
 extern unsigned char __fastcall__ setRangeOptASM_prog1(unsigned char input, unsigned char inMin, unsigned char inMax);
-int accumulator = 0;
-
 #define USESETRANGEASM true
+int accumulator = 0; //for non-asm SetRangeOpt() 
 
 #define VERSION_MAJOR 0 //only single digit haha never change!
 #define VERSION_MINOR 0 //now up to 99
 #define VERSION_PATCH 0 //now up to 99
-
-//version logs for some reason:
-//v 1 0 0 first rc
-//v 1 0 1 reduced anim queue from 6 to 4, more color depth in animations
-//v 1 0 2 emulator switches a,b to z,x when no joystick detected
-//v 1 0 3 recognize paddle bit and mouse bit from emu
-//v 1 0 4 fix paddle trans, disable test features
-//v 1 0 5 demo unlocks with dks paddle connected
-//v 1 0 6 4px font fixes
-//v 1 0 7 demomode attract mode fix
-//v 1 1 0 remove/disable persist feature
-// // v 1 1 1 implemented persistent hiscore, but only for liretro
-//v 1 1 2 adds 2 digit version, moves level number up by one pixel, gameover spam out
-
-//v 1 1 3 re-instating persist and hiscore and making it work with steam cloud
-//v 1 1 4 better hiscore save sequencing
-//v 1 1 5 clean up banking, remove prog2
-//v 1 1 6 support for player 2 port
-//v 1 1 7 when unused port is detected, jump back to select screen
-//v 1 1 8 bypass 1 1 7, add player2 long-press to enable player2
-//v 1 1 9 memory map updates, long-press not in wrapper mode
-//v 1 1 10 asm paddle set range function optimization, more robust paddle state checking
-//v 1 1 11 anim queue optimizations
-
-/////*********** 
-#define TESTFEATURES false
-/////*********** 
-
-
-
-//hiscore stuff for emu/steam
-#define HYPER_HISCORE_BYTE0  (*(volatile uint8_t*)0x2400)
-#define HYPER_HISCORE_BYTE1  (*(volatile uint8_t*)0x2401)
-#define HYPER_HISCORE_BYTE2  (*(volatile uint8_t*)0x2402)
-#define HYPER_HISCORE_BYTE3  (*(volatile uint8_t*)0x2403)
-#define HYPER_COMMIT_SAVE    (*(volatile uint8_t*)0x2404)
-#define HYPER_SAVE_STATUS    (*(volatile uint8_t*)0x2405)
 
 #define BGCOLOR 0b11100000    //was 2
 #define PADDLECOLOR 0b11010111//0b00111111//0b10101111
@@ -68,9 +30,8 @@ int accumulator = 0;
 #define PADDLEHEIGHT 4
 #define PADDLEY 108
 #define BALLSIZE 2
-#define BALLCENTEROFFSET ((BALLSIZE>2) ? BALLSIZE>>1 : 0)
-#define BINARYTESTPOSY 10
 
+//sprite bank assignments
 #define BAKEDBACKGROUNDSPRITEBANK 1
 #define BRICKSSPRITEBANK 2//3
 #define PRESSSTARTSPRITEBANK 3//4
@@ -78,30 +39,31 @@ int accumulator = 0;
 #define TITLESPRITEBANK 5
 #define P2LONGPRESSSPRITEBANK 6
 
-#define LOADSPRITEBG false
+#define LOADSPRITEBG false //abandoned background image feature
 
 #define BRICK_HEIGHT 4
 #define MAX_BRICK_COLS 120
 #define NUM_BRICK_ROWS 6
 
-#define CEILING 21
+#define CEILING 21 //top line for collisions etc
 
-#define BRICK_TOP    35//39//25 + 18
-#define BRICK_BOTTOM 58//58//44 + 18
-#define BRICK_LEFT   4//6//4//4 pixels border but maybe only 3 visible
-#define BRICK_RIGHT  123//123//4 pixels border
-#define BRICK_ANIMATION true
+//bricks layout borders
+#define BRICK_TOP    35
+#define BRICK_BOTTOM 58
+#define BRICK_LEFT   4
+#define BRICK_RIGHT  123
 
-#define MAX_NOISE 64
+#define BRICK_ANIMATION true //dissolve animation
+
+#define MAX_NOISE 64 //generate noise array for dissolve animation
 
 #define CONTROLLER_STYLE_PADDLE0 0
 #define CONTROLLER_STYLE_GPAD1 1
-#define MAX_BALLS 4 //planning for insane mode
+#define MAX_BALLS 2 //planning for insane mode
 
-#define ERASE_QUEUE_MAX 8 //eight is enough
-#define NUM_ANIM_FRAMES 16 //24 too much//8 // 4 look unimpressive //6 pushing it //8 a little sluggish
-#define ANIM_QUEUE_MAX 4 // was 2 but back to 4 after math optimizations//4 - is nice but trying 2 combined with 6 frames as a compromise
-#define ATTRACT_MODE_SKIP_FRAME false
+#define ERASE_QUEUE_MAX 8 //eight is enough!
+#define NUM_ANIM_FRAMES 16 //24 too much
+#define ANIM_QUEUE_MAX 4 // was 2 but back to 4 after math optimizations
 #define GAMEOVERDELAY 400 //500
 
 //persist hiscore implementation
@@ -118,15 +80,16 @@ typedef struct {
 extern const char save_canary;
 extern const uint32_t saved_hiscore;
 
-
 //dynamic brick layout
 unsigned char currentBrickWidth = 120;//12;//8;//4;//2;
 unsigned int currentNumBricksH = 1;//10;//15;//30;//60;
+
+//dynamic paddle generation
 unsigned char currentPaddleWidth = STARTPADDLEWIDTH;
 unsigned char minPaddleWidth = 4;
 unsigned char paddleShrinkAmount = 4;
 
-//char gamestate = 0;
+//state machine
 typedef enum {
 STATE_CONTROLLER_SELECT,
 STATE_BREAKOUT_MENU,
@@ -143,23 +106,29 @@ typedef enum {
     SUBSTATE_PLAY
 } GameplaySubState;
 GameplaySubState subState;
-#define MOUSEMIN 0
-#define MOUSEMAX 255
-#define PADDLEMIN 64
-#define PADDLEMAX 192
+
+//more comfortable range of paddle rotation default 0-255
 unsigned char paddleRotationMin=64;//64
 unsigned char paddleRotationMax=192;//192
+
+// NEW PLAYER PORT SELECTION
+// player port selection feature unlock requires long-press on alt controller during initial select screen
+// After unlock, the select screen can be summoned during attract screen by pressing any button on the alt controller
+// this style of high-friction player port selection is necessary for gametanks 
+// that currently don't have pull-up resistors on controller pins
+
+// A possible future standard to consider could be borrowed from NES Arkanoid paddle controller handshake
+// which requires the gamepad in port 1 and paddle (vaus/arkanoid) in port 2. But I'm not sure if a paddle
+// can be detected without a redesign
 
 // Pointer declaration (default to Player 1)
 volatile int* chosenPlayer_buttons = &player1_buttons;
 volatile int* inactivePlayer_buttons = &player2_buttons;
 volatile int* chosenPlayer_old_buttons = &player1_old_buttons;
-bool dualControllerEnabled = false;//assume disconnected
+bool dualControllerEnabled = false;// assume disconnected, after unlock both controllers need to be connected to avoid noisy random inputs
 
-#pragma bss-name (push, "ZEROPAGE")
 int current_player_buttons;
 int current_player_old_buttons;
-#pragma bss-name (pop)
 
 char controller_style = 0;
 unsigned char lives_left = 3;
@@ -762,11 +731,6 @@ char paddleXFromLowestBall_prog1(){
     signed char target_ball_index = -1;
     unsigned char i;
     int maxSpeed = (MAX_DPAD_PADDLE_SPEED * (50 + cycleLevel ) / 50)/64;//64 scale
-
-#if ATTRACT_MODE_SKIP_FRAME
-    maxSpeed *= 2;
-    if ((everyOtherFrame++) & 0x00000001) return paddleX;//skip every other frame
-#endif
 
     // Find the ball closest to the paddle
     for (i = 0; i < MAX_BALLS; i++) {
@@ -2254,12 +2218,6 @@ void GameWrapperStateMachine()
                 }
                 break;
                 case SUBSTATE_PLAY://ball(s) are in play                
-                    #if TESTFEATURES
-                    if (buttonCPress){
-                        subState = SUBSTATE_NEW_LEVEL;
-                        messageEraseCount=2;
-                    }
-                    #endif
                     if (bricks_remaining<=0) {
                         newLevelTimer=100;
                         subState = SUBSTATE_NEW_LEVEL;
