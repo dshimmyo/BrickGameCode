@@ -21,9 +21,9 @@ int accumulator = 0;
 
 #define USESETRANGEASM true
 
-#define VERSION_MAJOR 1 //only single digit haha never change!
-#define VERSION_MINOR 1 //now up to 99
-#define VERSION_PATCH 11 //now up to 99
+#define VERSION_MAJOR 0 //only single digit haha never change!
+#define VERSION_MINOR 0 //now up to 99
+#define VERSION_PATCH 0 //now up to 99
 
 //version logs for some reason:
 //v 1 0 0 first rc
@@ -50,24 +50,9 @@ int accumulator = 0;
 
 /////*********** 
 #define TESTFEATURES false
-#define DEMOMODE false
-#if DEMOMODE
-bool demoModeUnlock = false;
-#endif
-unsigned char demoModeFrames = 0;//need to update a couple frames
 /////*********** 
 
-//unused memory zone between 0x200A and 0x27FF, inclusive
-//don't need to abuse 0x2007(system control register) and 0x2009 (gamepad2)
-//verified 0x2007 was full of noise
-//magic rom addresses that are technically unused on original hardware
-#define CHK_EMU *((volatile uint8_t*) 0x2507) //emulator magic ID
-#define CHK_EMU_PADDLE *((volatile uint8_t*) 0x2508)//safer new memory address
-#define CHK_EMU_WRAPPER *((volatile uint8_t*) 0x250A)//safer new memory address
 
-#define RUMBLE_PORT (*(volatile unsigned char*)0x24FF)//GAMEPAD_1_REG //magic rumble port - unused
-#define EMULATOR_INPUT_TYPE (*(volatile unsigned char*)0x2509)//GAMEPAD_2_REG //tell emulator paddle or gamepad
-#define SIGNAL_PADDLE_MODE 0xA5 // Use a distinct signature byte for paddle mode
 
 //hiscore stuff for emu/steam
 #define HYPER_HISCORE_BYTE0  (*(volatile uint8_t*)0x2400)
@@ -76,35 +61,6 @@ unsigned char demoModeFrames = 0;//need to update a couple frames
 #define HYPER_HISCORE_BYTE3  (*(volatile uint8_t*)0x2403)
 #define HYPER_COMMIT_SAVE    (*(volatile uint8_t*)0x2404)
 #define HYPER_SAVE_STATUS    (*(volatile uint8_t*)0x2405)
-
-void Set_emulator_paddle_mode(bool value) {
-    // We explicitly write to the register.
-    // Real hardware ignores this; your emulator traps it.
-    if (value) EMULATOR_INPUT_TYPE = SIGNAL_PADDLE_MODE;
-    else EMULATOR_INPUT_TYPE = 0x00;
-}
-uint8_t emuStatus;
-uint8_t emuPaddleStatus;
-uint8_t emuPaddleStatusChk;
-
-//CHK_EMU 
-//CHK_EMU & 0x02 indicates that a joystick is connected and the game should setrange the input
-//0x08 is mouse emulation
-//0x20 is dksPaddle
-#define CHECK_EMU_PADDLE_STATE() \
-    do { \
-        emuPaddleStatus = CHK_EMU_PADDLE; \
-        emuPaddleStatusChk = emuPaddleStatus & 0b01010101; \
-        if (emuPaddleStatusChk == 0x55) { \
-            if ((emuPaddleStatus & 0x02) && !(emuPaddleStatus & 0x08)) { \
-                paddleRotationMin = PADDLEMIN; \
-                paddleRotationMax = PADDLEMAX; \
-            } else { \
-                paddleRotationMin = MOUSEMIN; \
-                paddleRotationMax = MOUSEMAX; \
-            } \
-        } \
-    } while(0)
 
 #define BGCOLOR 0b11100000    //was 2
 #define PADDLECOLOR 0b11010111//0b00111111//0b10101111
@@ -191,8 +147,6 @@ GameplaySubState subState;
 #define MOUSEMAX 255
 #define PADDLEMIN 64
 #define PADDLEMAX 192
-bool isEmulator = false;
-bool isEmuWrapper = false;
 unsigned char paddleRotationMin=64;//64
 unsigned char paddleRotationMax=192;//192
 
@@ -350,51 +304,24 @@ unsigned char cycleLevel=0;
 bool isBallWentOutOfBounds = false;
 
 void load_hiscore() {
-    if (isEmulator){
-        // Check if the host wrapper has a valid save file on disk
-        if (HYPER_SAVE_STATUS == 0x01) {
-            uint32_t b0 = (uint32_t)HYPER_HISCORE_BYTE0;
-            uint32_t b1 = (uint32_t)HYPER_HISCORE_BYTE1;
-            uint32_t b2 = (uint32_t)HYPER_HISCORE_BYTE2;
-            uint32_t b3 = (uint32_t)HYPER_HISCORE_BYTE3;
+    push_rom_bank();
+    change_rom_bank(BANK_SAVE);
 
-            hiscore = b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
-        } else {
-            hiscore = 0; // Default if no save exists
-        }
+    // Check if valid data has been written to Flash
+    if (FLASH_SAVE_ADDR->canary == MAGIC_SAVE_NUM) {
+        hiscore = FLASH_SAVE_ADDR->hiscore;
+    } else {
+        // Sector is uninitialized (0xFF) or invalid
+        hiscore = 0;
     }
-    else
-    {
-        push_rom_bank();
-        change_rom_bank(BANK_SAVE);
 
-        // Check if valid data has been written to Flash
-        if (FLASH_SAVE_ADDR->canary == MAGIC_SAVE_NUM) {
-            hiscore = FLASH_SAVE_ADDR->hiscore;
-        } else {
-            // Sector is uninitialized (0xFF) or invalid
-            hiscore = 0;
-        }
-
-        pop_rom_bank();
-    }
+    pop_rom_bank();
 }
 
 void save_hiscore(uint32_t new_score) {
     SaveData data_to_save;
     
     hiscore = new_score;
-    if (isEmulator){
-        // Emulator hyper-call path (safe from hardware flash/timing concerns)
-        HYPER_HISCORE_BYTE0 = (uint8_t)(new_score & 0xFF);
-        HYPER_HISCORE_BYTE1 = (uint8_t)((new_score >> 8) & 0xFF);
-        HYPER_HISCORE_BYTE2 = (uint8_t)((new_score >> 16) & 0xFF);
-        HYPER_HISCORE_BYTE3 = (uint8_t)((new_score >> 24) & 0xFF);
-
-        // Writing 0x01 tells host C++ code to execute SaveHighScoreToNativeFile()
-        HYPER_COMMIT_SAVE = 0x01;
-    }
-    else
     {
         data_to_save.canary = MAGIC_SAVE_NUM;
         data_to_save.hiscore = new_score;
@@ -420,11 +347,7 @@ void save_hiscore(uint32_t new_score) {
     }
 }
 
-void trigger_rumble(unsigned char strength) {
-    // Writing here does nothing on real hardware (it's open bus)
-    // But the Emulator is 'watching' this specific address.
-    RUMBLE_PORT = strength; 
-}
+
 void playBass(char row){
 
     switch (row){
@@ -450,7 +373,6 @@ void playBass(char row){
         play_sound_effect(ASSET__audio__row5_sfx_ID,127);
         break;
     }
-    if (isEmulator){trigger_rumble(128);}
 }
 
 void soundTest(){
@@ -478,7 +400,6 @@ void soundCeiling(){
 void shrink_paddle_prog1() {
     if (currentPaddleWidth > minPaddleWidth) {
         currentPaddleWidth = (currentPaddleWidth>minPaddleWidth) ? (currentPaddleWidth - paddleShrinkAmount) : currentPaddleWidth;
-        if (isEmulator) trigger_rumble(100); // A mid-strength "notification" buzz
     }
 }
 #define GET_BRICK_INDEX_PROG1(x, y) ( \
@@ -622,7 +543,6 @@ bool detectPaddleCollision_prog1(char sourceXLow,char sourceXHi,char sourceYLow,
     *_dx = nearestAngle.dx;
     *_dy = nearestAngle.dy;
     play_sound_effect(ASSET__audio__paddle_sfx_ID,(char)0);
-    if (isEmulator){trigger_rumble(255);}
 
     return true;
 }
@@ -861,16 +781,6 @@ char paddleXFromLowestBall_prog1(){
 void GenNextLevel_prog1(char procLevel)
 {
     BrickLayout bl;
-#if DEMOMODE
-    if (gameState!=STATE_ATTRACT){
-        if (!demoModeUnlock){ //not dks paddle connected
-            procLevel = (procLevel<=2) ? procLevel : 2;//for demo 0,1,2
-            if (procLevel == 2){
-                demoModeFrames = 0;
-            }
-        }
-    }
-#endif
     bl = brickLayouts[procLevel % NUM_BRICK_LAYOUTS];
     currentBrickWidth = bl.brickWidth;
     currentNumBricksH = bl.numColumns;
@@ -1402,26 +1312,10 @@ void SelectControllerScreen_prog1()
     queue_draw_sprite(6,108,115,1,0,87 + flipLoopTime,PRESSSTARTSPRITEBANK);
     queue_draw_sprite(6,86,1,22,88+flipLoopTime,0,PRESSSTARTSPRITEBANK);
     queue_draw_sprite(121,86,1,22,88+loopTime,0,PRESSSTARTSPRITEBANK);
-    if (isEmulator){
-        if  (emuPaddleStatus & 0x02) //2 bit means joystick is connected
-        {
-            //draw A at 10,97
-            queue_draw_sprite(10,95,5,5,0,78,PRESSSTARTSPRITEBANK);
-            //draw B at 64,97
-            queue_draw_sprite(64,95,5,5,6,78,PRESSSTARTSPRITEBANK);
-        }
-        else //fall back to keyboard Z,X
-        {
-            //draw z at 10,97
-            queue_draw_sprite(10,95,5,5,24,78,PRESSSTARTSPRITEBANK);
-            //draw x at 64,97
-            queue_draw_sprite(64,95,5,5,30,78,PRESSSTARTSPRITEBANK);
-        }
-    }
 
     //button-press gets activated on button-up to allow for long-press activation
 
-    if (!isEmuWrapper){ //longpress for port2 is disabled in wrapper mode
+    //if (!isEmuWrapper){ //longpress for port2 is disabled in wrapper mode
         buttonALongPress = (player1_buttons & INPUT_MASK_PADDLE_A) && (player1_old_buttons & INPUT_MASK_PADDLE_A);
         buttonBLongPress = (player1_buttons & INPUT_MASK_PADDLE_B) && (player1_old_buttons & INPUT_MASK_PADDLE_B);
     
@@ -1434,11 +1328,7 @@ void SelectControllerScreen_prog1()
             buttonAPress = (~current_player_buttons & INPUT_MASK_PADDLE_A) && (current_player_old_buttons & INPUT_MASK_PADDLE_A);
             buttonBPress = (~current_player_buttons & INPUT_MASK_PADDLE_B) && (current_player_old_buttons & INPUT_MASK_PADDLE_B);
         }
-    } else { //wrapper mode just checks the button presses as usual
-        longPressTimer = 0;//also disables the fill-in animation
-        buttonAPress = (~current_player_buttons & INPUT_MASK_PADDLE_A) && (current_player_old_buttons & INPUT_MASK_PADDLE_A);
-        buttonBPress = (~current_player_buttons & INPUT_MASK_PADDLE_B) && (current_player_old_buttons & INPUT_MASK_PADDLE_B);
-    }
+    //} 
     //check button presses and detect port2 activity here
     if (!dualControllerEnabled){ //only runs if dual-control is not established
         //poll current player buttons (assumed to be port1)
@@ -1498,18 +1388,16 @@ void SelectControllerScreen_prog1()
 
     if (buttonBPress) 
     {
-        Set_emulator_paddle_mode(false);
+        //Set_emulator_paddle_mode(false);
         controller_style = CONTROLLER_STYLE_GPAD1;
         gameState = STATE_ATTRACT;
         breakoutRefresh=0;//triggers a bg refresh
         breakoutBricksRefresh=0;//triggers bricks refresh
-        if (isEmulator){trigger_rumble(255);}
         playNoteSequence(2);
 
     }
     else if (buttonAPress) 
     {
-        Set_emulator_paddle_mode(true);
         controller_style = CONTROLLER_STYLE_PADDLE0;
         gameState = STATE_ATTRACT;
         breakoutRefresh=0;//triggers a bg refresh
@@ -1841,9 +1729,6 @@ void BakeBreakoutBackground_prog1(char bank){
     char oldBanks = banksMirror; 
     unsigned char x,y;
     char livesArray[17*4];
-    #if DEMOMODE
-        char demoArray[23*5];
-    #endif
     
     #if LOADSPRITEBG
     load_spritesheet(ASSET__gfx__n44thumb_bmp,bank);
@@ -1969,55 +1854,55 @@ void BakeBreakoutBackground_prog1(char bank){
     }
 
 
-    #if DEMOMODE
-        if (!demoModeUnlock){ //not dks paddle connected
+    // #if DEMOMODE
+    //     if (!demoModeUnlock){ //not dks paddle connected
 
-        //get demomode from pressStart bank, just like lives
-        //queue_draw_sprite(10,120,21,5,0,27,BAKEDBACKGROUNDSPRITEBANK);
-        //load spritebank to sample "lives" text
-        banksMirror = bankflip | GRAM_PAGE(PRESSSTARTSPRITEBANK);//jump to a different bank to grab "lives text"
-        *bank_reg = banksMirror;
-        {
-            char w=23;
-            char h=5;
-            char xoffset = 0;//25; //44 LIFE 3px 64 LIVES 3px
-            char yoffset = 27;
-            for (y=0; y<h; y++){
-                for (x=0; x<w; x++){
-                demoArray[y*w+x]= vram[(y+yoffset)*128 + (x + xoffset)];
-                }
-            }
-        }
-        banksMirror = bankflip | GRAM_PAGE(bank);//back to our current bank
-        *bank_reg = banksMirror;
-        {
-            char posx = 5;
-            char posy = 114;
-            char w=23;
-            char h=5;
-            for (y=0; y<h; y++){
-                for (x=0; x<w; x++){
-                    char index=(y * w) + x;
-                    vram[((y + posy) * 128) + posx+x] = demoArray[index];
-                }
-            }
-        }
-        banksMirror = bankflip | GRAM_PAGE(TITLESPRITEBANK);//side-hack into title sprite bank
-        *bank_reg = banksMirror;
-        {
-            char posx = 5;
-            char posy = 114;
-            char w=23;
-            char h=5;
-            for (y=0; y<h; y++){
-                for (x=0; x<w; x++){
-                    char index=(y * w) + x;
-                    vram[((y + posy) * 128) + posx+x] = demoArray[index];
-                }
-            }
-        }
-    }
-    #endif
+    //     //get demomode from pressStart bank, just like lives
+    //     //queue_draw_sprite(10,120,21,5,0,27,BAKEDBACKGROUNDSPRITEBANK);
+    //     //load spritebank to sample "lives" text
+    //     banksMirror = bankflip | GRAM_PAGE(PRESSSTARTSPRITEBANK);//jump to a different bank to grab "lives text"
+    //     *bank_reg = banksMirror;
+    //     {
+    //         char w=23;
+    //         char h=5;
+    //         char xoffset = 0;//25; //44 LIFE 3px 64 LIVES 3px
+    //         char yoffset = 27;
+    //         for (y=0; y<h; y++){
+    //             for (x=0; x<w; x++){
+    //             demoArray[y*w+x]= vram[(y+yoffset)*128 + (x + xoffset)];
+    //             }
+    //         }
+    //     }
+    //     banksMirror = bankflip | GRAM_PAGE(bank);//back to our current bank
+    //     *bank_reg = banksMirror;
+    //     {
+    //         char posx = 5;
+    //         char posy = 114;
+    //         char w=23;
+    //         char h=5;
+    //         for (y=0; y<h; y++){
+    //             for (x=0; x<w; x++){
+    //                 char index=(y * w) + x;
+    //                 vram[((y + posy) * 128) + posx+x] = demoArray[index];
+    //             }
+    //         }
+    //     }
+    //     banksMirror = bankflip | GRAM_PAGE(TITLESPRITEBANK);//side-hack into title sprite bank
+    //     *bank_reg = banksMirror;
+    //     {
+    //         char posx = 5;
+    //         char posy = 114;
+    //         char w=23;
+    //         char h=5;
+    //         for (y=0; y<h; y++){
+    //             for (x=0; x<w; x++){
+    //                 char index=(y * w) + x;
+    //                 vram[((y + posy) * 128) + posx+x] = demoArray[index];
+    //             }
+    //         }
+    //     }
+    // }
+    // #endif
 
     // {//draw life bar //move to a different bank
     //     char y=17;
@@ -2481,30 +2366,8 @@ void check_hiscore()
 #define HISCOREPOSX 52//50//(64 - ((7 * 4)/2)) //46
 #define SCOREWIDTH 36
 
-//emulator checks
-uint8_t lazyDevFrameCounter=0;
 void main () {
-    uint8_t emuStatus1 = false;
 
-    emuStatus = CHK_EMU;
-    await_vsync(1);
-    emuStatus1 = CHK_EMU;
-
-    emuPaddleStatus = CHK_EMU_PADDLE;
-
-    //if ((emuStatus & 0b11010101) == 0x55) {//2=paddle connected, 8=paddle emulation enabled
-    if ((emuStatus == 0x55) && (emuStatus1 == 0x55)) {//was bit 2=paddle, 4=dkspaddle 8=paddle emulation enabled, but no longer
-        uint8_t emuWrapperStatus = CHK_EMU_WRAPPER;
-        isEmulator = true;
-        if (emuWrapperStatus == 0x55){
-            isEmuWrapper = true;
-        }
-    }
-    #if DEMOMODE
-        if (emuPaddleStatus & 0x20){//dks paddle connected
-            demoModeUnlock = true; //only checks once
-        }
-    #endif
     init_music();
     load_spritesheet(ASSET__gfx__paddletank_paddle_bmp,PADDLESPRITEBANK);
     load_spritesheet(ASSET__gfx__PressStart_bmp,PRESSSTARTSPRITEBANK);
@@ -2541,26 +2404,6 @@ void main () {
     
     while (1) 
     {                                     //  Run forever
-        lazyDevFrameCounter++;
-        if (isEmulator){
-            if ((lazyDevFrameCounter & 0x3F)){//always checking in case someone connects/disconnects
-                CHECK_EMU_PADDLE_STATE();//warning: checks volatile memory
-            }
-        }
-        #if DEMOMODE
-        if (gameState!=STATE_ATTRACT){//life limit not applied to attract mode
-            if (!demoModeUnlock){ //not dks paddle connected
-                if (cycleLevel>3){//if level 3 is completed
-                    if (demoModeFrames++==2){//give at least 2 frames to refresh
-                        if (lives_left>0) {
-                            lives_left=0;//die asap
-                        }
-                    }
-                }
-            }
-        }
-        #endif
-        //GameWrapper();
         GameWrapperStateMachine();
         queue_clear_border(BGCOLOR);//2//color
 
