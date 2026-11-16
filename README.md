@@ -1,4 +1,6 @@
-# My GameTank Game
+# Brick Game
+
+This game uses the gametank_sdk (C SDK) https://github.com/clydeshaffer/gametank_sdk
 
 Build it with the "make" command
 
